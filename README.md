@@ -255,9 +255,11 @@ npm run lrnev -- init   # 本地 CLI
 
 ## 7. 问题反馈
 
-使用中遇到问题，欢迎 [提交 Issue](https://github.com/LuChangQiu/lrnev-govern/issues)。
+遇到问题？有想法？欢迎 [提 Issue](https://github.com/LuChangQiu/lrnev-govern/issues) 🙋
 
-不保证每个反馈都会修复，但**每一条都会认真分析**。如果是 bug，一定会修。如果暂时不改，也会在 Issue 里说明原因和考量。
+不保证每个反馈都会改，但**每一条都会认真看、认真想** 🧠。是 bug → 🔨 一定修。暂不改 → 📝 也会在 Issue 里说清楚为什么，不冷处理。
+
+> 💡 小提示：lrnev 管的是「AI 怎么写代码」的**流程和规范**，如果你想看的是「AI 怎么理解你的代码库」—— [codegraph](https://github.com/colbymchenry/codegraph) 给整个项目生成知识图谱，刚好互补。
 
 ## 许可证
 
