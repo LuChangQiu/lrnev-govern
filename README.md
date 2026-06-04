@@ -2,7 +2,7 @@
 
 > AI 协作开发的项目治理引擎 —— MCP 服务 + CLI 双形态，文件即真相，零模型依赖。
 
-npm 包名 `lrnev`，当前版本 `1.0.0`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。一行命令装好 👇
+npm 包名 `lrnev`，当前版本 `1.0.1`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。一行命令装好 👇
 
 ```bash
 npm install -g lrnev

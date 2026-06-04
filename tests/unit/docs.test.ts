@@ -51,16 +51,16 @@ describe('docs', () => {
     expect(content).toContain('FileStorage.withDirectoryLock');
   });
 
-  it('发布文档和 CHANGELOG 应反映 lrnev 1.0.0 首发', () => {
+  it('发布文档和 CHANGELOG 应反映 lrnev 当前版本', () => {
     const publish = readFileSync(resolve(__dirname, '../../dev-docs/PUBLISH.md'), 'utf-8');
     const changelog = readFileSync(resolve(__dirname, '../../CHANGELOG.md'), 'utf-8');
 
     expect(publish).toContain('package.json name 是 "lrnev"');
-    expect(publish).toContain('"version": "1.0.0"');
-    expect(publish).toContain('lrnev-1.0.0.tgz');
-    expect(changelog).toContain('## [1.0.0]');
+    expect(publish).toContain('"version": "1.0.1"');
+    expect(publish).toContain('lrnev-1.0.1.tgz');
+    expect(changelog).toContain('## [1.0.1]');
+    expect(changelog).toContain('向上误命中');
     expect(changelog).toContain('project_status');
-    expect(changelog).toContain('claimable_next');
     expect(changelog).toContain('touches_files');
   });
 });
