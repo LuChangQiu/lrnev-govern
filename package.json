@@ -1,0 +1,75 @@
+{
+  "name": "lrnev",
+  "version": "1.0.0",
+  "description": "lrnev-govern project governance service for AI-collaborative development. MCP server + CLI dual-form.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "lrnev": "./bin/lrnev.mjs",
+    "lrnev-mcp": "./bin/lrnev-mcp.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "templates",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "vitest run tests/e2e",
+    "dev:mcp": "tsx watch src/mcp/server.ts",
+    "dev:inspect": "npx @modelcontextprotocol/inspector tsx src/mcp/server.ts",
+    "lrnev": "tsx src/cli/index.ts",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run clean && npm run build && npm test"
+  },
+  "keywords": [
+    "mcp",
+    "ai",
+    "agent",
+    "project-management",
+    "spec-driven-development",
+    "governance",
+    "claude",
+    "cursor",
+    "codex"
+  ],
+  "author": "luchangqiu",
+  "license": "MIT",
+  "homepage": "https://github.com/LuChangQiu/lrnev-govern#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LuChangQiu/lrnev-govern.git"
+  },
+  "bugs": {
+    "url": "https://github.com/LuChangQiu/lrnev-govern/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "commander": "^12.1.0",
+    "glob": "^11.0.0",
+    "gray-matter": "^4.0.3",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "rimraf": "^6.0.0",
+    "tmp-promise": "^3.0.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

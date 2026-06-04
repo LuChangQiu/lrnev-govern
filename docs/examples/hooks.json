@@ -1,0 +1,26 @@
+[
+  {
+    "name": "task-completed-commit",
+    "event": "task.update.completed",
+    "command": ["git", "status", "--short"],
+    "mode": "sync",
+    "timeout_ms": 30000,
+    "on_failure": "warn"
+  },
+  {
+    "name": "completion-notify",
+    "event": "spec.gate_passed.completion",
+    "command": ["node", "scripts/notify.js"],
+    "mode": "async",
+    "env": {
+      "CHANNEL": "project-events"
+    }
+  },
+  {
+    "name": "task-update-any",
+    "event": "task.update.*",
+    "command": ["node", "scripts/task-event.js"],
+    "mode": "async",
+    "enabled": false
+  }
+]
