@@ -2,7 +2,7 @@
 
 > AI 协作开发的项目治理引擎。MCP 服务 + CLI 双形态，文件即真相，零模型依赖。
 
-npm 包名 `lrnev`，当前版本 `1.0.0`。源码目录是 `product/lrnev-govern/`；`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。
+npm 包名 `lrnev`，当前版本 `1.0.0`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。
 
 ---
 
@@ -105,7 +105,8 @@ npm install -g lrnev
 本地开发：
 
 ```bash
-cd product/lrnev-govern
+git clone https://github.com/LuChangQiu/lrnev-govern.git
+cd lrnev-govern
 npm install && npm run build && npm link
 ```
 
@@ -236,22 +237,28 @@ step 4: 出错 → 错误 hint 告诉它怎么修正（不用问用户）
 |------|------|
 | [`examples/sample-project`](examples/sample-project) | 从初始化到 gate 通过的 CLI 上手 demo |
 
-| 维护者文档 | 内容 |
-|------------|------|
-| [`dev-docs/PUBLISH.md`](dev-docs/PUBLISH.md) | npm 发布流程 |
-| [`dev-docs/INTEGRATION-TEST.md`](dev-docs/INTEGRATION-TEST.md) | MCP 接入配置 + 全流程测试清单 |
-
 ---
 
 ## 6. 开发
 
 ```bash
 npm install && npm run build
-npm test            # 526 条，39 文件
+npm test            # 532 条测试
 npm run dev:mcp     # tsx watch 跑 MCP
 npm run dev:inspect # MCP Inspector
+npm run lrnev -- init   # 本地 CLI
 ```
+
+详见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+
+---
+
+## 7. 问题反馈
+
+使用中遇到问题，欢迎 [提交 Issue](https://github.com/LuChangQiu/lrnev-govern/issues)。
+
+不保证每个反馈都会修复，但**每一条都会认真分析**。如果是 bug，一定会修。如果暂时不改，也会在 Issue 里说明原因和考量。
 
 ## 许可证
 
-MIT
+[MIT](LICENSE)
