@@ -1,35 +1,37 @@
-# lrnev
+# lrnev 🧭
 
-> AI 协作开发的项目治理引擎。MCP 服务 + CLI 双形态，文件即真相，零模型依赖。
+> AI 协作开发的项目治理引擎 —— MCP 服务 + CLI 双形态，文件即真相，零模型依赖。
 
-npm 包名 `lrnev`，当前版本 `1.0.0`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。
+npm 包名 `lrnev`，当前版本 `1.0.0`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。一行命令装好 👇
+
+```bash
+npm install -g lrnev
+```
 
 ---
 
-## 1. 介绍
+## 1. 介绍 🤔
 
-lrnev 是一套给 AI 写代码用的治理工具。它不调任何 LLM/Embedding API，只做确定性的事（文件读写 / ID / 状态机 / 锁 / 结构检查），把"需要理解和判断"的事通过 `ai_followup` 交给客户端 AI。
+lrnev 是一套给 AI 写代码用的治理工具。它的哲学很简单：**能算出来的事自己干，需要判断的事交给 AI**。
 
-**核心定位**
+- 🧮 **确定性归 lrnev**：文件读写、ID 分配、状态机、并发锁、结构契约校验 —— 这些事规则明确，lrnev 自己做，**不调任何 LLM / Embedding API**。
+- 🧠 **判断性归 AI**：内容质量好不好、该拆成几个 Spec、这个该走 ADR 还是开 Spec —— 这些事没有标准答案，通过 `ai_followup` 交给客户端的 AI 去判断。
 
-- **确定性归 lrnev**：文件读写、ID 分配、状态机、并发锁、结构契约校验
-- **判断性归 AI**：内容质量、任务拆分、该开 Spec 还是走轻产物
+**适合你如果** ✨
 
-**适合场景**
+- 一个人开好几个 AI 窗口干活，窗口之间要接力、别互相踩
+- 想让 AI 写的每行代码都能追溯到"谁提的、怎么验收"
+- 自己是做 MCP 工具/插件的，想给用户一套治理骨架
 
-- 一人多窗口跑多个 AI 会话，会话之间需要接力
-- 希望 AI 写出的代码有需求追踪、有验收可挂
-- 做了 MCP 集成的工具作者
-
-**不依赖任何特定客户端**。Claude Code / Cursor / Codex / 任何支持 MCP 的工具都能用。不接 MCP 直接敲 CLI 也行。
+**不绑定客户端**。Claude Code / Cursor / Codex / 任何支持 MCP 的都能用，不接 MCP 直接敲 CLI 也行 🆓
 
 设计哲学与 OpenViking 的边界见 [`docs/GOVERNANCE-FLOW.md`](docs/GOVERNANCE-FLOW.md)。
 
 ---
 
-## 2. `.lrnev/` 工作区结构
+## 2. `.lrnev/` 工作区 📂
 
-`lrnev init` 在项目根创建。所有数据都是 markdown + frontmatter，可直接 `git add .lrnev/`。
+`lrnev init` 在项目根创建。全是 markdown + frontmatter，人可直接读、AI 可直接写、`git add .lrnev/` 即可版本管理。不用数据库，不搞黑盒。
 
 ```
 .lrnev/
@@ -94,7 +96,7 @@ lrnev 是一套给 AI 写代码用的治理工具。它不调任何 LLM/Embeddin
 
 ---
 
-## 3. 使用
+## 3. 使用 🚀
 
 ### 安装
 
@@ -102,7 +104,7 @@ lrnev 是一套给 AI 写代码用的治理工具。它不调任何 LLM/Embeddin
 npm install -g lrnev
 ```
 
-本地开发：
+搞定 ✨ 想在本地改源码玩：
 
 ```bash
 git clone https://github.com/LuChangQiu/lrnev-govern.git
@@ -110,21 +112,21 @@ cd lrnev-govern
 npm install && npm run build && npm link
 ```
 
-### 接入 AI 客户端
+### 接入 AI 客户端 🔌
 
-在客户端 MCP 配置里加：
+在客户端 MCP 配置里加一行：
 
 ```json
 { "mcpServers": { "lrnev": { "command": "lrnev-mcp" } } }
 ```
 
-Claude Code / Cursor / Codex / 任何支持 MCP 的都能用。首次对话建议对 AI 说：
+搞定。首次对话对 AI 说一句就行：
 
 > 这个项目用 lrnev 治理。先调 lrnev_guide 了解怎么用，再按指引推进。
 
-### 防长对话遗忘：常驻提示词
+### 防长对话遗忘 💤
 
-MCP 的工作流说明只在连接时注入一次，多轮对话压缩后 AI 可能"忘掉"应该用 lrnev。把下面这段贴进客户端的**常驻提示槽**（它不会被压缩），AI 每轮都被提醒：
+MCP 的工作流说明只在连接时注入一次。聊了几十轮之后 AI 可能"忘了"要用 lrnev——正常现象。把下面这段贴进客户端的**常驻提示槽**（不会被压缩），AI 每轮都被提醒：
 
 - **Claude Code**：项目根 `CLAUDE.md`
 - **Cursor**：`.cursor/rules` 或 Settings → Rules
@@ -141,7 +143,7 @@ MCP 的工作流说明只在连接时注入一次，多轮对话压缩后 AI 可
 5. 不清楚怎么用就调 lrnev_guide。
 ```
 
-### 常用命令
+### 常用命令 👇
 
 ```bash
 # 初始化工作区（不传 --project-name 则默认用当前文件夹名）
@@ -175,11 +177,11 @@ lrnev doctor --migrate-todos
 lrnev guide
 ```
 
-完整命令：`lrnev --help`。MCP 工具名跟 CLI 子命令一一对应（`spec_create` / `task_update` / `project_status` 等）。
+完整命令：`lrnev --help`。MCP 工具名跟 CLI 子命令一一对应，同一个能力两条路都能走 🚶‍♂️
 
 ---
 
-## 4. 主要流程
+## 4. 主要流程 🔄
 
 ### 新建特性
 
@@ -212,18 +214,18 @@ flowchart LR
   Read -->|全部空闲| New[从 free_tasks_count > 0 的 Spec 领活]
 ```
 
-### AI 看到什么
+### AI 的视角 👀
 
 ```
-step 1: 连上 → server instructions 告诉它"lrnev 是什么 + 新建 / 接手怎么走"
-step 2: 困惑 → 调 lrnev_guide 拿完整手册
-step 3: 每调一个工具 → ai_followup 告诉它下一步该干嘛
-step 4: 出错 → 错误 hint 告诉它怎么修正（不用问用户）
+step 1: 连上 → server instructions 告诉它"lrnev 是什么 + 新建/接手怎么走"
+step 2: 懵了 → 调 lrnev_guide 拿完整手册
+step 3: 每调一个工具 → ai_followup 推给它下一步该干嘛
+step 4: 搞砸了 → 错误 hint 告诉它怎么修（不用回头问用户）
 ```
 
 ---
 
-## 5. 文档与示例
+## 5. 文档与示例 📚
 
 | 用户文档 | 内容 |
 |----------|------|
@@ -239,27 +241,29 @@ step 4: 出错 → 错误 hint 告诉它怎么修正（不用问用户）
 
 ---
 
-## 6. 开发
+## 6. 开发 🛠️
 
 ```bash
 npm install && npm run build
-npm test            # 532 条测试
+npm test            # 532 条测试 ✅
 npm run dev:mcp     # tsx watch 跑 MCP
-npm run dev:inspect # MCP Inspector
-npm run lrnev -- init   # 本地 CLI
+npm run dev:inspect # MCP Inspector 调试
+npm run lrnev -- init   # 本地跑 CLI
 ```
 
-详见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+想一起搞？先看 [`CONTRIBUTING.md`](CONTRIBUTING.md) 🤝
 
 ---
 
-## 7. 问题反馈
+## 7. 问题反馈 💬
 
-遇到问题？有想法？欢迎 [提 Issue](https://github.com/LuChangQiu/lrnev-govern/issues) 🙋
+遇到问题？有灵感？欢迎 [提 Issue](https://github.com/LuChangQiu/lrnev-govern/issues) 🙋
 
 不保证每个反馈都会改，但**每一条都会认真看、认真想** 🧠。是 bug → 🔨 一定修。暂不改 → 📝 也会在 Issue 里说清楚为什么，不冷处理。
 
-> 💡 小提示：lrnev 管的是「AI 怎么写代码」的**流程和规范**，如果你想看的是「AI 怎么理解你的代码库」—— [codegraph](https://github.com/colbymchenry/codegraph) 给整个项目生成知识图谱，刚好互补。
+> 💡 小提示：lrnev 管的是「AI 怎么写代码」的**流程和规范**，如果你想看「AI 怎么理解你的代码库」—— [codegraph](https://github.com/colbymchenry/codegraph) 给整个项目生成知识图谱，一个管流程一个管理解，刚好互补 ⚡
+
+---
 
 ## 许可证
 
