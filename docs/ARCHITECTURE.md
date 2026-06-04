@@ -1,6 +1,6 @@
 # 源码结构说明
 
-> 适用于：`product/lrnev-govern/`
+> 适用于：`lrnev-govern/`（npm 包 `lrnev`）
 > 参考依据：
 > - 官方 MCP servers 仓库（`research/P2_26_MCP-servers/src/everything/` 模式）
 > - 本仓库当前源码结构
@@ -73,8 +73,7 @@ lrnev-govern/
 │   │
 │   ├── cli/                        # CLI 层
 │   │   ├── index.ts                # commander 入口和子命令注册
-│   │   └── commands/
-│   │       └── index.ts            # CLI command 实现
+│   │   └── index.ts                # CLI command 入口
 │   │
 │   ├── types/                      # 共享类型定义
 │   │   ├── adr.ts
@@ -117,7 +116,6 @@ lrnev-govern/
 │   └── fixtures/                   # 测试样板项目
 │
 ├── docs/                           # 面向用户的说明
-├── dev-docs/                       # 维护者发布、集成测试说明
 ├── examples/                       # 可运行样例项目
 ├── package.json                    # name: lrnev, bin: lrnev + lrnev-mcp
 ├── tsconfig.json                   # ES2022 + NodeNext + strict
@@ -151,7 +149,7 @@ lrnev-govern/
 | 类型 | 风格 | 例子 |
 |------|------|------|
 | 类（Manager / Store / Runner） | PascalCase | `TaskManager.ts` |
-| 功能聚合文件 | kebab-case | `project-status.ts` |
+| 功能聚合文件 | kebab-case | `auto-analyzer.ts` |
 | MCP tools / CLI commands 聚合入口 | index.ts | `src/mcp/tools/index.ts` |
 | 测试文件 | `<被测>.test.ts` | `task-manager.test.ts` |
 

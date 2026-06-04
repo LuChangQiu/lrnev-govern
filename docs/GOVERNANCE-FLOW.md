@@ -16,9 +16,10 @@
 - Task 支持 `validates` 追溯需求/设计，`in_progress` 时强制提醒回看上下文。
 - Task 支持 `parent` 子任务，同一 `tasks.md` 的写入有 Spec 级短锁保护。
 
-仍需人工/外部验证的项：
+已完成的真机验证（v1.0.0 发布前）：
 
-- 在真实 Claude Code 客户端里手动跑两条 MCP 流程：`project_status` 接手流程、新建 Spec 到 completion gate 的流程。本地 CLI 和 MCP 协议测试已经覆盖同一 core 行为，但不能替代客户端手测。
+- OpenCode 1.15.13：初始化、黄金路径、能力域全覆盖 ✅
+- Codex CLI 0.136.0：34 个 MCP 工具全调通、Java 项目探测修复验证 ✅
 
 保留为可选后续优化的项：
 
