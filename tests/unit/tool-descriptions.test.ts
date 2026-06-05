@@ -113,12 +113,12 @@ describe('MCP 工具自描述审计', () => {
       'lrnev_init',
       'spec_create',
       'project_status',
-      '三档分流',
+      '分流',
       'lrnev_guide',
     ]) {
       expect(WORKFLOW_OVERVIEW).toContain(keyword);
     }
-    expect([...WORKFLOW_OVERVIEW].length).toBeLessThanOrEqual(400);
+    expect([...WORKFLOW_OVERVIEW].length).toBeLessThanOrEqual(480);
   });
 
   it('所有注册工具 description 都来自 guidance 且包含何时用', async () => {
@@ -132,7 +132,7 @@ describe('MCP 工具自描述审计', () => {
         expect(tool.description).toBe(expected[tool.name]);
         expect(tool.description).toContain('何时用');
         expect(isBareDescription(tool)).toBe(false);
-        expect([...tool.description].length).toBeLessThanOrEqual(150);
+        expect([...tool.description].length).toBeLessThanOrEqual(180);
       }
     } finally {
       await client.close();

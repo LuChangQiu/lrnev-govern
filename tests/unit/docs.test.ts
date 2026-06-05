@@ -56,11 +56,10 @@ describe('docs', () => {
     const changelog = readFileSync(resolve(__dirname, '../../CHANGELOG.md'), 'utf-8');
 
     expect(publish).toContain('package.json name 是 "lrnev"');
-    expect(publish).toContain('"version": "1.0.1"');
-    expect(publish).toContain('lrnev-1.0.1.tgz');
-    expect(changelog).toContain('## [1.0.1]');
-    expect(changelog).toContain('向上误命中');
-    expect(changelog).toContain('project_status');
-    expect(changelog).toContain('touches_files');
+    expect(publish).toContain('"version": "1.1.0"');
+    expect(publish).toContain('lrnev-1.1.0.tgz');
+    expect(changelog).toContain('## [1.1.0]');
+    expect(changelog).toContain('spec_update');
+    expect(changelog).toContain('archived');
   });
 });

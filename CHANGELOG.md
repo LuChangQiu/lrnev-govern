@@ -2,6 +2,22 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [SemVer 2.0](https://semver.org/lang/zh-CN/)。
 
+## [1.1.0] - 2026-06-05
+
+围绕"Spec 生命周期收尾"与"防止小事乱开 Spec"做的一组治理增强。
+
+### Added
+
+- **新增 `spec_update` 工具**（MCP + CLI）：按状态机更新 Spec 状态（draft→ready→in-progress→completed→archived），非法转换会被拒绝并给出可走的目标。此前只能手编 frontmatter，AI 无法正规地回填或归档 Spec 状态。
+
+### Changed
+
+- **`project_status` 尊重 `archived` 状态**：已归档的 Spec 仍出现在列表（保留历史），但它的待办任务不再计入 `claimable_next` / `free_tasks_count` / 活跃任务，避免被取代的旧版污染接手快照。
+- **开重写版时引导归档旧版**：`spec_create --version` 检测到同名旧版时，followup 提示可用 `spec_update` 把旧版标 `archived`（不自动归档，判断权在 AI/用户）。
+- **`spec_get` 对已实现的 Spec 提示考虑开新版**：仅当 Spec 有已完成任务或已 completed 时出声，其余情况零噪音。
+- **强化"该不该开 Spec"的引导**：工具描述、工作流说明和提示词模板统一改为"先自问能否写出 WHEN…THEN 验收且可独立交付——是才开 Spec；改文档/小重构/调参数/答问题等小改动直接做、不要开 Spec"。修正了 AI 倾向把小修小补都开成独立 Spec 的问题。
+- **README 面向新用户重写介绍**：补充"为什么用它/不用会怎样""只引导不强制的宗旨""token 成本说明""什么是 Spec"等，降低上手门槛。
+
 ## [1.0.1] - 2026-06-04
 
 ### Changed
@@ -27,4 +43,6 @@
 
 ---
 
-[1.0.0]: https://github.com/luchangqiu/lrnev-govern/releases/tag/v1.0.0
+[1.1.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.1.0
+[1.0.1]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.0.1
+[1.0.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.0.0

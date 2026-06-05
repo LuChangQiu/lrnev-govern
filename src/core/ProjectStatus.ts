@@ -136,6 +136,9 @@ export class ProjectStatus {
       const tasks = this.fs.exists(tasksPath)
         ? attachTaskChildren(parseTasksFromMarkdown(await this.fs.read(tasksPath), sceneId, specId))
         : [];
+      // archived Spec 已收尾：仍在 specs 列表可见（带真实 task_counts），
+      // 但不再贡献"可领任务"和顶层 active_tasks，避免旧版/废弃方案污染接手快照。
+      const isArchived = (frontmatter.status ?? 'draft') === 'archived';
       const active = tasks.filter((task): task is typeof task & { status: 'in_progress' | 'blocked' } => (
         task.status === 'in_progress' || task.status === 'blocked'
       ));
@@ -143,7 +146,9 @@ export class ProjectStatus {
       const pendingTasks = tasks
         .filter((task): task is Task & { status: 'pending' } => task.status === 'pending')
         .sort((a, b) => a.id.localeCompare(b.id));
-      const claimableTasks = pendingTasks.filter((task) => !activeClaimSet.has(taskKey(sceneId, specId, task.id)));
+      const claimableTasks = isArchived
+        ? []
+        : pendingTasks.filter((task) => !activeClaimSet.has(taskKey(sceneId, specId, task.id)));
       const freeTasksCount = claimableTasks.length;
       const claimableNext = claimableTasks.slice(0, this.claimablePreview()).map(toProjectStatusTaskBrief);
 
@@ -156,13 +161,13 @@ export class ProjectStatus {
         status: frontmatter.status ?? 'draft',
         ...(frontmatter.priority && { priority: frontmatter.priority }),
         ...(frontmatter.created && { created: frontmatter.created }),
-        active_task_count: active.length,
+        active_task_count: isArchived ? 0 : active.length,
         task_counts: taskCounts,
         free_tasks_count: freeTasksCount,
         claimable_next: claimableNext,
       });
 
-      activeTasks.push(...active.map((task) => toProjectStatusTask(task)));
+      if (!isArchived) activeTasks.push(...active.map((task) => toProjectStatusTask(task)));
     }
 
     return { specs, activeTasks };

@@ -98,10 +98,11 @@ CLI 与 MCP 共用 core 逻辑；差异只在入口层。
 ```text
 本项目用 lrnev 治理。规则：
 1. 不确定当前状态时，先调 project_status，不要凭记忆直接改代码。
-2. 新建可交付特性走 spec_create；踩坑→error_record，小决策→adr_create，约定→memory_save。
-3. 新建多特性需求时，先按拆分标尺判断单/多 Spec（可用 assess_goal 辅助），别把多个特性塞进一个 Spec。
-4. 改代码前确认对应 task 已 task_update(in_progress)，完成后 task_update(completed)。
-5. 不清楚怎么用就调 lrnev_guide。
+2. 【先想清楚该不该开 spec，自己判断、别对着清单匹配】问自己两点：这事(a)能写出一条有意义的"WHEN…THEN"验收吗？(b)是可独立交付的特性吗？两个都"是"才 spec_create。否则——比如改文档/排版/注释、小重构、调参数、回答问题等(这些只是举例，不止这些)——直接做，不要开 spec。拿不准就问我，别默认开 spec。
+3. 踩坑→error_record，技术决策→adr_create，约定→memory_save；都不沾的小事直接做。
+4. 多特性需求先按拆分标尺判断单/多 Spec（可用 assess_goal 辅助），别把多个特性塞进一个 Spec。
+5. 改代码前确认对应 task 已 task_update(in_progress)，完成后 task_update(completed)。
+6. 不清楚怎么用就调 lrnev_guide。
 ```
 
 ### 好 Prompt

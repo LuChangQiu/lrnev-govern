@@ -19,7 +19,7 @@ interface PackageJson {
 
 const pkg: PackageJson = JSON.parse(readFileSync(pkgPath, 'utf-8'));
 
-/** 当前 lrnev 包版本号，例如 "1.0.0" */
+/** 当前 lrnev 包版本号，例如 "1.1.0" */
 export const VERSION = pkg.version;
 
 /** npm 包名，固定为 "lrnev" */

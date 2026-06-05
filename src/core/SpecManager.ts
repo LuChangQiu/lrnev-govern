@@ -15,7 +15,7 @@
  * 例：01-00-user-registration、02-00-user-login、01-01-user-registration(重写版)
  */
 
-import { parseFrontmatter } from '../storage/FrontmatterCodec.js';
+import { parseFrontmatter, serializeFrontmatter } from '../storage/FrontmatterCodec.js';
 import { FileStorage } from '../storage/FileStorage.js';
 import { LrnevError, ErrorCode } from '../shared/errors.js';
 import { loadConfig } from '../shared/config.js';
@@ -23,9 +23,11 @@ import { renderTemplate, today, toTitleCase } from './Templates.js';
 import { DEFAULT_SCENE_ID, SceneManager } from './SceneManager.js';
 import { appendHookWarnings, getHookManager } from './HookManager.js';
 import { EARS_ACCEPTANCE_EXAMPLE } from '../mcp/guidance.js';
+import { VALID_SPEC_TRANSITIONS, isValidSpecTransition } from '../types/spec.js';
 import type {
   Spec,
   SpecFrontmatter,
+  SpecStatus,
   SpecDocument,
   CreateSpecInput,
 } from '../types/spec.js';
@@ -125,6 +127,53 @@ export class SpecManager {
   }
 
   /**
+   * 按状态机更新 Spec 状态（draft→ready→in-progress→completed→archived）。
+   *
+   * 激活 types/spec.ts 的 VALID_SPEC_TRANSITIONS：合法转换写回 requirements.md
+   * frontmatter（status + updated），非法转换抛 INVALID_STATUS_TRANSITION。
+   * 相同状态幂等返回，不报错。lrnev 不替 AI 决定何时改状态，只提供这条改的通道。
+   */
+  async updateStatus(
+    sceneInput: string,
+    specInput: string,
+    status: SpecStatus,
+    reason?: string,
+  ): Promise<AiFollowupResponse<Spec>> {
+    const current = await this.get(sceneInput, specInput);
+    const from = current.status;
+
+    if (from !== status) {
+      if (!isValidSpecTransition(from, status)) {
+        const allowed = VALID_SPEC_TRANSITIONS[from];
+        throw new LrnevError(
+          ErrorCode.INVALID_STATUS_TRANSITION,
+          `非法 Spec 状态转换：${from} → ${status}`,
+          {
+            field: 'status',
+            hint: allowed.length > 0
+              ? `当前 ${from} 只允许转换到：${allowed.join('、')}`
+              : `${from} 是终态，不能再转换；如需重做请用 spec_create 开新版`,
+          },
+        );
+      }
+      const reqPath = `.lrnev/scenes/${current.scene}/specs/${current.spec}/requirements.md`;
+      const content = await this.fs.read(reqPath);
+      const parsed = parseFrontmatter<SpecFrontmatter>(content);
+      const next = { ...parsed.frontmatter, status, updated: today() };
+      await this.fs.write(reqPath, serializeFrontmatter(next, parsed.body));
+    }
+
+    const data = await this.get(current.scene, current.spec);
+    const instructions = from === status
+      ? [`Spec "${data.spec}" 已是 ${status}，无需变更。`]
+      : [`Spec "${data.spec}" 状态 ${from} → ${status}${reason ? `（${reason}）` : ''}。`];
+    if (status === 'archived') {
+      instructions.push('已归档：该 Spec 的待办任务不再出现在 project_status 的可领任务列表。');
+    }
+    return { ok: true, data, ai_followup: { instructions } };
+  }
+
+  /**
    * 创建 Spec。
    *
    * 流程：
@@ -177,27 +226,48 @@ export class SpecManager {
       );
     }
 
+    const suggestedTools: Array<{ name: string; args_template: Record<string, unknown>; reason: string }> = [
+      {
+        name: 'spec_gate_check',
+        args_template: { scene: sceneId, spec: spec.spec, gate: 'ready' },
+        reason: '需求填完后检查是否可进入实施',
+      },
+      {
+        name: 'summarize_save',
+        args_template: {
+          uri: `context://spec/${sceneId}/${spec.spec}`,
+          l0: '<一句话摘要>',
+          l1: '<约 2000 token 概览>',
+        },
+        reason: '需求稳定后生成 L0/L1，便于跨 Spec 检索',
+      },
+    ];
+
+    // 重写版引导归档旧版：version>0 且存在同名、更低版本的旧 Spec 时，
+    // surface 归档动作（不自动归档，是否归档由 AI/用户判断）。
+    if (version > 0) {
+      const prevId = siblingSpecIds
+        .map((id) => ({ id, parts: tryParseSpecParts(id) }))
+        .filter((s) => s.parts && s.parts.name === input.name && s.parts.version < version)
+        .sort((a, b) => b.parts!.version - a.parts!.version)[0]?.id;
+      if (prevId) {
+        instructions.push(
+          `检测到这是 ${prevId} 的重写版。若旧版方案已被本版取代，可用 spec_update 把 ${prevId} 标记为 archived（归档后它的待办任务不再出现在 project_status 的可领列表）；是否归档由你和用户判断，lrnev 不自动归档。`,
+        );
+        suggestedTools.push({
+          name: 'spec_update',
+          args_template: { scene: sceneId, spec: prevId, status: 'archived' },
+          reason: '旧版方案已被本重写版取代时归档旧版',
+        });
+      }
+    }
+
     return appendHookWarnings({
       ok: true,
       data: spec,
       ai_followup: {
         instructions,
-        suggested_tools: [
-          {
-            name: 'spec_gate_check',
-            args_template: { scene: sceneId, spec: spec.spec, gate: 'ready' },
-            reason: '需求填完后检查是否可进入实施',
-          },
-          {
-            name: 'summarize_save',
-            args_template: {
-              uri: `context://spec/${sceneId}/${spec.spec}`,
-              l0: '<一句话摘要>',
-              l1: '<约 2000 token 概览>',
-            },
-            reason: '需求稳定后生成 L0/L1，便于跨 Spec 检索',
-          },
-        ],
+        suggested_tools: suggestedTools,
       },
     }, hookResult.warnings);
   }

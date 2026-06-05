@@ -38,6 +38,7 @@ describe('MCP server', () => {
         'spec_create',
         'spec_list',
         'spec_get',
+        'spec_update',
         'task_create',
         'task_update',
         'task_list',
@@ -130,6 +131,43 @@ describe('MCP server', () => {
 
       expect(payload.data.passed).toBe(false);
       expect(payload.ai_followup?.instructions.join('\n')).toContain('ready gate 未通过');
+
+      await client.close();
+      await server.close();
+    } finally {
+      if (original === undefined) delete process.env.LRNEV_WORKSPACE;
+      else process.env.LRNEV_WORKSPACE = original;
+      await workspace.cleanup();
+    }
+  });
+
+  it('12-F02 spec_get 仅对已实现的 Spec 提示考虑开新版（其余零噪音）', async () => {
+    const workspace = await tmpDir({ unsafeCleanup: true });
+    const original = process.env.LRNEV_WORKSPACE;
+    process.env.LRNEV_WORKSPACE = workspace.path;
+    try {
+      const { server, client } = await connectInMemory();
+      await client.callTool({ name: 'lrnev_init', arguments: { root: workspace.path, project_name: 'demo' } });
+      await client.callTool({ name: 'scene_create', arguments: { name: 'sg' } });
+      await client.callTool({ name: 'spec_create', arguments: { scene: 'sg', name: 'feat-x' } });
+
+      const parse = (r: Awaited<ReturnType<typeof client.callTool>>) => {
+        const t = r.content[0]?.type === 'text' ? r.content[0].text : '';
+        return JSON.parse(t) as { data?: unknown; ai_followup?: { instructions: string[] }; status?: string };
+      };
+
+      // draft（未实现）→ 无 followup 提示
+      const draftGet = parse(await client.callTool({ name: 'spec_get', arguments: { scene: 'sg', spec: 'feat-x' } }));
+      const draftText = JSON.stringify(draftGet);
+      expect(draftText).not.toContain('整体推翻重做');
+
+      // 标 completed（已实现）→ spec_get 提示考虑开新版
+      await client.callTool({ name: 'spec_update', arguments: { scene: 'sg', spec: 'feat-x', status: 'ready' } });
+      await client.callTool({ name: 'spec_update', arguments: { scene: 'sg', spec: 'feat-x', status: 'in-progress' } });
+      await client.callTool({ name: 'spec_update', arguments: { scene: 'sg', spec: 'feat-x', status: 'completed' } });
+
+      const doneGet = parse(await client.callTool({ name: 'spec_get', arguments: { scene: 'sg', spec: 'feat-x' } }));
+      expect(doneGet.ai_followup?.instructions.join('\n')).toContain('整体推翻重做');
 
       await client.close();
       await server.close();

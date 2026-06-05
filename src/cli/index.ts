@@ -31,7 +31,7 @@ import { ErrorCode, LrnevError, isLrnevError } from '../shared/errors.js';
 import { buildGuide, GUIDE_TOPIC_VALUES, type GuideTopic } from '../mcp/guidance.js';
 import type { Scope } from '../types/response.js';
 import type { GateType } from '../types/gate.js';
-import type { SpecPriority } from '../types/spec.js';
+import type { SpecPriority, SpecStatus } from '../types/spec.js';
 import type { TaskStatus } from '../types/task.js';
 
 export interface BuildCliOptions {
@@ -196,6 +196,13 @@ function buildSpecCommand(program: Command, options: BuildCliOptions): Command {
     .requiredOption('--scene <scene>', 'Scene 标识')
     .argument('<spec>', 'Spec 标识')
     .action(run(program, options, async (opts, specId: string) => managers(opts).specs.get(opts.scene, specId)));
+  spec.command('update')
+    .requiredOption('--scene <scene>', 'Scene 标识')
+    .requiredOption('--status <status>', '目标状态 draft/ready/in-progress/completed/archived')
+    .option('--reason <reason>', '变更原因')
+    .argument('<spec>', 'Spec 标识')
+    .action(run(program, options, async (opts, specId: string) =>
+      managers(opts).specs.updateStatus(opts.scene, specId, opts.status as SpecStatus, opts.reason)));
   return spec;
 }
 

@@ -322,6 +322,37 @@ describe('ProjectStatus', () => {
       }),
     ]);
   });
+
+  it('12-F04 archived Spec 仍在列表但不贡献可领/活跃任务', async () => {
+    const scene = await scenes.create({ name: 'archived-scene' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'old-feature' });
+    await tasks.create({ scene: scene.data.id, spec: spec.data.spec, title: 'Pending 1' });
+    await tasks.create({ scene: scene.data.id, spec: spec.data.spec, title: 'Pending 2' });
+    const active = await tasks.create({ scene: scene.data.id, spec: spec.data.spec, title: 'In progress' });
+    await tasks.update({ scene: scene.data.id, spec: spec.data.spec, task_id: active.data.id, status: 'in_progress' });
+
+    // 归档前：有可领任务、有活跃任务
+    const before = await new ProjectStatus(fs, scenes).get();
+    const specBefore = before.data.specs.find((s) => s.spec === spec.data.spec)!;
+    expect(specBefore.free_tasks_count).toBe(2);
+    expect(specBefore.claimable_next.length).toBe(2);
+    expect(before.data.active_tasks.some((t) => t.spec === spec.data.spec)).toBe(true);
+
+    // 归档
+    await specs.updateStatus(scene.data.id, spec.data.spec, 'ready');
+    await specs.updateStatus(scene.data.id, spec.data.spec, 'archived');
+
+    const after = await new ProjectStatus(fs, scenes).get();
+    const specAfter = after.data.specs.find((s) => s.spec === spec.data.spec)!;
+    // 仍在列表、状态 archived、task_counts 真实
+    expect(specAfter).toBeDefined();
+    expect(specAfter.status).toBe('archived');
+    expect(specAfter.task_counts.pending).toBe(2);
+    // 但不再贡献可领/活跃
+    expect(specAfter.free_tasks_count).toBe(0);
+    expect(specAfter.claimable_next).toEqual([]);
+    expect(after.data.active_tasks.some((t) => t.spec === spec.data.spec)).toBe(false);
+  });
 });
 
 async function writeUserConfig(root: string, data: unknown): Promise<void> {

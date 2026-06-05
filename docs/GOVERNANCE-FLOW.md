@@ -105,12 +105,25 @@ draft -> ready -> in-progress -> completed -> archived
 
 额外允许的 Spec 回退 / 归档路径包括 `ready -> draft`、`ready -> archived`、`in-progress -> ready`、`in-progress -> archived`、`completed -> in-progress | archived`。`archived` 是终态。
 
-status 不阻塞 gate。推荐回填语义是：
+status 不阻塞 gate。用 `spec_update` 工具按状态机改 Spec 状态(非法转换会被拒绝)。推荐回填语义是：
 
-- `ready` gate 通过：建议 `spec.status = ready`。
-- 第一个 Task 改为 `in_progress`：建议 `spec.status = in-progress`。
-- `completion` gate 通过：建议 `spec.status = completed`。
-- `completed -> in-progress`：允许，但会提醒这表示又出现未完成工作。
+- `ready` gate 通过：`spec_update status=ready`。
+- 第一个 Task 改为 `in_progress`：`spec_update status=in-progress`。
+- `completion` gate 通过：`spec_update status=completed`。
+- `completed -> in-progress`：允许，但表示又出现未完成工作。
+
+## 重写、归档与需求落位
+
+**整体重写该不该开新版，按"是否有已实现沉淀"判，不要无脑开新版：**
+
+- Spec **还没实现**(无 completed task 且 status 为 draft/ready)：要推翻/重写需求或设计，**直接编辑当前 requirements/design 即可，不要开新版**。开新版只会留下一堆没用的 pending。
+- Spec **已有实现**(有 completed task 或 status=completed)：整体推翻重做才开新版 `spec_create --version`(VV+1)保留旧版对照，旧版被取代后用 `spec_update status=archived` 归档；只是增量加需求时，在本版 `task_create` 即可，不必新开 spec。
+
+`spec_get` 对已有实现的 Spec 会提示考虑开新版(其余情况不提示，避免噪音)。
+
+**归档语义**：`archived` 是终态。归档后的 Spec 仍出现在 `project_status` 的 specs 列表(可见历史)，但它的待办任务**不再进入** `claimable_next` / `free_tasks_count` / 顶层 `active_tasks`，不会再冒充"有活可领"。
+
+**需求落位(用户记不住每个 Spec 是常态)**：用户用模糊需求("导出那块加个 Excel")让 AI 改东西时，AI 应自己先用 `context_search`(关键词)或读相关 Spec 的 `.abstract.md` 确认它对应哪个现有 Spec、实现到哪了，再判断是原地改、加 task 还是开新版——而不是凭模糊需求直接开新 Spec 或写代码。落位是 AI 的判断职责，不该要求用户记住 Spec 编号。
 
 ## 接手入口 project_status
 

@@ -501,4 +501,63 @@ describe('SpecManager', () => {
       }
     });
   });
+
+  describe('12-F01 updateStatus（spec 状态机）', () => {
+    it('合法转换应写回 frontmatter status', async () => {
+      const created = await specs.create({ scene: 'user-management', name: 'login-flow' });
+      const id = created.data.spec;
+
+      const ready = await specs.updateStatus('user-management', id, 'ready');
+      expect(ready.data.status).toBe('ready');
+      expect((await specs.get('user-management', id)).status).toBe('ready');
+
+      const archived = await specs.updateStatus('user-management', id, 'archived');
+      expect(archived.data.status).toBe('archived');
+      expect(archived.ai_followup?.instructions.join('\n')).toContain('归档');
+    });
+
+    it('非法转换应报 INVALID_STATUS_TRANSITION 并列出允许目标', async () => {
+      const created = await specs.create({ scene: 'user-management', name: 'archive-test' });
+      await specs.updateStatus('user-management', created.data.spec, 'archived');
+      try {
+        await specs.updateStatus('user-management', created.data.spec, 'ready');
+        throw new Error('should have thrown');
+      } catch (err) {
+        expect(isLrnevError(err)).toBe(true);
+        if (isLrnevError(err)) {
+          expect(err.code).toBe(ErrorCode.INVALID_STATUS_TRANSITION);
+          expect(err.message).toContain('archived → ready');
+          expect(err.hint).toContain('终态');
+        }
+      }
+    });
+
+    it('相同状态应幂等返回，不报错', async () => {
+      const created = await specs.create({ scene: 'user-management', name: 'idempotent' });
+      const res = await specs.updateStatus('user-management', created.data.spec, 'draft');
+      expect(res.data.status).toBe('draft');
+      expect(res.ai_followup?.instructions.join('\n')).toContain('无需变更');
+    });
+  });
+
+  describe('12-F03 重写版创建引导归档旧版', () => {
+    it('version>0 且有同名旧版时 followup 含归档引导 + suggested_tools 含 spec_update', async () => {
+      await specs.create({ scene: 'user-management', name: 'export-feature' });
+      const rewrite = await specs.create({ scene: 'user-management', name: 'export-feature', version: 1 });
+
+      const instructions = rewrite.ai_followup!.instructions.join('\n');
+      expect(instructions).toContain('重写版');
+      expect(instructions).toContain('archived');
+      expect(rewrite.ai_followup!.suggested_tools?.map((t) => t.name)).toContain('spec_update');
+      const archiveTool = rewrite.ai_followup!.suggested_tools?.find((t) => t.name === 'spec_update');
+      expect(archiveTool?.args_template).toMatchObject({ status: 'archived' });
+    });
+
+    it('全新名字或 version=0 普通新建不追加归档引导', async () => {
+      const fresh = await specs.create({ scene: 'user-management', name: 'brand-new' });
+      const instructions = fresh.ai_followup!.instructions.join('\n');
+      expect(instructions).not.toContain('重写版');
+      expect(fresh.ai_followup!.suggested_tools?.map((t) => t.name)).not.toContain('spec_update');
+    });
+  });
 });

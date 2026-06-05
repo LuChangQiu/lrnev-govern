@@ -3,7 +3,7 @@ export const WORKFLOW_OVERVIEW = [
   '概念：Scene > Spec > Task；Gate 只查结构契约；ADR/Errorbook/Memory 是轻产物。',
   '新建特性：首次先 lrnev_init，再 spec_create；填 requirements 后跑 spec_gate_check(ready)，再 task_create、task_update，最后 spec_gate_check(completion)。',
   '接手项目：先调 project_status 拿全貌，从 in_progress task 继续。',
-  '三档分流：踩坑用 error_record，小决策用 adr_create，要追踪的特性用 spec_create。',
+  '分流：先自问"这事能写出有意义的 WHEN…THEN 验收、且可独立交付吗"——是才 spec_create；踩坑→error_record，技术决策→adr_create，约定→memory_save；写不出独立验收的小改动(改文档/小重构/调参数/答问题等，只是举例不限于此)直接做、不要开 spec；拿不准先问用户。',
   '不确定下一步时调 lrnev_guide。',
 ].join('\n');
 
@@ -20,9 +20,10 @@ export const TOOL_DESCRIPTIONS = {
   scene_create: '创建业务 Scene，并生成 scene.md、architecture.md、roadmap.md。何时用：需要按业务域隔离一组 Specs 时；传 intent 可在 followup 获得单/多 Spec 拆分信号。',
   scene_list: '列出当前工作区中的所有 Scene。何时用：接手项目、选择工作场景或排查 broken Scene 时。',
   scene_get: '读取一个 Scene 的元信息和统计信息。何时用：需要确认某个 Scene 的文档与统计概况时。',
-  spec_create: '创建 Spec 三文档。何时用：要追踪一个可交付特性。前置：已 init；scene 可省略。例子：spec_create{name:"login"} → 生成 requirements/design/tasks。',
+  spec_create: '创建 Spec 三文档。何时用：先自问"这是可独立交付、能写出 WHEN…THEN 验收的特性吗"——是才开 spec；做完没有独立验收可挂的小改动(改文档/排版/注释、小重构、调参数、答问题等，举例非穷举)直接做、不要开 spec；拿不准先问用户、别默认开。前置：已 init；scene 可省略。例子：spec_create{name:"login"}。',
   spec_list: '列出指定 Scene 下的所有 Spec。何时用：查看同 Scene 已有哪些特性、避免重复或找接手目标。',
   spec_get: '读取一个 Spec 的元信息和三文档存在性。何时用：进入某个 Spec 前确认 requirements/design/tasks 是否齐全。',
+  spec_update: '按状态机更新 Spec 状态(draft→ready→in-progress→completed→archived)。何时用：gate 通过后回填状态，或开重写版后把被取代的旧版标 archived(归档后其待办不再进可领列表)。',
   spec_gate_check: '运行 Spec gate。何时用：创建后、需求填完或任务完成后验收。前置：spec 已存在；ready 前替换 FILL。例子：spec_gate_check{gate:"ready"} → 返回 checks。',
   task_create: '追加结构化 Task。何时用：ready gate 后拆执行项；大项可用 parent 拆子任务。前置：spec 已创建。例子：task_create{title:"实现登录",parent:"T-001"}。',
   task_update: '按状态机更新 Task。何时用：开始/完成/阻塞任务时。前置：task 已存在，遵守 pending→in_progress→completed。例子：task_update{task_id:"T-001",status:"completed"}。',
@@ -120,6 +121,7 @@ const GUIDE_SECTIONS: Record<GuideTopic, GuideSection> = {
       DESIGN_DECISION_EXAMPLE,
       'Spec id 里的 VV 是正式重写版号，不是修订号；修改现有需求/设计/任务时直接编辑原文件，git 记录历史。只有整体推翻重做且需要保留旧版对照时，才用 spec_create 的 version=1/2/... 开新版。',
       'ADR、Errorbook、Memory 是轻产物：小决策、踩坑和约定不必都开 Spec。',
+      '不是所有事都要落治理。判据(让 AI 自己想，不要对着清单匹配)：先自问"这事能写出一条有意义的 WHEN…THEN 验收吗、是不是可独立交付"——能且是，才开 spec；否则(改文档/小重构/调参数/答问题等只是举例，不限于此)直接做。拿不准就问用户，别默认开 spec。',
       'lrnev 坚持确定性归代码、判断归 AI：工具列事实、给提示，不维护隐藏状态或模型推理结果。',
       '流程是 Scene > Spec > ADR（可选）> Task；ADR 只在有关键决策时出现。',
     ].join('\n'),
