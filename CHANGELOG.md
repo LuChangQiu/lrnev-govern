@@ -2,6 +2,12 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [SemVer 2.0](https://semver.org/lang/zh-CN/)。
 
+## [1.3.1] - 2026-06-08
+
+### Changed
+
+- **常驻提示词区分"只读 / 要改"**：`README.md` 与 `docs/AI-ADAPTATION.md` 的常驻提示词模板更新——纯查代码、定位、解释、回答问题等不改任何文件的事直接做（不必先 `project_status`、不必开 spec）；`project_status` / spec / task 流程只在"要动手改代码或推进治理"时才走。修正 AI 对只读问题也先调 `project_status` 的过度行为，同时明确"真改动仍需走 task/spec"，避免反向跳过治理。
+
 ## [1.3.0] - 2026-06-08
 
 ### Fixed
@@ -74,6 +80,7 @@
 
 ---
 
+[1.3.1]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.3.1
 [1.3.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.3.0
 [1.2.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.2.0
 [1.1.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.1.0

@@ -2,7 +2,7 @@
 
 > AI 协作开发的项目治理引擎 —— MCP 服务 + CLI 双形态，文件即真相，零模型依赖。
 
-npm 包名 `lrnev`，当前版本 `1.3.0`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。一行命令装好 👇
+npm 包名 `lrnev`，当前版本 `1.3.1`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。一行命令装好 👇
 
 ```bash
 npm install -g lrnev
@@ -186,12 +186,13 @@ MCP 的工作流说明只在连接时注入一次。聊了几十轮之后 AI 可
 
 ```
 本项目用 lrnev 治理。规则：
-1. 不确定当前状态时，先调 project_status，不要凭记忆直接改代码。
-2. 【先想清楚该不该开 spec，自己判断、别对着清单匹配】问自己两点：这事(a)能写出一条有意义的"WHEN…THEN"验收吗？(b)是可独立交付的特性吗？两个都"是"才 spec_create。否则——比如改文档/排版/注释、小重构、调参数、回答问题等(这些只是举例，不止这些)——直接做，不要开 spec。拿不准就问我，别默认开 spec。
-3. 踩坑→error_record，技术决策→adr_create，约定→memory_save；都不沾的小事直接做。
-4. 多特性需求先按拆分标尺判断单/多 Spec（可用 assess_goal 辅助），别把多个特性塞进一个 Spec。
-5. 改代码前确认对应 task 已 task_update(in_progress)，完成后 task_update(completed)。
-6. 不清楚怎么用就调 lrnev_guide。
+1. 先分清"只读"还是"要改"：纯查代码、定位、解释、回答问题这类不改任何文件的事，直接做——不用先 project_status，也不用开 spec。下面的流程只在"要动手改代码或推进治理(建/改 spec、task)"时才走。
+2. 要改且不确定进度时，先调 project_status 接手现状，别凭记忆直接改代码。
+3. 该不该开 spec 自己判断、别对着清单匹配：这事(a)能写出一条有意义的"WHEN…THEN"验收吗？(b)是可独立交付的特性吗？两个都"是"才 spec_create。否则——改文档/排版/注释、小重构、调参数、回答问题等(只是举例，不止这些)——直接做，不要开 spec。拿不准就问我，别默认开。
+4. 踩坑→error_record，技术决策→adr_create，约定→memory_save；都不沾的小事直接做。
+5. 多特性需求先按拆分标尺判断单/多 Spec（可用 assess_goal 辅助），别把多个特性塞进一个 Spec。
+6. 改代码前确认对应 task 已 task_update(in_progress)，完成后 task_update(completed)；纯只读/答问题不涉及 task。
+7. 不清楚怎么用就调 lrnev_guide。
 ```
 
 ### 常用命令 👇
