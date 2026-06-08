@@ -16,7 +16,7 @@ import { ClaimStore } from './ClaimStore.js';
 import type { AiFollowupResponse, Scope } from '../types/response.js';
 import type { TaskClaim } from '../types/claim.js';
 import type { SpecFrontmatter } from '../types/spec.js';
-import type { Task, TaskStatus } from '../types/task.js';
+import type { Task } from '../types/task.js';
 import type {
   ProjectStatusActiveAgent,
   ProjectStatusActiveClaim,
@@ -40,8 +40,10 @@ export class ProjectStatus {
   async get(input: ProjectStatusInput = {}): Promise<AiFollowupResponse<ProjectStatusSnapshot>> {
     const sceneId = input.scene ? await this.scenes.resolveId(input.scene) : undefined;
     const scenes = await this.listScenes(sceneId);
-    const activeClaims = filterClaimsByScene(await new ClaimStore(this.fs).listActive(), sceneId);
-    const activeAgents = await this.buildActiveAgentView(activeClaims, sceneId);
+    const registry = new AgentRegistry(this.fs);
+    const claimStore = new ClaimStore(this.fs, (agentId) => registry.isAgentDead(agentId));
+    const activeClaims = filterClaimsByScene(await claimStore.listActive(), sceneId);
+    const activeAgents = await this.buildActiveAgentView(registry, activeClaims, sceneId);
     const activeClaimSet = taskKeysFromClaims(activeClaims);
     const { specs, activeTasks } = await this.listSpecsAndTasks(activeClaimSet, sceneId);
     attachCurrentTaskHints(activeAgents, activeTasks);
@@ -174,10 +176,11 @@ export class ProjectStatus {
   }
 
   private async buildActiveAgentView(
+    registry: AgentRegistry,
     activeClaims: TaskClaim[],
     sceneId?: string,
   ): Promise<ProjectStatusActiveAgent[]> {
-    const { data: agents } = await new AgentRegistry(this.fs).list();
+    const { data: agents } = await registry.list();
     const claimsByAgent = new Map<string, ProjectStatusActiveClaim[]>();
     for (const claim of activeClaims) {
       const claims = claimsByAgent.get(claim.claimed_by) ?? [];

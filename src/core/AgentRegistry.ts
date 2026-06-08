@@ -54,8 +54,9 @@ export class AgentRegistry {
       ai_followup: {
         instructions: [
           `Agent "${agent.agent_id}" 已注册并标记 active。`,
-          `客户端应定期调用 agent_heartbeat 续写 last_heartbeat；建议间隔 ${Math.max(1, Math.floor(loadConfig(this.fs.root).agent.heartbeat_dead_ms / 3000))} 秒。`,
-          '开始处理 Task 前调用 task_claim，或在 task_update(in_progress) 时传入 agent_id 自动登记 claim。',
+          '存活随进程自动判定(stdio 连接生命周期 + 同主机 pid 探活),通常无需定时心跳。',
+          '跨主机协作、或需要刷新人类可读的"上次活动时间"时,可调用 agent_heartbeat;它也会顺带续租该 Agent 的 task claim。',
+          '开始处理 Task 前调用 task_claim,或在 task_update(in_progress) 时传入 agent_id 自动登记 claim。',
         ],
       },
     };
@@ -89,7 +90,7 @@ export class AgentRegistry {
       if (!existing) {
         throw new LrnevError(ErrorCode.AGENT_NOT_REGISTERED, `Agent 未注册：${agentId}`, {
           field: 'agent_id',
-          hint: '先调用 agent_register 注册，再定期发送 heartbeat。',
+          hint: '先调用 agent_register 注册；通过 stdio 启动时一般已自动注册。',
         });
       }
       const updated: AgentInfo = {
@@ -122,6 +123,37 @@ export class AgentRegistry {
   async get(agentId: string): Promise<AgentInfo | undefined> {
     const { registry } = await this.loadRegistry();
     return registry[agentId];
+  }
+
+  /**
+   * 判断某 agent 是否已死(供 ClaimStore 决定 claim 是否可被接手)。
+   *
+   * 未注册的 agent_id 返回 false:不强制回收,退回 TTL 语义,保证未注册用法向后兼容。
+   * 已注册的按 computeAgentStatus(pid 探活为主)判定。
+   */
+  async isAgentDead(agentId: string): Promise<boolean> {
+    const { registry } = await this.loadRegistry();
+    const agent = registry[agentId];
+    if (!agent) return false;
+    const deadMs = loadConfig(this.fs.root).agent.heartbeat_dead_ms;
+    return computeAgentStatus(agent, deadMs) === 'dead';
+  }
+
+  /**
+   * 优雅退出清理:删除该 agent 的注册记录并释放其名下所有 claim。幂等、静默。
+   *
+   * 供 server 连接断开钩子复用;与 unregister 不同,找不到 agent 不抛错。
+   */
+  async unregisterAndReleaseClaims(agentId: string): Promise<{ released: number }> {
+    await this.withRegistryLock(async () => {
+      const { registry } = await this.loadRegistry();
+      if (registry[agentId]) {
+        delete registry[agentId];
+        await this.saveRegistry(registry);
+      }
+    });
+    const released = await new ClaimStore(this.fs).releaseAllByAgent(agentId);
+    return { released: released.length };
   }
 
   async unregister(input: UnregisterAgentInput): Promise<AiFollowupResponse<{ agent_id: string }>> {
@@ -197,10 +229,44 @@ export class AgentRegistry {
   }
 }
 
-export function computeAgentStatus(agent: AgentInfo, deadMs: number, nowMs = Date.now()): AgentStatus {
+/**
+ * 存活判定的探针参数。默认用真实 hostname + process.kill 探活,测试可注入。
+ */
+export interface AgentStatusProbe {
+  now?: number;
+  currentHost?: string;
+  isPidAlive?: (pid: number) => boolean;
+}
+
+/**
+ * 判定 Agent 活/死。
+ *
+ * 主信号:同 host 且 pid 合法时,用 `process.kill(pid,0)` 探测进程是否在世
+ * ——这是 stdio 子进程模型下可靠且免费的存活信号,不依赖任何客户端定时心跳。
+ * 兜底:跨 host(无法探本机外 pid)或 pid 缺失/非法时,回退到 last_heartbeat 年龄阈值。
+ */
+export function computeAgentStatus(agent: AgentInfo, deadMs: number, probe: AgentStatusProbe = {}): AgentStatus {
+  const now = probe.now ?? Date.now();
+  const currentHost = probe.currentHost ?? hostname();
+  const isPidAlive = probe.isPidAlive ?? defaultIsPidAlive;
+
+  if (agent.host === currentHost && Number.isInteger(agent.pid) && agent.pid > 0) {
+    return isPidAlive(agent.pid) ? 'active' : 'dead';
+  }
+
   const lastHeartbeat = new Date(agent.last_heartbeat).getTime();
   if (!Number.isFinite(lastHeartbeat)) return 'dead';
-  return nowMs - lastHeartbeat > deadMs ? 'dead' : 'active';
+  return now - lastHeartbeat > deadMs ? 'dead' : 'active';
+}
+
+/** 用信号 0 探测 pid 是否在世:不存在(ESRCH)=死;存在但无权限(EPERM)=活;其余按死处理。 */
+export function defaultIsPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'EPERM';
+  }
 }
 
 function normalizeAgentInfo(agentId: string, value: unknown): AgentInfo | null {

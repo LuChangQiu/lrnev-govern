@@ -35,6 +35,7 @@ import { SceneManager } from './SceneManager.js';
 import { SpecManager } from './SpecManager.js';
 import { appendHookWarnings, getHookManager } from './HookManager.js';
 import { ClaimStore } from './ClaimStore.js';
+import { AgentRegistry } from './AgentRegistry.js';
 import type {
   Task,
   TaskStatus,
@@ -297,7 +298,7 @@ export class TaskManager {
     const sceneId = await this.sceneManager.resolveId(input.scene);
     const specId = await this.specManager.resolveId(sceneId, input.spec);
     await this.get(sceneId, specId, input.task);
-    const claims = new ClaimStore(this.fs);
+    const claims = this.newClaimStore();
     const result = await claims.claim({
       ...input,
       scene: sceneId,
@@ -332,6 +333,12 @@ export class TaskManager {
     return `.lrnev/scenes/${sceneId}/specs/${specId}/tasks.md`;
   }
 
+  /** 构造带"属主死活"感知的 ClaimStore;属主已死的 claim 视为可接手。 */
+  private newClaimStore(): ClaimStore {
+    const registry = new AgentRegistry(this.fs);
+    return new ClaimStore(this.fs, (agentId) => registry.isAgentDead(agentId));
+  }
+
   private async withTasksFileLock<T>(sceneId: string, specId: string, fn: () => Promise<T>): Promise<T> {
     // 边界：lrnev 只记录父子任务并串行化 tasks.md 写入；
     // 不执行客户端工作，也不裁决源码文件冲突。
@@ -356,7 +363,7 @@ export class TaskManager {
   ): Promise<TaskUpdateClaimResult | undefined> {
     if (!input.agent_id) return undefined;
     // touches_files 由调用方声明；这里不读源码做冲突裁决，避免治理工具越界成代码执行器。
-    const claims = new ClaimStore(this.fs);
+    const claims = this.newClaimStore();
     if (input.status === 'in_progress') {
       const result = await claims.claim({
         scene: sceneId,
@@ -867,7 +874,7 @@ function buildClaimResponseFollowup(
 ): AiFollowupResponse<TaskClaimResult>['ai_followup'] {
   const instructions: string[] = [];
   appendClaimFollowup(instructions, { kind: 'claim', result, hasParallelContext });
-  instructions.push('claim 是运行态软占用，不改 tasks.md；继续工作时请定期 agent_heartbeat 续租。');
+  instructions.push('claim 是运行态软占用，不改 tasks.md；agent 进程退出时会自动释放,无需定时心跳维持。');
   return {
     instructions,
     suggested_tools: [

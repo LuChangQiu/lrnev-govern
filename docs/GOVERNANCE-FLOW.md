@@ -57,10 +57,12 @@ Gate 检查结构，不判断 prose 质量。
 - gate 通过后，`ai_followup` 会要求 AI 自查质量，并提示合适的 `spec.status` 回填值。
 - gate 不读取也不要求 `spec.status`。status 是流程状态提示，不是 gate 前置条件。
 
-## 多 Agent 心跳
+## 多 Agent 存活
 
-- Agent 注册后，默认 **90 秒**未调用 `agent_heartbeat` 即被 `agent_list` 判定为 `dead`（惰性计算）。
-- 客户端应每约 **30 秒**调用一次 `agent_heartbeat` 续活；停止心跳后该 Agent 名下的 task claim 也会随租约过期可被重领。
+- 存活随 stdio 进程生命周期自动判定：连接初始化即自动注册，连接断开即自动注销并释放该 Agent 的 claim。
+- 同主机以 `process.kill(pid,0)` 探活为准——进程活着就是 `active`，无需任何定时心跳;属主进程退出后其 claim 立即可被接手。
+- 跨主机无法探 pid 时，回退到默认 **90 秒** 的 `last_heartbeat` 年龄阈值（惰性计算），此时可用 `agent_heartbeat` 兜底续活。
+- 详见 [`docs/MULTI-AGENT.md`](MULTI-AGENT.md) 与 ADR《Agent 存活信号从心跳年龄改为 stdio 进程/连接生命周期》。
 
 
 ## 填空哨兵

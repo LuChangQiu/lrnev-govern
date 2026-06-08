@@ -87,7 +87,10 @@ export interface LrnevConfig {
   };
 
   agent: {
-    /** last_heartbeat 超过多少毫秒未更新即判定为 dead。 */
+    /**
+     * 跨主机兜底阈值:last_heartbeat 超过该毫秒数未更新即判 dead。
+     * 同主机存活以 pid 探活为准,不看心跳年龄;仅在无法探 pid(跨 host / pid 缺失)时回退到本阈值。
+     */
     heartbeat_dead_ms: number;
   };
 

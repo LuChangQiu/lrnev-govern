@@ -6,6 +6,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { dir as tmpDir, type DirectoryResult } from 'tmp-promise';
+import { hostname } from 'node:os';
 
 import { FileStorage } from '../../src/storage/FileStorage.js';
 import { ensureWorkspace } from '../../src/storage/WorkspaceLocator.js';
@@ -13,6 +14,7 @@ import { SceneManager } from '../../src/core/SceneManager.js';
 import { SpecManager } from '../../src/core/SpecManager.js';
 import { Doctor } from '../../src/core/Doctor.js';
 import { ClaimStore } from '../../src/core/ClaimStore.js';
+import { AGENT_REGISTRY_REL } from '../../src/core/AgentRegistry.js';
 
 describe('Doctor', () => {
   let workspace: DirectoryResult;
@@ -316,6 +318,64 @@ describe('Doctor', () => {
     const report = await doctor.diagnose();
 
     expect(report.issues.some((issue) => issue.code === 'STALE_DIRECTORY_LOCK')).toBe(true);
+  });
+
+  it('F-06: 同 host 且 pid 已不在世的 agent 应报 STALE_AGENT', async () => {
+    await fs.writeJson(AGENT_REGISTRY_REL, {
+      ghost: {
+        agent_id: 'ghost',
+        pid: 2 ** 30,
+        host: hostname(),
+        started_at: new Date().toISOString(),
+        last_heartbeat: new Date().toISOString(),
+        status: 'active',
+      },
+    });
+
+    const report = await doctor.diagnose();
+
+    expect(report.issues.some((issue) => issue.code === 'STALE_AGENT')).toBe(true);
+  });
+
+  it('F-06: 跨 host 的 agent 不应被 STALE_AGENT 误报(无法探 pid)', async () => {
+    await fs.writeJson(AGENT_REGISTRY_REL, {
+      remote: {
+        agent_id: 'remote',
+        pid: 2 ** 30,
+        host: 'some-other-host',
+        started_at: new Date().toISOString(),
+        last_heartbeat: new Date().toISOString(),
+        status: 'active',
+      },
+    });
+
+    const report = await doctor.diagnose();
+
+    expect(report.issues.some((issue) => issue.code === 'STALE_AGENT')).toBe(false);
+  });
+
+  it('F-06: 属主已死的未过期 claim 应报 ORPHAN_CLAIM', async () => {
+    await fs.writeJson(AGENT_REGISTRY_REL, {
+      ghost: {
+        agent_id: 'ghost',
+        pid: 2 ** 30,
+        host: hostname(),
+        started_at: new Date().toISOString(),
+        last_heartbeat: new Date().toISOString(),
+        status: 'active',
+      },
+    });
+    await new ClaimStore(fs).claim({
+      scene: '00-default',
+      spec: '01-00-login',
+      task: 'T-001',
+      agent_id: 'ghost',
+      ttl_seconds: 3600,
+    });
+
+    const report = await doctor.diagnose();
+
+    expect(report.issues.some((issue) => issue.code === 'ORPHAN_CLAIM')).toBe(true);
   });
 
   async function writeHookRecords(records: Array<Record<string, unknown>>): Promise<void> {

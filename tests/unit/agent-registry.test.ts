@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { dir as tmpDir, type DirectoryResult } from 'tmp-promise';
+import { hostname } from 'node:os';
 
-import { AgentRegistry, AGENT_REGISTRY_REL } from '../../src/core/AgentRegistry.js';
+import {
+  AgentRegistry,
+  AGENT_REGISTRY_REL,
+  computeAgentStatus,
+  defaultIsPidAlive,
+} from '../../src/core/AgentRegistry.js';
 import { ClaimStore } from '../../src/core/ClaimStore.js';
 import { FileStorage } from '../../src/storage/FileStorage.js';
 import { ensureWorkspace } from '../../src/storage/WorkspaceLocator.js';
@@ -167,6 +173,98 @@ describe('AgentRegistry', () => {
 
     expect(list.data.agents[0]?.status).toBe('dead');
   });
+
+  it('F-03: 同 host 且 pid 在世应判 active(忽略很旧的心跳)', () => {
+    const status = computeAgentStatus(
+      sameHostAgent({ last_heartbeat: '2000-01-01T00:00:00.000Z' }),
+      90_000,
+      { isPidAlive: () => true },
+    );
+    expect(status).toBe('active');
+  });
+
+  it('F-03: 同 host 但 pid 不在世应判 dead(忽略很新的心跳)', () => {
+    const status = computeAgentStatus(
+      sameHostAgent({ last_heartbeat: new Date().toISOString() }),
+      90_000,
+      { isPidAlive: () => false },
+    );
+    expect(status).toBe('dead');
+  });
+
+  it('F-07: 跨 host 应回退心跳年龄,不调用 pid 探活', () => {
+    const probe = vi.fn(() => true);
+    const agent = sameHostAgent({ host: 'another-host', last_heartbeat: '2026-01-01T00:00:00.000Z' });
+
+    const dead = computeAgentStatus(agent, 1000, {
+      now: new Date('2026-01-01T00:00:05.000Z').getTime(),
+      isPidAlive: probe,
+    });
+    const alive = computeAgentStatus(agent, 1000, {
+      now: new Date('2026-01-01T00:00:00.500Z').getTime(),
+      isPidAlive: probe,
+    });
+
+    expect(dead).toBe('dead');
+    expect(alive).toBe('active');
+    expect(probe).not.toHaveBeenCalled();
+  });
+
+  it('F-07: pid 非法(<=0)应回退心跳年龄,不调用 pid 探活', () => {
+    const probe = vi.fn(() => false);
+    const status = computeAgentStatus(
+      sameHostAgent({ pid: 0, last_heartbeat: new Date().toISOString() }),
+      90_000,
+      { isPidAlive: probe },
+    );
+    expect(status).toBe('active');
+    expect(probe).not.toHaveBeenCalled();
+  });
+
+  it('defaultIsPidAlive: 当前进程判活,极大不存在 pid 判死', () => {
+    expect(defaultIsPidAlive(process.pid)).toBe(true);
+    expect(defaultIsPidAlive(2 ** 30)).toBe(false);
+  });
+
+  it('F-04: isAgentDead 对未注册 agent 返回 false(向后兼容)', async () => {
+    expect(await registry.isAgentDead('nobody')).toBe(false);
+  });
+
+  it('F-04: isAgentDead 对同 host 已死 pid 的已注册 agent 返回 true', async () => {
+    await fs.writeJson(AGENT_REGISTRY_REL, {
+      ghost: sameHostAgent({ agent_id: 'ghost', pid: 2 ** 30, last_heartbeat: new Date().toISOString() }),
+    });
+    expect(await registry.isAgentDead('ghost')).toBe(true);
+  });
+
+  it('F-02/F-04: unregisterAndReleaseClaims 应删注册记录并释放其 claim,且对未知 agent 静默', async () => {
+    await registry.register({ agent_id: 'agent-a' });
+    await claims.claim({ scene: '00-default', spec: '01-00-login', task: 'T-001', agent_id: 'agent-a' });
+    await claims.claim({ scene: '00-default', spec: '01-00-login', task: 'T-002', agent_id: 'agent-a' });
+
+    const res = await registry.unregisterAndReleaseClaims('agent-a');
+
+    expect(res.released).toBe(2);
+    expect((await registry.list()).data.agents).toHaveLength(0);
+    expect(await claims.listAll()).toHaveLength(0);
+    await expect(registry.unregisterAndReleaseClaims('agent-a')).resolves.toEqual({ released: 0 });
+  });
+
+  function sameHostAgent(overrides: Partial<{
+    agent_id: string;
+    pid: number;
+    host: string;
+    last_heartbeat: string;
+  }> = {}) {
+    return {
+      agent_id: overrides.agent_id ?? 'agent-a',
+      pid: overrides.pid ?? 12345,
+      host: overrides.host ?? hostname(),
+      started_at: '2026-01-01T00:00:00.000Z',
+      last_heartbeat: overrides.last_heartbeat ?? new Date().toISOString(),
+      status: 'active' as const,
+    };
+  }
 
   function agentInfo(overrides: Partial<{
     agent_id: string;

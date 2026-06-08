@@ -208,4 +208,46 @@ describe('ClaimStore', () => {
 
     expect(result).toMatchObject({ claimed: true, claim: { claimed_by: 'agent-a' } });
   });
+
+  it('F-04: 属主 agent 已死时他人可立即接手(无需等 TTL)', async () => {
+    const dead = new Set(['agent-dead']);
+    const store = new ClaimStore(fs, async (id) => dead.has(id));
+    await store.claim({ scene: '00-default', spec: '01-00-login', task: 'T-001', agent_id: 'agent-dead' });
+
+    const res = await store.claim({ scene: '00-default', spec: '01-00-login', task: 'T-001', agent_id: 'agent-b' });
+
+    expect(res.claimed).toBe(true);
+    expect(res.conflict).toMatchObject({ claimed_by: 'agent-dead' });
+    expect(await store.listActive()).toEqual([expect.objectContaining({ claimed_by: 'agent-b' })]);
+  });
+
+  it('F-04: 属主 agent 仍活时他人被拒', async () => {
+    const store = new ClaimStore(fs, async () => false);
+    await store.claim({ scene: '00-default', spec: '01-00-login', task: 'T-001', agent_id: 'agent-a' });
+
+    const res = await store.claim({ scene: '00-default', spec: '01-00-login', task: 'T-001', agent_id: 'agent-b' });
+
+    expect(res.claimed).toBe(false);
+    expect(res.conflict).toMatchObject({ claimed_by: 'agent-a' });
+  });
+
+  it('F-04: 属主已死的 claim 不计入 listActive,但 listAll 仍可见文件', async () => {
+    const dead = new Set(['agent-dead']);
+    const store = new ClaimStore(fs, async (id) => dead.has(id));
+    await store.claim({ scene: '00-default', spec: '01-00-login', task: 'T-001', agent_id: 'agent-dead' });
+
+    expect(await store.listActive()).toEqual([]);
+    expect(await store.listAll()).toHaveLength(1);
+  });
+
+  it('F-02: releaseAllByAgent 只删除指定 agent 的 claim', async () => {
+    await claims.claim({ scene: '00-default', spec: '01-00-login', task: 'T-001', agent_id: 'agent-a' });
+    await claims.claim({ scene: '00-default', spec: '01-00-login', task: 'T-002', agent_id: 'agent-a' });
+    await claims.claim({ scene: '00-default', spec: '01-00-login', task: 'T-003', agent_id: 'agent-b' });
+
+    const released = await claims.releaseAllByAgent('agent-a');
+
+    expect(released).toHaveLength(2);
+    expect(await claims.listAll()).toEqual([expect.objectContaining({ claimed_by: 'agent-b' })]);
+  });
 });

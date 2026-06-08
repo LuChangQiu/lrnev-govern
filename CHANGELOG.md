@@ -2,6 +2,21 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [SemVer 2.0](https://semver.org/lang/zh-CN/)。
 
+## [1.2.0] - 2026-06-08
+
+把多 Agent 的"存活判定"从不可靠的心跳模型改为 stdio 进程/连接生命周期。
+
+### Changed
+
+- **Agent 存活信号改为进程生命周期**：同主机以 `process.kill(pid,0)` 探活为准，进程活着即 `active`，不再依赖客户端定时 `agent_heartbeat`；跨主机回退到 `last_heartbeat` 年龄阈值。修正了"活着的会话因没发心跳被判 dead、claim 被误回收"的问题（根因：MCP 无定时器、LLM 客户端不会周期性主动调工具）。
+- **会话注册/注销自动化**：MCP 连接初始化时自动注册当前会话 agent，连接断开时自动注销并释放其 claim；`agent_register`/`agent_heartbeat`/`agent_unregister` 仍保留，供脚本化与跨主机协作显式使用。
+- **claim 回收跟随属主进程**：claim 在 TTL 过期或属主 agent 已 dead 时即可被接手，不必干等 TTL。
+- **心跳降级为兜底**：`agent_heartbeat` 与 `last_heartbeat` 保留，定位收敛为跨主机续活与人类可读的"上次活动时间"。
+
+### Added
+
+- **Doctor 新增 `STALE_AGENT` / `ORPHAN_CLAIM`**：分别诊断"同主机 pid 已不在世却仍在注册表的 agent"和"属主已退出/不在注册表的未过期 claim"，给出清理建议。
+
 ## [1.1.0] - 2026-06-05
 
 围绕"Spec 生命周期收尾"与"防止小事乱开 Spec"做的一组治理增强。
@@ -43,6 +58,7 @@
 
 ---
 
+[1.2.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.2.0
 [1.1.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.1.0
 [1.0.1]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.0.1
 [1.0.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.0.0

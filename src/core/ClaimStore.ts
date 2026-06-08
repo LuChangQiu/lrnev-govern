@@ -17,15 +17,22 @@ export const CLAIMS_DIR_REL = '.lrnev/runtime/claims';
  *
  * claim 只是协作提示，不是源码锁；touches_files 只用于重叠提醒。
  * 单个 Task claim 用短目录锁串行化，是为了把“读现有 claim → 判断过期 → 写入新 claim”放进同一个临界区。
+ *
+ * 可接手(reclaimable)判定:TTL 过期 OR 属主 agent 已死。后者通过注入的 isAgentDead
+ * 探针接入(缺省返回 false → 退回纯 TTL,保证未注册/旧用法向后兼容)。
  */
 export class ClaimStore {
-  constructor(private readonly fs: FileStorage) {}
+  constructor(
+    private readonly fs: FileStorage,
+    private readonly isAgentDead: (agentId: string) => Promise<boolean> = async () => false,
+  ) {}
 
   async claim(input: ClaimTaskInput): Promise<TaskClaimResult> {
     this.validateClaimInput(input);
     return this.fs.withDirectoryLock(claimLockPath(input.scene, input.spec, input.task), async () => {
       const existing = await this.readClaim(input.scene, input.spec, input.task);
-      if (existing && !isExpired(existing) && existing.claimed_by !== input.agent_id) {
+      const existingReclaimable = existing ? await this.isReclaimable(existing) : false;
+      if (existing && !existingReclaimable && existing.claimed_by !== input.agent_id) {
         return {
           claim: existing,
           claimed: false,
@@ -50,7 +57,7 @@ export class ClaimStore {
       return {
         claim,
         claimed: true,
-        ...(existing && isExpired(existing) && existing.claimed_by !== input.agent_id && { conflict: existing }),
+        ...(existing && existingReclaimable && existing.claimed_by !== input.agent_id && { conflict: existing }),
         ...(overlaps.length > 0 && { overlaps }),
       };
     });
@@ -70,7 +77,29 @@ export class ClaimStore {
   }
 
   async listActive(): Promise<TaskClaim[]> {
-    return (await this.listAll()).filter((claim) => !isExpired(claim));
+    const all = await this.listAll();
+    const active: TaskClaim[] = [];
+    for (const claim of all) {
+      if (!(await this.isReclaimable(claim))) active.push(claim);
+    }
+    return active;
+  }
+
+  /** 删除某 agent 名下全部 claim,返回被删的 claim。供优雅退出清理复用。 */
+  async releaseAllByAgent(agentId: string): Promise<TaskClaim[]> {
+    const released: TaskClaim[] = [];
+    for (const claim of await this.listAll()) {
+      if (claim.claimed_by !== agentId) continue;
+      await this.fs.rm(claimPath(claim.scene, claim.spec, claim.task));
+      released.push(claim);
+    }
+    return released;
+  }
+
+  /** claim 是否可被他人接手:TTL 过期,或属主 agent 已死。 */
+  private async isReclaimable(claim: TaskClaim, nowMs = Date.now()): Promise<boolean> {
+    if (isExpired(claim, nowMs)) return true;
+    return this.isAgentDead(claim.claimed_by);
   }
 
   async listAll(): Promise<TaskClaim[]> {
@@ -137,7 +166,7 @@ export class ClaimStore {
     const touched = new Set(claim.touches_files);
     const overlaps: TaskClaimOverlap[] = [];
     for (const other of await this.listAll()) {
-      if (claimKey(other) === claimKey(claim) || isExpired(other)) continue;
+      if (claimKey(other) === claimKey(claim) || await this.isReclaimable(other)) continue;
       const shared = (other.touches_files ?? []).filter((file) => touched.has(file));
       if (shared.length === 0) continue;
       overlaps.push({

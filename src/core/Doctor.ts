@@ -13,8 +13,9 @@ import { migrateLegacyTodoPlaceholders } from './LegacyTodoMigration.js';
 import { parseTasksFromMarkdown } from './TaskManager.js';
 import { HookManager, HOOKS_CONFIG_REL } from './HookManager.js';
 import { HookLog } from './HookLog.js';
-import { AgentRegistry } from './AgentRegistry.js';
+import { AgentRegistry, computeAgentStatus } from './AgentRegistry.js';
 import { ClaimStore } from './ClaimStore.js';
+import { hostname } from 'node:os';
 import type { DiagnosticIssue, DiagnosticReport, TodoMigrationReport } from '../types/doctor.js';
 import type { HookRecord } from '../types/hooks.js';
 
@@ -78,6 +79,8 @@ export class Doctor {
     await this.checkHookConfig(issues);
     await this.checkHookHealth(issues);
     await this.checkAgentRegistry(issues);
+    await this.checkStaleAgents(issues);
+    await this.checkOrphanClaims(issues);
 
     const summary = {
       errors: issues.filter((issue) => issue.severity === 'error').length,
@@ -153,8 +156,10 @@ export class Doctor {
   }
 
   private async checkStaleTaskClaims(issues: DiagnosticIssue[]): Promise<void> {
+    const registry = new AgentRegistry(this.fs);
+    const claimStore = new ClaimStore(this.fs, (agentId) => registry.isAgentDead(agentId));
     const activeClaimKeys = new Set(
-      (await new ClaimStore(this.fs).listActive()).map((claim) => taskClaimKey(claim.scene, claim.spec, claim.task)),
+      (await claimStore.listActive()).map((claim) => taskClaimKey(claim.scene, claim.spec, claim.task)),
     );
     const files = await this.fs.list('.lrnev/scenes/*/specs/*/tasks.md');
     for (const file of files) {
@@ -321,6 +326,47 @@ export class Doctor {
         message: issue.message,
         path: issue.path,
         suggestion: '修复 .lrnev/agents/registry.json；损坏时 lrnev 会按空注册表降级。',
+      });
+    }
+  }
+
+  private async checkStaleAgents(issues: DiagnosticIssue[]): Promise<void> {
+    const { registry } = await new AgentRegistry(this.fs).loadRegistry();
+    const deadMs = loadConfig(this.fs.root).agent.heartbeat_dead_ms;
+    const currentHost = hostname();
+    for (const agent of Object.values(registry)) {
+      // 只报本机 pid 已不在世的条目;跨主机无法探活,交给心跳年龄,不在这里强判。
+      if (agent.host !== currentHost) continue;
+      if (computeAgentStatus(agent, deadMs) !== 'dead') continue;
+      issues.push({
+        code: 'STALE_AGENT',
+        severity: 'warning',
+        message: `Agent ${agent.agent_id} 的进程(pid=${agent.pid})已不在世,但仍留在注册表`,
+        path: '.lrnev/agents/registry.json',
+        suggestion: '该会话已退出;可调用 agent_unregister 清理,或忽略(读取时已按 dead 计算,不影响接手)。',
+      });
+    }
+  }
+
+  private async checkOrphanClaims(issues: DiagnosticIssue[]): Promise<void> {
+    const { registry } = await new AgentRegistry(this.fs).loadRegistry();
+    const deadMs = loadConfig(this.fs.root).agent.heartbeat_dead_ms;
+    const now = Date.now();
+    for (const claim of await new ClaimStore(this.fs).listAll()) {
+      // 已过期的 claim 走 STALE_TASK_CLAIM/惰性过滤,不在此重复报。
+      if (new Date(claim.expires_at).getTime() <= now) continue;
+      const owner = registry[claim.claimed_by];
+      const ownerDead = owner ? computeAgentStatus(owner, deadMs) === 'dead' : undefined;
+      if (owner && ownerDead === false) continue; // 属主仍活,正常占用
+      const reason = owner
+        ? `属主 Agent ${claim.claimed_by} 进程已退出`
+        : `属主 Agent ${claim.claimed_by} 不在注册表`;
+      issues.push({
+        code: 'ORPHAN_CLAIM',
+        severity: 'warning',
+        message: `claim ${claim.scene}/${claim.spec}/${claim.task} 的${reason}`,
+        path: `.lrnev/runtime/claims`,
+        suggestion: '该 claim 已可被他人接手;可调 task_release 清理,或重新 task_claim 接手。',
       });
     }
   }
