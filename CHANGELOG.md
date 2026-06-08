@@ -12,6 +12,11 @@
 ### Added
 
 - **Doctor 新增 `LEGACY_SUMMARY` 与清理命令**：发现旧式目录级 `.abstract.md` / `.overview.md` 时报告 warning；`lrnev doctor --migrate-summaries` / `lrnev_doctor migrate_summaries` 可一次性删除遗留旧文件，不做运行时兼容读取。
+- **Doctor 新增 `ONBOARDING_INCOMPLETE`**：`init` 后 PROJECT/ARCHITECTURE 仍含 `FILL` 哨兵时报 warning（仅提示、不阻塞、不强制），避免空骨架被当成接入完成。
+
+### Changed
+
+- **init 不再把自动探测当事实写入**：PROJECT/ARCHITECTURE 模板必填字段改用 `FILL` 哨兵；技术栈/主要模块即使探测成功也只写"疑似候选（待核实，可能不准）"提示，完整原始探测仍只落 `auto/codebase.json`；`lrnev_init` 引导文案通用化为"读构建文件与核心源码自行判断技术栈"，不假设语言（遵 ADR-0001 与"引导不强制"原则）。
 
 ## [1.2.0] - 2026-06-08
 
