@@ -32,3 +32,10 @@ export interface TodoMigrationReport {
     replacements: LegacyTodoReplacement[];
   }>;
 }
+
+export interface SummaryMigrationReport {
+  ok: true;
+  migrated_at: string;
+  removed_count: number;
+  removed: string[];
+}

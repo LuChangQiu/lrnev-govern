@@ -70,7 +70,9 @@ describe('CLI', () => {
     await program.parseAsync(['node', 'lrnev', '--workspace', workspace.path, 'init', '--project-name', 'demo']);
 
     expect(JSON.parse(out).ok).toBe(true);
-    expect(err).toContain('技术栈已填入 ARCHITECTURE.md');
+    expect(err).toContain('检测到已有代码');
+    expect(err).toContain('探测信号仅供参考');
+    expect(err).toContain('补全 PROJECT 与 ARCHITECTURE');
 
     let jsonErr = '';
     const jsonProgram = buildCli({
@@ -292,6 +294,15 @@ describe('CLI', () => {
 
     const migrateTodosAgain = await run(['doctor', '--migrate-todos']);
     expect(migrateTodosAgain.changed_files).toBe(0);
+
+    const fs = new FileStorage(workspace.path);
+    await fs.write('.lrnev/.abstract.md', 'legacy summary\n');
+    await fs.write('.lrnev/.PROJECT.abstract.md', 'new summary\n');
+    const migrateSummaries = await run(['doctor', '--migrate-summaries']);
+    expect(migrateSummaries.ok).toBe(true);
+    expect(migrateSummaries.removed_count).toBe(1);
+    expect(fs.exists('.lrnev/.abstract.md')).toBe(false);
+    expect(fs.exists('.lrnev/.PROJECT.abstract.md')).toBe(true);
 
     const status = await run(['status']);
     expect(status.data.scenes).toHaveLength(1);

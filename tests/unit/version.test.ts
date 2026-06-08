@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { VERSION, PACKAGE_NAME } from '../../src/shared/version.js';
 
 describe('版本信息', () => {
-  it('应导出版本号 1.2.0', () => {
-    expect(VERSION).toBe('1.2.0');
+  it('应导出版本号 1.3.0', () => {
+    expect(VERSION).toBe('1.3.0');
   });
 
   it('F-10: 应导出包名 lrnev', () => {

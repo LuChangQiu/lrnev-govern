@@ -145,7 +145,7 @@ describe('SpecManager', () => {
 
       expect(followup).toContain('本 Scene 已有 Spec');
       expect(followup).toContain(first.data.spec);
-      expect(followup).toContain('.abstract.md');
+      expect(followup).toContain('按文档键控的 L0 摘要');
       expect(followup).toContain('context_search');
       expect(fs.exists('.lrnev/scenes/01-user-management/ontology.json')).toBe(false);
     });

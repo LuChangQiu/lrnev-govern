@@ -67,6 +67,7 @@ interface CliActionOptions extends CliGlobals {
   l1?: string;
   lines?: number;
   maxDepth?: number;
+  migrateSummaries?: boolean;
   migrateTodos?: boolean;
   parent?: string;
   payload?: string;
@@ -156,7 +157,7 @@ function buildInitCommand(program: Command, options: BuildCliOptions): Command {
         scan: opts.scan,
       });
       if (!opts.json && result.data.codebase_detected) {
-        writeErr(options, '✓ 已初始化，技术栈已填入 ARCHITECTURE.md。建议对你的 AI 说"用 lrnev 读代码补全 PROJECT 和 ARCHITECTURE"。\n');
+        writeErr(options, '✓ 已初始化并检测到已有代码。auto/codebase.json 里的探测信号仅供参考；请读构建/清单文件和核心源码补全 PROJECT 与 ARCHITECTURE。\n');
       }
       return result;
     }));
@@ -468,9 +469,18 @@ function buildDoctorCommand(program: Command, options: BuildCliOptions): Command
     .description('工作区自检')
     .option('--fix', 'M1 不自动修复，只输出建议')
     .option('--migrate-todos', '把旧模板 TODO 占位精确迁移为 <!-- FILL: ... --> 哨兵')
+    .option('--migrate-summaries', '删除旧式目录级摘要文件 .abstract.md / .overview.md')
     .action(run(program, options, async (opts) => {
       const doctor = managers(opts).doctor;
-      return opts.migrateTodos ? doctor.migrateTodosToSentinels() : doctor.diagnose();
+      if (opts.migrateTodos && opts.migrateSummaries) {
+        throw new LrnevError(ErrorCode.INVALID_INPUT, 'doctor 迁移命令一次只能选择一种', {
+          field: 'migrate',
+          hint: '分别运行 --migrate-todos 或 --migrate-summaries。',
+        });
+      }
+      if (opts.migrateTodos) return doctor.migrateTodosToSentinels();
+      if (opts.migrateSummaries) return doctor.migrateLegacySummaries();
+      return doctor.diagnose();
     }));
 }
 

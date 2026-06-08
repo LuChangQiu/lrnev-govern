@@ -5,13 +5,22 @@
  * 资源读取层会优先读取这些文件；不存在时回退 L2 全文。
  */
 
-import { dirname } from 'node:path/posix';
+import { basename, dirname } from 'node:path/posix';
 
 import { FileStorage } from '../storage/FileStorage.js';
 import { parseURI, uriToFilePath } from '../storage/URIRouter.js';
 import { LrnevError, ErrorCode } from '../shared/errors.js';
 import type { AiFollowupResponse, Level } from '../types/response.js';
 import type { SaveSummaryInput, SaveSummaryResult } from '../types/summary.js';
+
+/** 目标文档 -> 其 L0/L1 摘要文件相对路径。按文档 basename 键控，同目录多文档不冲突。 */
+export function summaryPathFor(targetRelPath: string, level: Exclude<Level, 'L2'>): string {
+  const dir = dirname(targetRelPath);
+  const name = basename(targetRelPath).replace(/\.md$/i, '');
+  const suffix = level === 'L0' ? 'abstract' : 'overview';
+  const file = `.${name}.${suffix}.md`;
+  return dir === '.' ? file : `${dir}/${file}`;
+}
 
 export class Summarizer {
   constructor(private readonly fs: FileStorage) {}
@@ -25,8 +34,7 @@ export class Summarizer {
       });
     }
     const concretePath = await this.resolveConcretePath(relPath);
-    const dir = dirname(concretePath);
-    return `${dir}/${level === 'L0' ? '.abstract.md' : '.overview.md'}`;
+    return summaryPathFor(concretePath, level);
   }
 
   async saveSummary(input: SaveSummaryInput): Promise<AiFollowupResponse<SaveSummaryResult>> {

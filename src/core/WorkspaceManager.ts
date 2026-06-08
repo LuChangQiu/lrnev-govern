@@ -76,7 +76,6 @@ export class WorkspaceManager {
 
     const analysis = await this.runAutoAnalyzer(fs, filesCreated, filesExisting);
     const codebaseDetected = hasExistingCodeProject(analysis);
-    const techDetected = analysis.tech_stack.length > 0;
 
     await this.writeIfMissing(
       fs,
@@ -125,9 +124,7 @@ export class WorkspaceManager {
             : []),
           ...(codebaseDetected
             ? [
-              techDetected
-                ? '已预填部分技术栈/目录到 ARCHITECTURE.md。请读 3-5 个核心源文件 + 构建文件（如 pom.xml/build.gradle/package.json），校对并补全 ARCHITECTURE.md 的架构理念与模块职责、PROJECT.md 的项目目标与当前阶段。'
-                : '未能自动识别技术栈。请读 auto/codebase.json 的 root_files 列出的构建文件（如 pom.xml/build.gradle）与主要源码目录，识别技术栈与架构，写回 ARCHITECTURE.md（技术栈/主要模块）与 PROJECT.md（项目目标/当前阶段）。',
+              '检测到当前目录已有代码。请读项目的构建/清单文件（如 pom.xml、build.gradle、package.json、go.mod、pyproject.toml 等，按实际为准且不限于这些）与 3-5 个核心源码文件，自行判断技术栈与架构；auto/codebase.json 只是未经核实的探测信号，仅供参考。请补全 ARCHITECTURE.md 的技术栈/主要模块/架构理念，以及 PROJECT.md 的项目目标/当前阶段。',
             ]
             : []),
           '请先阅读 context://project 和 context://project/architecture，协助用户补全项目目标、范围和架构约束。',
@@ -191,23 +188,23 @@ function hasExistingCodeProject(analysis: CodebaseInfo): boolean {
 
 function formatTechStack(analysis: CodebaseInfo): string {
   if (analysis.tech_stack.length === 0) {
-    return '- <!-- FILL: 技术栈(未探测到，请补充) -->';
+    return '- <!-- FILL: 技术栈；未探测到明确候选，请读构建/清单文件与源码核实 -->';
   }
-  return analysis.tech_stack
-    .map((item) => {
-      const name = item.name ? ` ${item.name}` : '';
-      const version = item.version ? ` ${item.version}` : '';
-      return `- ${item.language} (${item.ecosystem})${name}${version} - ${item.manifest}`;
-    })
-    .join('\n');
+  const candidates = analysis.tech_stack.map((item) => {
+    const name = item.name ? ` ${item.name}` : '';
+    const version = item.version ? ` ${item.version}` : '';
+    return `${item.language} (${item.ecosystem})${name}${version} - ${item.manifest}`;
+  });
+  return `- <!-- FILL: 技术栈；自动探测疑似候选（待核实，可能不准）：${candidates.join('；')} -->`;
 }
 
 function formatSourceDirs(analysis: CodebaseInfo): string {
   const dirs = analysis.directories.filter((dir) => dir.kind === 'source' || dir.kind === 'test');
   if (dirs.length === 0) {
-    return '- <!-- FILL: 主要模块/源码目录(未探测到，请补充) -->';
+    return '- <!-- FILL: 主要模块/源码目录；未探测到明确候选，请读源码核实 -->';
   }
-  return dirs.map((dir) => `- ${dir.path}/ (${dir.kind})`).join('\n');
+  const candidates = dirs.map((dir) => `${dir.path}/ (${dir.kind})`);
+  return `- <!-- FILL: 主要模块/源码目录；自动探测疑似候选（待核实）：${candidates.join('；')} -->`;
 }
 
 function formatDirectoryStructure(analysis: CodebaseInfo): string {

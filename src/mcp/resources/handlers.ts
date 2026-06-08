@@ -2,10 +2,11 @@
  * MCP resource 读取处理。
  *
  * 所有 context:// URI 先交给 URIRouter 映射到工作区相对路径；
- * `?level=L0/L1` 会优先读取同目录下的 `.abstract.md` / `.overview.md`，
+ * `?level=L0/L1` 会优先读取同目录下按文档键控的 `.<doc>.abstract.md` / `.<doc>.overview.md`，
  * 不存在时回退到 L2 原文，并在内容开头标注回退原因。
  */
 
+import { summaryPathFor } from '../../core/Summarizer.js';
 import { FileStorage } from '../../storage/FileStorage.js';
 import { parseURI, uriToFilePath } from '../../storage/URIRouter.js';
 import { resolveWorkspaceRoot } from '../../storage/WorkspaceLocator.js';
@@ -63,10 +64,7 @@ async function resolveLevelPath(
 ): Promise<{ path: string; fallback: boolean }> {
   if (level === 'L2') return { path: relPath, fallback: false };
 
-  const slash = relPath.lastIndexOf('/');
-  const dir = slash === -1 ? '' : relPath.slice(0, slash);
-  const summaryFile = level === 'L0' ? '.abstract.md' : '.overview.md';
-  const summaryPath = dir.length > 0 ? `${dir}/${summaryFile}` : summaryFile;
+  const summaryPath = summaryPathFor(relPath, level);
   if (fs.exists(summaryPath)) return { path: summaryPath, fallback: false };
   return { path: relPath, fallback: true };
 }

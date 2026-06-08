@@ -2,6 +2,17 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [SemVer 2.0](https://semver.org/lang/zh-CN/)。
 
+## [1.3.0] - 2026-06-08
+
+### Fixed
+
+- **摘要旁车文件改为按文档键控**：`summarize_save` 不再把同目录下多个文档写到同一份 `.abstract.md` / `.overview.md`，改为 `.<文档名>.abstract.md` / `.<文档名>.overview.md`，修复 `PROJECT.md` 与 `ARCHITECTURE.md`、Scene 三文档摘要互相覆盖的问题。
+- **资源读取与检索复用新摘要命名**：`context://...?level=L0/L1` 和 `context_search` 均按新命名读取/映射摘要；无摘要时仍回退 L2 全文。
+
+### Added
+
+- **Doctor 新增 `LEGACY_SUMMARY` 与清理命令**：发现旧式目录级 `.abstract.md` / `.overview.md` 时报告 warning；`lrnev doctor --migrate-summaries` / `lrnev_doctor migrate_summaries` 可一次性删除遗留旧文件，不做运行时兼容读取。
+
 ## [1.2.0] - 2026-06-08
 
 把多 Agent 的"存活判定"从不可靠的心跳模型改为 stdio 进程/连接生命周期。
@@ -58,6 +69,7 @@
 
 ---
 
+[1.3.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.3.0
 [1.2.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.2.0
 [1.1.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.1.0
 [1.0.1]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.0.1

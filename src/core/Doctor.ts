@@ -16,7 +16,7 @@ import { HookLog } from './HookLog.js';
 import { AgentRegistry, computeAgentStatus } from './AgentRegistry.js';
 import { ClaimStore } from './ClaimStore.js';
 import { hostname } from 'node:os';
-import type { DiagnosticIssue, DiagnosticReport, TodoMigrationReport } from '../types/doctor.js';
+import type { DiagnosticIssue, DiagnosticReport, SummaryMigrationReport, TodoMigrationReport } from '../types/doctor.js';
 import type { HookRecord } from '../types/hooks.js';
 
 const REQUIRED_DIRS = [
@@ -66,11 +66,27 @@ export class Doctor {
     };
   }
 
+  async migrateLegacySummaries(): Promise<SummaryMigrationReport> {
+    const legacyFiles = await this.findLegacySummaries();
+    for (const file of legacyFiles) {
+      await this.fs.rm(file);
+    }
+
+    return {
+      ok: true,
+      migrated_at: new Date().toISOString(),
+      removed_count: legacyFiles.length,
+      removed: legacyFiles,
+    };
+  }
+
   async diagnose(): Promise<DiagnosticReport> {
     const issues: DiagnosticIssue[] = [];
     await this.checkWorkspaceDirs(issues);
+    await this.checkOnboardingComplete(issues);
     await this.checkSpecDocuments(issues);
     await this.checkSpecDocumentSizes(issues);
+    await this.checkLegacySummaries(issues);
     await this.checkStaleTasks(issues);
     await this.checkStaleTaskClaims(issues);
     await this.checkStaleDirectoryLocks(issues);
@@ -126,6 +142,21 @@ export class Doctor {
           });
         }
       }
+    }
+  }
+
+  private async checkOnboardingComplete(issues: DiagnosticIssue[]): Promise<void> {
+    for (const path of ['.lrnev/PROJECT.md', '.lrnev/ARCHITECTURE.md']) {
+      if (!this.fs.exists(path)) continue;
+      const content = await this.fs.read(path).catch(() => '');
+      if (!/<!--\s*FILL:/.test(content)) continue;
+      issues.push({
+        code: 'ONBOARDING_INCOMPLETE',
+        severity: 'warning',
+        message: `${path} 仍有未补全的 FILL 字段`,
+        path,
+        suggestion: '读构建/清单文件与核心源码后补全 PROJECT/ARCHITECTURE；auto/codebase.json 的探测仅供参考。',
+      });
     }
   }
 
@@ -197,6 +228,36 @@ export class Doctor {
         suggestion: '拆分过长内容，或补充 L0/L1 摘要后按需读取全文。',
       });
     }
+  }
+
+  private async checkLegacySummaries(issues: DiagnosticIssue[]): Promise<void> {
+    const legacyFiles = await this.findLegacySummaries();
+    for (const file of legacyFiles) {
+      issues.push({
+        code: 'LEGACY_SUMMARY',
+        severity: 'warning',
+        message: '发现旧式目录级摘要文件，已废弃且不会被运行时读取',
+        path: file,
+        suggestion: '运行 lrnev doctor --migrate-summaries 一次性删除遗留摘要；需要摘要时重新调用 summarize_save 生成新式文件。',
+      });
+    }
+  }
+
+  private async findLegacySummaries(): Promise<string[]> {
+    const patterns = [
+      '.lrnev/.abstract.md',
+      '.lrnev/.overview.md',
+      '.lrnev/**/.abstract.md',
+      '.lrnev/**/.overview.md',
+    ];
+    const found = new Set<string>();
+    for (const pattern of patterns) {
+      for (const path of await this.fs.list(pattern, { dot: true })) {
+        const stat = await this.fs.stat(path).catch(() => null);
+        if (stat?.isFile) found.add(path);
+      }
+    }
+    return [...found].sort();
   }
 
   private async checkStaleDirectoryLocks(issues: DiagnosticIssue[]): Promise<void> {

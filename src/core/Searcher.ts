@@ -74,14 +74,9 @@ export class Searcher {
   }
 
   private stripSummaryFile(file: string): string {
-    if (!file.endsWith('/.abstract.md') && !file.endsWith('/.overview.md')) return file;
-    const dir = file.slice(0, file.lastIndexOf('/'));
-    if (this.fs.exists(`${dir}/requirements.md`)) return `${dir}/requirements.md`;
-    const adr = file.match(/^(.*\/adr)\/\d{4}-.+\/\.(abstract|overview)\.md$/);
-    if (adr) return dir;
-    if (this.fs.exists(`${dir}/scene.md`)) return `${dir}/scene.md`;
-    if (this.fs.exists(`${dir}/README.md`)) return `${dir}/README.md`;
-    return file;
+    const summary = parseSummarySidecar(file);
+    if (!summary) return file;
+    return summary.sourcePath;
   }
 }
 
@@ -104,15 +99,29 @@ function scoreText(text: string, terms: string[]): number {
 }
 
 function levelBoost(file: string): number {
-  if (file.endsWith('/.abstract.md')) return 8;
-  if (file.endsWith('/.overview.md')) return 4;
+  const summary = parseSummarySidecar(file);
+  if (summary?.level === 'L0') return 8;
+  if (summary?.level === 'L1') return 4;
   return 0;
 }
 
 function matchedLevel(file: string): SearchResult['matched_level'] {
-  if (file.endsWith('/.abstract.md')) return 'L0';
-  if (file.endsWith('/.overview.md')) return 'L1';
+  const summary = parseSummarySidecar(file);
+  if (summary) return summary.level;
   return 'L2';
+}
+
+function parseSummarySidecar(file: string): { sourcePath: string; level: 'L0' | 'L1' } | null {
+  const match = /^(?:(.*)\/)?\.([^/]+)\.(abstract|overview)\.md$/.exec(file);
+  if (!match) return null;
+  const dir = match[1];
+  const name = match[2]!;
+  const suffix = match[3]!;
+  const sourcePath = dir ? `${dir}/${name}.md` : `${name}.md`;
+  return {
+    sourcePath,
+    level: suffix === 'abstract' ? 'L0' : 'L1',
+  };
 }
 
 function makeSnippet(text: string, terms: string[], maxLength: number): string {

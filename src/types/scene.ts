@@ -9,8 +9,8 @@
  *   - scene.md           主文档（边界、意图、术语）
  *   - architecture.md    架构（共享设计）
  *   - roadmap.md         路线图
- *   - .abstract.md       L0 摘要（AI 生成）
- *   - .overview.md       L1 概览（AI 生成）
+ *   - .<doc>.abstract.md L0 摘要（AI 生成，按源文档键控）
+ *   - .<doc>.overview.md L1 概览（AI 生成，按源文档键控）
  *   - specs/             下属 Spec 目录
  *   - decisions/         Scene 局部 ADR（可选）
  *   - errorbook/         Scene 局部错误手册（可选）

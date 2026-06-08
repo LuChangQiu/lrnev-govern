@@ -44,6 +44,33 @@ describe('Doctor', () => {
     expect(report.issues.some((issue) => issue.code === 'BROKEN_CONTEXT_REF')).toBe(false);
   });
 
+  it('应以 warning 报告 PROJECT/ARCHITECTURE onboarding 未补全且不影响 ok', async () => {
+    await fs.write('.lrnev/PROJECT.md', [
+      '# demo',
+      '',
+      '<!-- FILL: 一句话说明这个项目是什么 -->',
+    ].join('\n'));
+    await fs.write('.lrnev/ARCHITECTURE.md', [
+      '# demo 架构',
+      '',
+      '<!-- FILL: 技术栈；自动探测疑似候选（待核实）：typescript -->',
+    ].join('\n'));
+
+    const report = await doctor.diagnose();
+    const onboarding = report.issues.filter((issue) => issue.code === 'ONBOARDING_INCOMPLETE');
+
+    expect(report.ok).toBe(true);
+    expect(report.summary.errors).toBe(0);
+    expect(onboarding).toHaveLength(2);
+    expect(onboarding.every((issue) => issue.severity === 'warning')).toBe(true);
+
+    await fs.write('.lrnev/PROJECT.md', '# demo\n\n已补全。\n');
+    await fs.write('.lrnev/ARCHITECTURE.md', '# demo 架构\n\n已补全。\n');
+
+    const clean = await doctor.diagnose();
+    expect(clean.issues.some((issue) => issue.code === 'ONBOARDING_INCOMPLETE')).toBe(false);
+  });
+
   it('应报告缺失标准目录', async () => {
     await fs.rm('.lrnev/memory/facts');
     const report = await doctor.diagnose();
@@ -218,6 +245,41 @@ describe('Doctor', () => {
     expect(content).toContain('`- TODO`');
     expect(content).toContain(['```md', '- TODO', '- [ ] TODO', '#### F-01 TODO', '```'].join('\n'));
     expect(content).toContain('- <!-- FILL:');
+  });
+
+  it('应报告并清理旧式目录级摘要文件', async () => {
+    await fs.write('.lrnev/.abstract.md', 'legacy project summary\n');
+    await fs.write('.lrnev/scenes/00-default/.overview.md', 'legacy scene overview\n');
+    await fs.write('.lrnev/.PROJECT.abstract.md', 'new project summary\n');
+    await fs.write('.lrnev/PROJECT.md', '# demo\n');
+
+    const report = await doctor.diagnose();
+    const legacyIssues = report.issues.filter((issue) => issue.code === 'LEGACY_SUMMARY');
+
+    expect(report.ok).toBe(true);
+    expect(report.summary.errors).toBe(0);
+    expect(legacyIssues).toHaveLength(2);
+    expect(legacyIssues.every((issue) => issue.severity === 'warning')).toBe(true);
+    expect(legacyIssues.map((issue) => issue.path)).toEqual([
+      '.lrnev/.abstract.md',
+      '.lrnev/scenes/00-default/.overview.md',
+    ]);
+
+    const migrated = await doctor.migrateLegacySummaries();
+
+    expect(migrated.ok).toBe(true);
+    expect(migrated.removed).toEqual([
+      '.lrnev/.abstract.md',
+      '.lrnev/scenes/00-default/.overview.md',
+    ]);
+    expect(migrated.removed_count).toBe(2);
+    expect(fs.exists('.lrnev/.abstract.md')).toBe(false);
+    expect(fs.exists('.lrnev/scenes/00-default/.overview.md')).toBe(false);
+    expect(fs.exists('.lrnev/.PROJECT.abstract.md')).toBe(true);
+    expect(await fs.read('.lrnev/PROJECT.md')).toBe('# demo\n');
+
+    const clean = await doctor.diagnose();
+    expect(clean.issues.some((issue) => issue.code === 'LEGACY_SUMMARY')).toBe(false);
   });
 
   it('F-07: hooks.json 配置错误应报告 HOOK_CONFIG_INVALID', async () => {

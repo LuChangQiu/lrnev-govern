@@ -172,7 +172,10 @@ describe('governance hardening fixes e2e', () => {
 
       const doctor = await runCli(workspace.path, ['doctor']);
       expect(doctor.summary.errors).toBe(0);
-      expect(doctor.summary.warnings).toBe(0);
+      expect(doctor.summary.warnings).toBe(2);
+      expect(doctor.issues.map((issue: { code: string }) => issue.code)).toEqual(
+        expect.arrayContaining(['ONBOARDING_INCOMPLETE']),
+      );
     } finally {
       await workspace.cleanup();
     }

@@ -2,7 +2,7 @@
 
 > AI 协作开发的项目治理引擎 —— MCP 服务 + CLI 双形态，文件即真相，零模型依赖。
 
-npm 包名 `lrnev`，当前版本 `1.2.0`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。一行命令装好 👇
+npm 包名 `lrnev`，当前版本 `1.3.0`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。一行命令装好 👇
 
 ```bash
 npm install -g lrnev
@@ -56,7 +56,7 @@ lrnev 把项目的"需求、设计、任务、决策、踩过的坑"都落成 **
 lrnev 的设计原则是**让 AI 永远只读"当前这一步需要的最小信息"，绝不让它把整个 `.lrnev/` 或代码库挨个读一遍**：
 
 - 📸 **接手只读"快照"不读全文**：`project_status` 只读各文档的 frontmatter（标题/状态）+ 任务状态，**不加载 requirements/design 正文、不读你的源码**。AI 一次调用就知道"项目做到哪、还剩什么活"，而不是把几十个文档全 read 进上下文。
-- 🪜 **分层摘要，按需下钻**：每个 Spec/Scene 可存 **L0（一句话）/ L1（概览）** 摘要（`.abstract.md` / `.overview.md`）。AI 先读一句话判断"是不是我要找的"，确认了才读全文。找东西时不用把候选文档整篇拉出来。
+- 🪜 **分层摘要，按需下钻**：每个 Spec/Scene 文档可存 **L0（一句话）/ L1（概览）** 摘要（按文档键控的 `.<文档名>.abstract.md` / `.<文档名>.overview.md`）。AI 先读一句话判断"是不是我要找的"，确认了才读全文。找东西时不用把候选文档整篇拉出来。
 - 🔎 **关键词检索定位，而不是遍历**：`context_search` 按关键词 + 目录层级 + L0/L1 打分，**直接告诉 AI"你要的需求/任务/决策在哪个文件"**，AI 只去读那一个，而不是 for 循环读所有 spec 找匹配。
 - 🎯 **要哪份给哪份**：查任务用 `task_list`、查某个 Spec 用 `spec_get`，返回的是结构化元信息，不会顺手把三份文档正文全塞回来。
 
@@ -225,6 +225,7 @@ lrnev gate check --scene 00-default --spec 01-00-user-login --gate completion
 # 工作区体检 / 旧 TODO 迁移 / 使用手册
 lrnev doctor
 lrnev doctor --migrate-todos
+lrnev doctor --migrate-summaries
 lrnev guide
 ```
 
@@ -296,7 +297,7 @@ step 4: 搞砸了 → 错误 hint 告诉它怎么修（不用回头问用户）
 
 ```bash
 npm install && npm run build
-npm test            # 532 条测试 ✅
+npm test            # 565 条测试 ✅
 npm run dev:mcp     # tsx watch 跑 MCP
 npm run dev:inspect # MCP Inspector 调试
 npm run lrnev -- init   # 本地跑 CLI

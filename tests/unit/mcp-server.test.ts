@@ -93,6 +93,7 @@ describe('MCP server', () => {
     process.env.LRNEV_WORKSPACE = workspace.path;
     try {
       await new WorkspaceManager().init({ root: workspace.path, project_name: 'demo' });
+      await new FileStorage(workspace.path).write('.lrnev/.abstract.md', 'legacy summary\n');
       const { server, client } = await connectInMemory();
 
       const resources = await client.listResources();
@@ -102,6 +103,7 @@ describe('MCP server', () => {
       const text = project.contents[0]?.text;
       expect(text).toContain('已回退到 L2 原文');
       expect(text).toContain('# demo');
+      expect(text).not.toContain('legacy summary');
 
       await client.close();
       await server.close();
@@ -704,6 +706,8 @@ describe('MCP server', () => {
 
       const resource = await client.readResource({ uri: 'context://scene/01-user-management?level=L0' });
       expect(resource.contents[0]?.text).toBe('用户管理 Scene\n');
+      expect(new FileStorage(workspace.path).exists('.lrnev/scenes/01-user-management/.scene.abstract.md')).toBe(true);
+      expect(new FileStorage(workspace.path).exists('.lrnev/scenes/01-user-management/.abstract.md')).toBe(false);
 
       await client.close();
       await server.close();
@@ -950,6 +954,17 @@ describe('MCP server', () => {
       expect(migratedPayload.ok).toBe(true);
       expect(migratedPayload.replacements).toBeGreaterThan(0);
       expect(migratedPayload.changed_files).toBeGreaterThan(0);
+
+      const fs = new FileStorage(workspace.path);
+      await fs.write('.lrnev/.overview.md', 'legacy overview\n');
+      await fs.write('.lrnev/.PROJECT.overview.md', 'new overview\n');
+      const migratedSummaries = await client.callTool({ name: 'lrnev_doctor', arguments: { migrate_summaries: true } });
+      const migratedSummariesText = migratedSummaries.content[0]?.type === 'text' ? migratedSummaries.content[0].text : '';
+      const migratedSummariesPayload = JSON.parse(migratedSummariesText) as { ok: boolean; removed_count: number };
+      expect(migratedSummariesPayload.ok).toBe(true);
+      expect(migratedSummariesPayload.removed_count).toBe(1);
+      expect(fs.exists('.lrnev/.overview.md')).toBe(false);
+      expect(fs.exists('.lrnev/.PROJECT.overview.md')).toBe(true);
 
       await client.close();
       await server.close();

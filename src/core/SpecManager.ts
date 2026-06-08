@@ -222,7 +222,7 @@ export class SpecManager {
     ];
     if (siblingSpecIds.length > 0) {
       instructions.push(
-        `本 Scene 已有 Spec：${siblingSpecIds.join('、')}。你的改动可能与它们相关，建议先读它们的 .abstract.md 摘要或用 context_search 确认有无冲突/复用。`,
+        `本 Scene 已有 Spec：${siblingSpecIds.join('、')}。你的改动可能与它们相关，建议先读它们按文档键控的 L0 摘要或用 context_search 确认有无冲突/复用。`,
       );
     }
 

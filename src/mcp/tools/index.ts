@@ -27,7 +27,7 @@ import { HookManager } from '../../core/HookManager.js';
 import { ProjectStatus } from '../../core/ProjectStatus.js';
 import { AgentRegistry } from '../../core/AgentRegistry.js';
 import { MemoryCategory } from '../../types/memory.js';
-import { ErrorCode, isLrnevError } from '../../shared/errors.js';
+import { ErrorCode, LrnevError, isLrnevError } from '../../shared/errors.js';
 import type { AiFollowupResponse, Scope } from '../../types/response.js';
 import { GUIDE_TOPIC_VALUES, TOOL_DESCRIPTIONS, buildGuide } from '../guidance.js';
 
@@ -652,12 +652,21 @@ function registerDoctorTools(server: McpServer): void {
         verbose: z.boolean().optional().describe('M1 保留参数；当前总是返回结构化 issues'),
         fix: z.boolean().optional().describe('M1 不自动修复，只返回建议'),
         migrate_todos: z.boolean().optional().describe('可选：把旧模板 TODO 占位精确迁移为 <!-- FILL: ... --> 哨兵'),
+        migrate_summaries: z.boolean().optional().describe('可选：删除旧式目录级摘要文件 .abstract.md / .overview.md'),
       },
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ migrate_todos }) => {
+    async ({ migrate_todos, migrate_summaries }) => {
       const doctor = getManagers().doctor;
-      return toToolResult(migrate_todos ? doctor.migrateTodosToSentinels() : doctor.diagnose());
+      if (migrate_todos && migrate_summaries) {
+        return toToolResult(Promise.reject(new LrnevError(ErrorCode.INVALID_INPUT, 'lrnev_doctor 一次只能选择一种迁移动作', {
+          field: 'migrate',
+          hint: '分别使用 migrate_todos 或 migrate_summaries。',
+        })));
+      }
+      if (migrate_todos) return toToolResult(doctor.migrateTodosToSentinels());
+      if (migrate_summaries) return toToolResult(doctor.migrateLegacySummaries());
+      return toToolResult(doctor.diagnose());
     },
   );
 }
