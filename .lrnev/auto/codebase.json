@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-11T07:53:40.308Z",
+  "analyzer": "AutoAnalyzer",
+  "project_root": "E:\\project\\.lrnev\\lrnev-cli\\product\\lrnev-govern",
+  "tech_stack": [
+    {
+      "ecosystem": "node",
+      "language": "typescript",
+      "manifest": "package.json",
+      "name": "lrnev",
+      "version": "1.3.1"
+    }
+  ],
+  "primary_language": "typescript",
+  "package_managers": [
+    "npm"
+  ],
+  "dependencies": {
+    "node": [
+      "@modelcontextprotocol/sdk",
+      "@types/node",
+      "commander",
+      "glob",
+      "gray-matter",
+      "rimraf",
+      "tmp-promise",
+      "tsx",
+      "typescript",
+      "vitest",
+      "zod"
+    ]
+  },
+  "directories": [
+    {
+      "path": "bin",
+      "kind": "other"
+    },
+    {
+      "path": "dev-docs",
+      "kind": "other"
+    },
+    {
+      "path": "docs",
+      "kind": "docs"
+    },
+    {
+      "path": "examples",
+      "kind": "other"
+    },
+    {
+      "path": "src",
+      "kind": "source"
+    },
+    {
+      "path": "templates",
+      "kind": "other"
+    },
+    {
+      "path": "tests",
+      "kind": "test"
+    }
+  ],
+  "root_files": [
+    ".gitignore",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    "README.md",
+    "package-lock.json",
+    "package.json",
+    "tsconfig.json",
+    "vitest.config.ts"
+  ],
+  "sample_files": [
+    "src/cli/index.ts",
+    "src/core/ADRManager.ts",
+    "src/core/AgentRegistry.ts",
+    "src/core/AutoAnalyzer.ts",
+    "src/core/ClaimStore.ts",
+    "src/core/Doctor.ts",
+    "src/core/ErrorbookManager.ts",
+    "src/core/GateRunner.ts",
+    "src/core/GoalAssessor.ts",
+    "src/core/HookLog.ts",
+    "src/core/HookManager.ts",
+    "src/core/HookRunner.ts",
+    "src/core/LegacyTodoMigration.ts",
+    "src/core/MemoryManager.ts",
+    "src/core/ProjectStatus.ts",
+    "src/core/SceneManager.ts",
+    "src/core/Searcher.ts",
+    "src/core/SessionCommit.ts",
+    "src/core/SpecManager.ts",
+    "src/core/Summarizer.ts"
+  ],
+  "notes": [
+    "该分析不调用 LLM / embedding，只做确定性文件探测。",
+    "请 AI 抽样阅读 sample_files 后补充 coding_style / architecture_notes 字段。"
+  ]
+}
