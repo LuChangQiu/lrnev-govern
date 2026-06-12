@@ -48,3 +48,11 @@ created: '2026-06-11'
 **验收**：
 - 抽assertReferenceExists供S6复用
 - npm test 全绿无回归
+
+### T-005 复核修复:design.md缺失时completion应hard-fail+文案同步 <!-- lrnev-task: status=completed, created=2026-06-12T04:02:16.469Z, updated=2026-06-12T04:05:54.523Z, validates=F-01 -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-06-12T04:02:17.051Z"},{"from":"in_progress","to":"completed","at":"2026-06-12T04:05:54.523Z"}] -->
+
+**验收**：
+- design缺失→completion fail(design_exists)
+- guidance/GOVERNANCE-FLOW旧边界文案同步
+- 新增缺失场景测试

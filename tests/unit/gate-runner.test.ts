@@ -268,6 +268,18 @@ describe('GateRunner', () => {
     expect(result.checks.find((check) => check.name === 'design_no_fill')?.passed).toBe(false);
   });
 
+  it('completion gate 应在 design.md 缺失时判失败（防“删 design 绕过 FILL 硬拦”）', async () => {
+    await writeReadyRequirements();
+    const task = await tasks.create({ scene: sceneId, spec: specId, title: '实现登录接口' });
+    await tasks.update({ scene: sceneId, spec: specId, task_id: task.data.id, status: 'in_progress' });
+    await tasks.update({ scene: sceneId, spec: specId, task_id: task.data.id, status: 'completed' });
+    await fs.rm(`.lrnev/scenes/${sceneId}/specs/${specId}/design.md`);
+
+    const result = await gates.checkCompletion({ scene: sceneId, spec: specId });
+    expect(result.passed).toBe(false);
+    expect(result.checks.find((check) => check.name === 'design_exists')?.passed).toBe(false);
+  });
+
   it('completion gate 应忽略 tasks.md 的模板 FILL（I-4：只查 requirements/design）', async () => {
     await writeReadyRequirements();
     await writeCleanDesign();

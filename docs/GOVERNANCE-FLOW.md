@@ -51,7 +51,7 @@ Gate 检查结构，不判断 prose 质量。
 
 - `ready` gate 检查 requirements 必填章节、残留 `<!-- FILL: ... -->` 哨兵、未勾选验收项。
 - **`ready` gate 的章节检查要求标题与中文模板完全一致**（`L0 摘要` / `L1 概览` / `L2 详情` / `范围` / `详细需求` / `验收标准`）；翻译或改名会判失败。
-- **`completion` gate 只校验任务结构**（tasks.md 可读、有任务、全部 `completed`）；它**不检查** design.md / tasks.md 里的 FILL 哨兵——requirements 的 FILL 由 `ready` gate 负责。
+- **`completion` gate 校验任务结构**（tasks.md 可读、有任务、全部 `completed`），并**硬拦 requirements.md / design.md 残留的 `<!-- FILL: ... -->` 哨兵**（design.md 缺失同样判失败）——“任务做完了”不等于“内容填完了”，空壳不能通过。它**不检查** tasks.md 自带的模板 FILL（task_create 只追加任务、不替换占位）。
 - 正文里正常出现 `TODO` 不会导致 gate 失败。
 - 存量旧模板里的裸 TODO 占位需要运行 `lrnev doctor --migrate-todos` 迁移。
 - gate 通过后，`ai_followup` 会要求 AI 自查质量，并提示合适的 `spec.status` 回填值。
@@ -164,11 +164,13 @@ Scene 是业务场景，Spec 是可交付特性，Task 是执行单元。一个 
 
 ## 任务追溯与子任务
 
-Task 可以带可选的需求 / 设计锚点：
+Task 可以带可选的需求 / 设计锚点（validates）：
 
 ```md
-### T-005 实现登录校验 <!-- lrnev-task: status=pending, created=..., validates=F-01|design#3.2 -->
+### T-005 实现登录校验 <!-- lrnev-task: status=pending, created=..., validates=F-01|D-02 -->
 ```
+
+**锚点体系**：`F-xx` 指 requirements 的功能需求（`#### F-xx` 标题），`D-xx` 指 design 的设计点（`#### D-xx` 标题），两者对称。**validates 只接受这两种格式**，并做存在性硬校验——引用 requirements/design 里不存在的编号会被 `task_create` 拒绝、不落盘（与 depends_on 坏引用同类处理）。lrnev 仍不判断需求/设计写得好不好，只判断“这个编号在不在”。旧式 `design#3.2` 自由写法已废弃（design 里没有稳定章节号，无法确定性校验），会被拒绝并提示改用 `D-xx`。
 
 当 Task 改为 `in_progress` 时，`ai_followup` 总会提醒 AI 回看需求 / 设计。带 `validates` 时提示具体锚点；不带时退化为回看本 Spec 的目标和验收标准。
 

@@ -115,7 +115,7 @@ const GUIDE_SECTIONS: Record<GuideTopic, GuideSection> = {
     content: [
       'Scene 是业务场景，Spec 是可交付特性，Task 是执行单元。',
       'Gate 是结构检查，不替 AI 判断需求质量或代码质量。',
-      'Gate 各档边界：ready gate 校验 requirements 的必填章节(标题须与中文模板一致)与 FILL 哨兵；completion gate 只校验任务结构(tasks 可读/存在/全部 completed)，不检查 design.md / tasks.md 的 FILL。',
+      'Gate 各档边界：ready gate 校验 requirements 的必填章节(标题须与中文模板一致)与 FILL 哨兵；completion gate 校验任务结构(tasks 可读/存在/全部 completed)并硬拦 requirements.md / design.md 残留的 FILL 哨兵(design.md 缺失也判失败)；tasks.md 自带的模板 FILL 不检查。',
       '多 Agent：存活随进程自动判定(同主机 pid 探活,连接断开自动注销),无需定时心跳;跨主机回退到默认 90 秒心跳年龄阈值。',
       'EARS 是推荐写法，不是 gate 规则；简单 Spec 的自然语言验收仍可通过结构检查。',
       DESIGN_DECISION_EXAMPLE,

@@ -183,7 +183,18 @@ export class GateRunner {
     }
 
     const designPath = `.lrnev/scenes/${creationDetails.sceneId}/specs/${creationDetails.specId}/design.md`;
-    if (this.fs.exists(designPath)) {
+    const designExists = this.fs.exists(designPath);
+    // design.md 缺失必须显式 fail：否则“删掉 design.md”就能绕过 FILL 硬拦（codex 复核发现的放行缺口）。
+    checks.push({
+      name: 'design_exists',
+      passed: designExists,
+      hard_fail: true,
+      ...(!designExists && {
+        message: `design.md 不存在：${designPath}`,
+        hint: 'spec 骨架应含 design.md；请恢复文件或重新 spec_create，缺失时 completion 不能通过。',
+      }),
+    });
+    if (designExists) {
       const designFill = findFillSentinels(await this.fs.read(designPath));
       checks.push({
         name: 'design_no_fill',
