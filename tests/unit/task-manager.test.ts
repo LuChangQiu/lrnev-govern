@@ -393,6 +393,44 @@ describe('TaskManager 集成', () => {
       expect(r.data.validates).toEqual(['F-01', 'D-01']);
     });
 
+    it('S3: depends_on 前置未完成时 in_progress 给软提醒且不阻断（I-7 warning）', async () => {
+      const dep = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '前置' });
+      const r = await tasks.create({
+        scene: 'user-management', spec: 'user-login', title: '后置', depends_on: [dep.data.id],
+      });
+      const updated = await tasks.update({
+        scene: 'user-management', spec: 'user-login', task_id: r.data.id, status: 'in_progress',
+      });
+      expect(updated.data.status).toBe('in_progress');
+      expect(updated.ai_followup?.instructions.join('\n')).toContain(`前置 ${dep.data.id} 还未完成`);
+    });
+
+    it('S3: 前置全部完成时无依赖提醒', async () => {
+      const dep = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '前置2' });
+      await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: dep.data.id, status: 'in_progress' });
+      await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: dep.data.id, status: 'completed' });
+      const r = await tasks.create({
+        scene: 'user-management', spec: 'user-login', title: '后置2', depends_on: [dep.data.id],
+      });
+      const updated = await tasks.update({
+        scene: 'user-management', spec: 'user-login', task_id: r.data.id, status: 'in_progress',
+      });
+      expect(updated.ai_followup?.instructions.join('\n')).not.toContain('还未完成，确认是否可开始');
+    });
+
+    it('S3: 父任务带未完成子任务标 completed 时给软提醒且不阻断（I-8）', async () => {
+      const parent = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '父容器' });
+      await tasks.create({
+        scene: 'user-management', spec: 'user-login', title: '子未完', parent: parent.data.id,
+      });
+      await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: parent.data.id, status: 'in_progress' });
+      const done = await tasks.update({
+        scene: 'user-management', spec: 'user-login', task_id: parent.data.id, status: 'completed',
+      });
+      expect(done.data.status).toBe('completed');
+      expect(done.ai_followup?.instructions.join('\n')).toContain('1 个子任务未完成');
+    });
+
     it('应保存 validates 并在 tasks.md 可见', async () => {
       const r = await tasks.create({
         scene: 'user-management',

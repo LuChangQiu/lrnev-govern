@@ -1,7 +1,7 @@
 ---
 spec: 03-00-reference-soft-reminders
 scene: 01-findings-remediation
-status: ready
+status: completed
 priority: P1
 created: '2026-06-11'
 updated: '2026-06-12'

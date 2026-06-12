@@ -238,7 +238,7 @@ export class TaskManager {
     const specId = await this.specManager.resolveId(sceneId, input.spec);
     const tasksPath = this.tasksPath(sceneId, specId);
 
-    const { updatedTask, parentReadyId, previousStatus } = await this.withTasksFileLock(sceneId, specId, async () => {
+    const { updatedTask, parentReadyId, previousStatus, incompleteDeps, incompleteChildren } = await this.withTasksFileLock(sceneId, specId, async () => {
       const content = await this.fs.read(tasksPath);
       const tasks = parseTasksFromMarkdown(content, sceneId, specId);
       const task = tasks.find((t) => t.id === input.task_id);
@@ -281,10 +281,21 @@ export class TaskManager {
       await this.fs.write(tasksPath, updatedContent);
 
       const tasksAfter = tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t));
+      // S3 软提醒数据：依赖未完成（I-7 warning 部分）与父任务先于子任务完成（I-8），均不阻断。
+      const incompleteDeps = input.status === 'in_progress'
+        ? (updatedTask.depends_on ?? []).filter(
+          (dep) => tasksAfter.find((t) => t.id === dep)?.status !== 'completed',
+        )
+        : [];
+      const incompleteChildren = input.status === 'completed'
+        ? tasksAfter.filter((t) => t.parent === updatedTask.id && t.status !== 'completed').length
+        : 0;
       return {
         updatedTask,
         previousStatus: task.status,
         parentReadyId: findCompletedParentReadyForClose(updatedTask, tasksAfter),
+        incompleteDeps,
+        incompleteChildren,
       };
     });
     const specStatus = await this.readSpecStatus(sceneId, specId);
@@ -302,7 +313,7 @@ export class TaskManager {
     return appendHookWarnings({
       ok: true,
       data: updatedTask,
-      ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult),
+      ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult, incompleteDeps, incompleteChildren),
     }, hookResult.warnings);
   }
 
@@ -874,6 +885,8 @@ function buildFollowupAfterUpdate(
   specStatus?: SpecStatus,
   parentReadyId?: string,
   claimResult?: TaskUpdateClaimResult,
+  incompleteDeps: string[] = [],
+  incompleteChildren = 0,
 ): AiFollowupResponse<Task>['ai_followup'] {
   if (newStatus === 'in_progress') {
     const reviewInstruction = task.validates && task.validates.length > 0
@@ -885,6 +898,11 @@ function buildFollowupAfterUpdate(
       '这个任务可考虑按文件不相交的边界拆成子任务并行；并行方式由客户端或用户决定，可用 task_create(parent=本任务) 记录。',
       '并行前请确认各子任务改的源码文件不重叠；lrnev 只锁 tasks.md，不能锁源码文件或裁决源码冲突。',
     ];
+    if (incompleteDeps.length > 0) {
+      instructions.push(
+        `前置 ${incompleteDeps.join('、')} 还未完成，确认是否可开始；如确需抢跑，请自行确认依赖影响（lrnev 不阻断）。`,
+      );
+    }
     if (specStatus === 'completed') {
       instructions.push('当前 spec.status 是 completed；回退到 in-progress 表示有未完成工作，请检查剩余任务。');
     }
@@ -898,6 +916,11 @@ function buildFollowupAfterUpdate(
       `Task "${task.id}" 已完成`,
       '若该 Spec 的所有 Task 都完成，可调 spec_gate_check(gate=completion) 验收',
     ];
+    if (incompleteChildren > 0) {
+      instructions.push(
+        `注意：该父任务仍有 ${incompleteChildren} 个子任务未完成；task_list 快照可能让人误以为整体已完成，请确认子任务状态（lrnev 不阻断，completion gate 仍会因未完成子任务失败）。`,
+      );
+    }
     if (parentReadyId) {
       instructions.push(`父任务 "${parentReadyId}" 的所有子任务已 completed；请检查父任务自身验收，确认后可标为 completed。`);
     }
