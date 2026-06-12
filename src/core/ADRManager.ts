@@ -33,6 +33,19 @@ export class ADRManager {
     if (!title) {
       throw new LrnevError(ErrorCode.INVALID_INPUT, 'ADR title 不能为空', { field: 'title' });
     }
+    // S5 复核修复: supersedes 写入前按正整数校验并归一化为四位编号，
+    // 否则 'ADR-1'/空格等会静默落盘且 superseded_by 永远反算不到。
+    const supersedes = input.supersedes?.map((raw) => {
+      const trimmed = raw.trim();
+      if (!/^\d+$/.test(trimmed) || parseInt(trimmed, 10) <= 0) {
+        throw new LrnevError(ErrorCode.INVALID_INPUT, `supersedes 编号不合法：\"${raw}\"`, {
+          field: 'supersedes',
+          hint: '使用正整数 ADR 编号，例如 1 或 0001。',
+        });
+      }
+      return formatAdrNumber(parseInt(trimmed, 10));
+    });
+    input = { ...input, ...(supersedes && { supersedes }) };
     const scope = await this.resolveScope(input.scope);
     const dir = this.dirForScope(scope);
     const number = await this.nextNumber(dir);

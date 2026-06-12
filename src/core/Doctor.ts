@@ -97,6 +97,7 @@ export class Doctor {
     const { registry: entries } = await registry.loadRegistry();
     const deadMs = loadConfig(this.fs.root).agent.heartbeat_dead_ms;
     const removed: string[] = [];
+    let releasedExpiredClaims = 0;
     let keptActive = 0;
     let keptDeadWithClaims = 0;
     for (const [agentId, info] of Object.entries(entries)) {
@@ -108,13 +109,16 @@ export class Doctor {
         keptDeadWithClaims += 1;
         continue;
       }
-      await registry.unregisterAndReleaseClaims(agentId);
+      // 该 agent 名下只可能剩已过期 claim（有未过期的在上面被跳过），一并清掉并计入报告。
+      const { released } = await registry.unregisterAndReleaseClaims(agentId);
+      releasedExpiredClaims += released;
       removed.push(agentId);
     }
     return {
       ok: true,
       gc_at: new Date().toISOString(),
       removed,
+      released_expired_claims: releasedExpiredClaims,
       kept_active: keptActive,
       kept_dead_with_claims: keptDeadWithClaims,
     };

@@ -418,6 +418,26 @@ describe('TaskManager 集成', () => {
       expect(updated.ai_followup?.instructions.join('\n')).not.toContain('还未完成，确认是否可开始');
     });
 
+    it('S6 复核修复: 存量坏锚点在 task_update 推进时软提醒且不阻断', async () => {
+      const r = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '存量坏锚点任务' });
+      // 模拟存量/手改数据：绕过 create 校验，直接把坏锚点写进 tasks.md
+      const tasksPath = '.lrnev/scenes/01-user-management/specs/01-00-user-login/tasks.md';
+      const content = await fs.read(tasksPath);
+      await fs.write(tasksPath, content.replace(
+        new RegExp(`(### ${r.data.id} [^<]*<!-- lrnev-task: [^>]*?)( -->)`),
+        '$1, validates=design#3.2|F-99$2',
+      ));
+
+      const updated = await tasks.update({
+        scene: 'user-management', spec: 'user-login', task_id: r.data.id, status: 'in_progress',
+      });
+      expect(updated.data.status).toBe('in_progress');
+      const text = updated.ai_followup?.instructions.join('\n') ?? '';
+      expect(text).toContain('design#3.2');
+      expect(text).toContain('F-99');
+      expect(text).toContain('废弃格式或在 requirements/design 中不存在');
+    });
+
     it('S3: 父任务带未完成子任务标 completed 时给软提醒且不阻断（I-8）', async () => {
       const parent = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '父容器' });
       await tasks.create({

@@ -57,3 +57,10 @@ created: '2026-06-11'
 - adr_create沉淀为什么收紧
 - 改现有design#3.2测试为D-02且design有#### D-02
 - npm test全绿
+
+### T-006 复核修复:update路径validates软提醒+spec口径修订(create硬拒/存量提示) <!-- lrnev-task: status=completed, created=2026-06-12T09:32:07.637Z, updated=2026-06-12T09:46:33.719Z, validates=F-02|D-02 -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-06-12T09:32:31.396Z"},{"from":"in_progress","to":"completed","at":"2026-06-12T09:46:33.719Z"}] -->
+
+**验收**：
+- update时现有task含坏锚点→followup警告不阻断
+- requirements口径修订

@@ -184,7 +184,7 @@ describe('CLI', () => {
       '--supersedes', '1',
     ]);
     expect(adr2.data.number).toBe('0002');
-    expect(adr2.data.supersedes).toEqual(['1']);
+    expect(adr2.data.supersedes).toEqual(['0001']); // S5 复核修复:写入时归一化为四位编号
 
     const goal = await run(['goal', 'assess', '实现用户登录']);
     expect(goal.data.kind).toBeDefined();

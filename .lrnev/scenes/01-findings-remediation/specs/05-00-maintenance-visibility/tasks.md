@@ -33,3 +33,11 @@ created: '2026-06-11'
 **验收**：
 - get旧ADR含superseded_by且文件未改
 - list被取代项带标注
+
+### T-003 复核修复:supersedes归一化+gcAgents报告released claims <!-- lrnev-task: status=completed, created=2026-06-12T09:32:08.653Z, updated=2026-06-12T09:46:34.651Z, validates=F-02|D-02 -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-06-12T09:38:16.707Z"},{"from":"in_progress","to":"completed","at":"2026-06-12T09:46:34.651Z"}] -->
+
+**验收**：
+- 非正整数supersedes→拒绝
+- 1归一化为0001
+- gc报告含released_claims

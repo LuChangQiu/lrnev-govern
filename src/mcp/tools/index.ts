@@ -476,9 +476,17 @@ function registerErrorTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(Promise.resolve(getManagers().errors.search({
+    async (args) => toToolResult(getManagers().errors.search({
       query: args.query,
       scope: normalizeScope(args.scope),
+    }).then((entries) => (entries.length > 0 ? entries : {
+      ok: true,
+      data: entries,
+      ai_followup: {
+        instructions: [
+          'error_search 是零模型关键词检索、无语义召回：未命中时请换记录原文的关键词/错误码/文件名重试，不要用近义改述（I-14）。',
+        ],
+      },
     }))),
   );
 

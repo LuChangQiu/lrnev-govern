@@ -26,3 +26,6 @@ created: '2026-06-11'
 **验收**：
 - 文档含完整ID/标题契约/error_search原文检索说明
 - docs/tool-description测试同步通过
+
+### T-002 复核修复:error_search无结果时followup提示用原文关键词 <!-- lrnev-task: status=completed, created=2026-06-12T09:32:09.465Z, updated=2026-06-12T09:46:35.645Z, validates=F-01|D-01 -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-06-12T09:46:35.093Z"},{"from":"in_progress","to":"completed","at":"2026-06-12T09:46:35.645Z"}] -->

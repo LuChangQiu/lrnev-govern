@@ -114,4 +114,21 @@ describe('ADRManager', () => {
     expect(list.find((a) => a.number === '0001')?.superseded_by).toEqual(['0002']);
     expect(list.find((a) => a.number === '0002')?.superseded_by).toBeUndefined();
   });
+
+  it('S5 复核修复: supersedes 非正整数应拒绝，合法编号归一化为四位', async () => {
+    await adrs.create({ title: 'Base', scope: 'global', context: 'c', decision: 'd' });
+    await expect(adrs.create({
+      title: 'Bad', scope: 'global', context: 'c', decision: 'd', supersedes: ['ADR-1'],
+    })).rejects.toThrow(/不合法/);
+    await expect(adrs.create({
+      title: 'Bad2', scope: 'global', context: 'c', decision: 'd', supersedes: ['0'],
+    })).rejects.toThrow(/不合法/);
+
+    const ok = await adrs.create({
+      title: 'Good', scope: 'global', context: 'c', decision: 'd', supersedes: [' 1 '],
+    });
+    expect(ok.data.supersedes).toEqual(['0001']);
+    const old = await adrs.get('global', '1');
+    expect(old.superseded_by).toEqual([ok.data.number]);
+  });
 });

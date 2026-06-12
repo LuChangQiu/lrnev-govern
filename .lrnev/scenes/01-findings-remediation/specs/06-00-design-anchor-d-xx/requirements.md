@@ -50,7 +50,7 @@ updated: '2026-06-12'
   - WHEN 查看 design 模板/治理文档 THEN 能看到“设计锚点用 #### D-xx，与 F-xx 对称”的规范说明与示例。
 
 #### F-02 validates 只接受 F-xx/D-xx，其它硬拒
-- 描述：task_create / task_update 校验 validates 每一项格式：只允许 `^F-\d+$` 或 `^D-\d+$`；其它（含 design#3.2、自由备注）抛错且不落盘，废弃格式的报错信息明确指向“请用 D-xx”。
+- 描述：**口径修订（codex 复核 2026-06-12）**：硬拒在 **task_create**（validates 唯一写入口——update 是状态推进、不接收 validates 字段）；task_update 推进存量 task 时若发现坏锚点（废弃/非法格式或锚点已不存在），followup **软提醒**点名、不阻断（存量纠正权在用户，doctor 可列全量）。格式只允许 `^F-\d+$` 或 `^D-\d+$`；其它（含 design#3.2、自由备注）create 时抛错且不落盘，废弃格式报错明确指向“请用 D-xx”。
 - 验收：
   - WHEN validates 含 `design#3.2` THEN 报错“格式已废弃/不支持，请用 D-xx”，task 未创建。
   - WHEN validates 含任意自由字符串（如 `登录相关`）THEN 报格式错误，task 未创建。
