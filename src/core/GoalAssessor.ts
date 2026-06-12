@@ -31,7 +31,8 @@ export class GoalAssessor {
 
     // 枚举信号：顿号/逗号/分号并列 ≥3 个实质项，多半是多个可交付特性。
     const enumeratedItems = text.split(/[、,，;；]/).map((item) => item.trim()).filter((item) => item.length >= 2);
-    if (enumeratedItems.length >= 3) {
+    const hasStrongMultiFeatureSignal = enumeratedItems.length >= 3;
+    if (hasStrongMultiFeatureSignal) {
       score += 3;
       reasons.push(`目标列举了 ${enumeratedItems.length} 个并列项，可能是多个可交付特性`);
     }
@@ -44,9 +45,10 @@ export class GoalAssessor {
       reasons.push('启发式信号不足，默认先按单个 Spec 候选处理');
     }
 
+    // I-11: 强多特性信号直接抬升 kind，保证 reasons 与 kind 一致（不再被固定 score 阈值压回 single-spec）。
     const kind: GoalAssessmentKind =
       hasResearchSignal && !hasImplementationSignal ? 'research-program' :
-        score >= 5 ? 'multi-spec-program' :
+        hasStrongMultiFeatureSignal || score >= 5 ? 'multi-spec-program' :
           'single-spec';
     const confidence = score >= 7 ? 'high' : score <= 1 ? 'low' : 'medium';
 

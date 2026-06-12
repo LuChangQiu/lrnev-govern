@@ -1,0 +1,11 @@
+{
+  "DESKTOP-2E4TITN-31552-ebdf": {
+    "agent_id": "DESKTOP-2E4TITN-31552-ebdf",
+    "pid": 31552,
+    "host": "DESKTOP-2E4TITN",
+    "client": "codex-mcp-client",
+    "started_at": "2026-06-12T08:53:36.811Z",
+    "last_heartbeat": "2026-06-12T08:53:36.811Z",
+    "status": "active"
+  }
+}

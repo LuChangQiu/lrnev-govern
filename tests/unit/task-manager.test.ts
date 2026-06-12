@@ -115,10 +115,10 @@ describe('TaskManager 纯函数', () => {
         title: 't',
         status: 'pending',
         created: 'now',
-        validates: ['F-01', 'design#3.2'],
+        validates: ['F-01', 'D-01'],
       } as Task);
 
-      expect(block).toContain('validates=F-01|design#3.2');
+      expect(block).toContain('validates=F-01|D-01');
     });
 
     it('应把 parent 写入 meta 注释', () => {
@@ -250,9 +250,9 @@ describe('TaskManager 纯函数', () => {
     });
 
     it('应 round-trip 解析 validates meta', () => {
-      const md = '### T-001 做登录 <!-- lrnev-task: status=pending, created=t1, validates=F-01|design#3.2 -->';
+      const md = '### T-001 做登录 <!-- lrnev-task: status=pending, created=t1, validates=F-01|D-01 -->';
       const tasks = parseTasksFromMarkdown(md, '01-s', '01-00-x');
-      expect(tasks[0]?.validates).toEqual(['F-01', 'design#3.2']);
+      expect(tasks[0]?.validates).toEqual(['F-01', 'D-01']);
     });
 
     it('应 round-trip 解析 parent meta', () => {
@@ -319,18 +319,136 @@ describe('TaskManager 集成', () => {
     });
 
     it('应保存描述 / 验收 / 依赖', async () => {
+      const dep = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '前置任务' });
       const r = await tasks.create({
         scene: 'user-management',
         spec: 'user-login',
         title: '示例',
         description: '描述内容',
         acceptance: ['验收 1', '验收 2'],
-        depends_on: ['T-005'],
+        depends_on: [dep.data.id],
       });
       const got = await tasks.get('user-management', 'user-login', r.data.id);
       expect(got.title).toBe('示例');
       expect(got.acceptance).toEqual(['验收 1', '验收 2']);
-      expect(got.depends_on).toEqual(['T-005']);
+      expect(got.depends_on).toEqual([dep.data.id]);
+    });
+
+    it('depends_on 指向不存在的 Task 应硬拒、不落盘（I-7）', async () => {
+      await expect(tasks.create({
+        scene: 'user-management',
+        spec: 'user-login',
+        title: '坏依赖任务',
+        depends_on: ['T-099'],
+      })).rejects.toThrow(/T-099/);
+      const list = await tasks.list('user-management', 'user-login');
+      expect(list.find((t) => t.title === '坏依赖任务')).toBeUndefined();
+    });
+
+    it('S6: validates 含废弃 design# 格式应硬拒并提示改用 D-xx', async () => {
+      await expect(tasks.create({
+        scene: 'user-management',
+        spec: 'user-login',
+        title: '废弃锚点',
+        validates: ['design#3.2'],
+      })).rejects.toThrow(/废弃/);
+    });
+
+    it('S6: validates 含自由字符串应硬拒（只接受 F-xx/D-xx）', async () => {
+      await expect(tasks.create({
+        scene: 'user-management',
+        spec: 'user-login',
+        title: '自由串锚点',
+        validates: ['登录相关'],
+      })).rejects.toThrow(/只接受/);
+    });
+
+    it('S6: validates 的 F-xx 在 requirements 不存在应硬拒、不落盘', async () => {
+      await expect(tasks.create({
+        scene: 'user-management',
+        spec: 'user-login',
+        title: '坏F锚点',
+        validates: ['F-99'],
+      })).rejects.toThrow(/F-99/);
+      const list = await tasks.list('user-management', 'user-login');
+      expect(list.find((t) => t.title === '坏F锚点')).toBeUndefined();
+    });
+
+    it('S6: validates 的 D-xx 在 design 不存在应硬拒', async () => {
+      await expect(tasks.create({
+        scene: 'user-management',
+        spec: 'user-login',
+        title: '坏D锚点',
+        validates: ['D-99'],
+      })).rejects.toThrow(/D-99/);
+    });
+
+    it('S6: validates 的 F-xx/D-xx 均真实存在时正常创建（骨架自带 F-01/D-01）', async () => {
+      const r = await tasks.create({
+        scene: 'user-management',
+        spec: 'user-login',
+        title: '合法锚点任务',
+        validates: ['F-01', 'D-01'],
+      });
+      expect(r.data.validates).toEqual(['F-01', 'D-01']);
+    });
+
+    it('S3: depends_on 前置未完成时 in_progress 给软提醒且不阻断（I-7 warning）', async () => {
+      const dep = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '前置' });
+      const r = await tasks.create({
+        scene: 'user-management', spec: 'user-login', title: '后置', depends_on: [dep.data.id],
+      });
+      const updated = await tasks.update({
+        scene: 'user-management', spec: 'user-login', task_id: r.data.id, status: 'in_progress',
+      });
+      expect(updated.data.status).toBe('in_progress');
+      expect(updated.ai_followup?.instructions.join('\n')).toContain(`前置 ${dep.data.id} 还未完成`);
+    });
+
+    it('S3: 前置全部完成时无依赖提醒', async () => {
+      const dep = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '前置2' });
+      await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: dep.data.id, status: 'in_progress' });
+      await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: dep.data.id, status: 'completed' });
+      const r = await tasks.create({
+        scene: 'user-management', spec: 'user-login', title: '后置2', depends_on: [dep.data.id],
+      });
+      const updated = await tasks.update({
+        scene: 'user-management', spec: 'user-login', task_id: r.data.id, status: 'in_progress',
+      });
+      expect(updated.ai_followup?.instructions.join('\n')).not.toContain('还未完成，确认是否可开始');
+    });
+
+    it('S6 复核修复: 存量坏锚点在 task_update 推进时软提醒且不阻断', async () => {
+      const r = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '存量坏锚点任务' });
+      // 模拟存量/手改数据：绕过 create 校验，直接把坏锚点写进 tasks.md
+      const tasksPath = '.lrnev/scenes/01-user-management/specs/01-00-user-login/tasks.md';
+      const content = await fs.read(tasksPath);
+      await fs.write(tasksPath, content.replace(
+        new RegExp(`(### ${r.data.id} [^<]*<!-- lrnev-task: [^>]*?)( -->)`),
+        '$1, validates=design#3.2|F-99$2',
+      ));
+
+      const updated = await tasks.update({
+        scene: 'user-management', spec: 'user-login', task_id: r.data.id, status: 'in_progress',
+      });
+      expect(updated.data.status).toBe('in_progress');
+      const text = updated.ai_followup?.instructions.join('\n') ?? '';
+      expect(text).toContain('design#3.2');
+      expect(text).toContain('F-99');
+      expect(text).toContain('废弃格式或在 requirements/design 中不存在');
+    });
+
+    it('S3: 父任务带未完成子任务标 completed 时给软提醒且不阻断（I-8）', async () => {
+      const parent = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '父容器' });
+      await tasks.create({
+        scene: 'user-management', spec: 'user-login', title: '子未完', parent: parent.data.id,
+      });
+      await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: parent.data.id, status: 'in_progress' });
+      const done = await tasks.update({
+        scene: 'user-management', spec: 'user-login', task_id: parent.data.id, status: 'completed',
+      });
+      expect(done.data.status).toBe('completed');
+      expect(done.ai_followup?.instructions.join('\n')).toContain('1 个子任务未完成');
     });
 
     it('应保存 validates 并在 tasks.md 可见', async () => {
@@ -338,13 +456,13 @@ describe('TaskManager 集成', () => {
         scene: 'user-management',
         spec: 'user-login',
         title: '实现登录校验',
-        validates: ['F-01', 'design#3.2'],
+        validates: ['F-01', 'D-01'],
       });
       const got = await tasks.get('user-management', 'user-login', r.data.id);
       const content = await fs.read('.lrnev/scenes/01-user-management/specs/01-00-user-login/tasks.md');
 
-      expect(got.validates).toEqual(['F-01', 'design#3.2']);
-      expect(content).toContain('validates=F-01|design#3.2');
+      expect(got.validates).toEqual(['F-01', 'D-01']);
+      expect(content).toContain('validates=F-01|D-01');
     });
 
     it('应保存 parent、把子任务紧邻父任务并在 list 中体现层级', async () => {
@@ -379,7 +497,7 @@ describe('TaskManager 集成', () => {
         spec: 'user-login',
         title: '实现登录校验',
         acceptance: ['非 EARS 自然语言验收'],
-        validates: ['F-13'],
+        validates: ['F-01'],
       });
       await tasks.update({
         scene: 'user-management',
@@ -402,7 +520,7 @@ describe('TaskManager 集成', () => {
           title: '实现登录校验',
           status: 'in_progress',
           acceptance: ['非 EARS 自然语言验收'],
-          validates: ['F-13'],
+          validates: ['F-01'],
         },
       ]);
       expect(JSON.stringify(readable)).not.toContain('history');
@@ -676,8 +794,36 @@ describe('TaskManager 集成', () => {
       expect(r.data.history?.length).toBe(1);
       expect(r.ai_followup?.instructions.join('\n')).toContain('先回看本 Spec 的 requirements 目标与验收标准');
       expect(r.ai_followup?.instructions.join('\n')).toContain('spec.status 改为 in-progress');
+      // S4(I-10): 无弱信号的小任务不再被劝拆并行
+      expect(r.ai_followup?.instructions.join('\n')).not.toContain('文件不相交');
+    });
+
+    it('S4: 大任务(acceptance≥3) in_progress 仍含并行提示', async () => {
+      const big = await tasks.create({
+        scene: 'user-management',
+        spec: 'user-login',
+        title: '大任务',
+        acceptance: ['一', '二', '三'],
+      });
+      const r = await tasks.update({
+        scene: 'user-management', spec: 'user-login', task_id: big.data.id, status: 'in_progress',
+      });
       expect(r.ai_followup?.instructions.join('\n')).toContain('文件不相交');
       expect(r.ai_followup?.instructions.join('\n')).toContain('lrnev 只锁 tasks.md');
+    });
+
+    it('S4: 子任务(有 parent) in_progress 不含并行提示', async () => {
+      const child = await tasks.create({
+        scene: 'user-management',
+        spec: 'user-login',
+        title: '子任务',
+        parent: taskId,
+        acceptance: ['一', '二', '三'],
+      });
+      const r = await tasks.update({
+        scene: 'user-management', spec: 'user-login', task_id: child.data.id, status: 'in_progress',
+      });
+      expect(r.ai_followup?.instructions.join('\n')).not.toContain('文件不相交');
     });
 
     it('F-08: task_update 到 in_progress 且传 agent_id 时应登记 task claim', async () => {
@@ -761,7 +907,7 @@ describe('TaskManager 集成', () => {
         scene: 'user-management',
         spec: 'user-login',
         title: '带锚点任务',
-        validates: ['F-01', 'design#3.2'],
+        validates: ['F-01', 'D-01'],
       });
 
       const r = await tasks.update({
@@ -771,7 +917,7 @@ describe('TaskManager 集成', () => {
         status: 'in_progress',
       });
 
-      expect(r.ai_followup?.instructions.join('\n')).toContain('F-01、design#3.2');
+      expect(r.ai_followup?.instructions.join('\n')).toContain('F-01、D-01');
     });
 
     it('Spec 已 completed 时开始 Task 应提示这是状态回退', async () => {

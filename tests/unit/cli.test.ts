@@ -123,6 +123,12 @@ describe('CLI', () => {
     ]);
     expect(dashTitleTask.data.title).toBe('--scan 改占位');
 
+    const depTask = await run([
+      'task', 'create', '--scene', 'user-management', '--spec', 'user-login',
+      '依赖登录的任务', '--depends-on', 'T-001',
+    ]);
+    expect(depTask.data.depends_on).toEqual(['T-001']);
+
     const taskList = await run(['task', 'list', '--scene', 'user-management', '--spec', 'user-login']);
     expect(taskList.data[0].id).toBe('T-001');
     expect(taskList.ai_followup.instructions.join('\n')).toContain('parent 字段');
@@ -141,6 +147,16 @@ describe('CLI', () => {
     const taskUpdate = await run(['task', 'update', '--scene', 'user-management', '--spec', 'user-login', '--status', 'in_progress', 'T-001']);
     expect(taskUpdate.data.status).toBe('in_progress');
 
+    // I-1: CLI spec get 对已实现 spec 应与 MCP 一致返回“开新版”引导（共享 core guidance）。
+    // 用 T-002 走完闭环（T-001 保持 in_progress，供文末 status 命令断言）。
+    await run(['task', 'update', '--scene', 'user-management', '--spec', 'user-login', '--status', 'in_progress', 'T-002']);
+    const taskDone = await run(['task', 'update', '--scene', 'user-management', '--spec', 'user-login', '--status', 'completed', 'T-002']);
+    expect(taskDone.data.status).toBe('completed');
+
+    const specGotGuided = await run(['spec', 'get', '--scene', 'user-management', 'user-login']);
+    expect(specGotGuided.ai_followup.instructions.join('\n')).toContain('开新版');
+    expect(specGotGuided.data.spec).toBe('01-00-user-login');
+
     const adr = await run([
       'adr',
       'create',
@@ -158,6 +174,17 @@ describe('CLI', () => {
 
     const adrGot = await run(['adr', 'get', '1']);
     expect(adrGot.number).toBe('0001');
+
+    // I-3: CLI adr create --supersedes 透传(core 本就支持,补 CLI 入口)
+    const adr2 = await run([
+      'adr', 'create',
+      '--title', 'Replace file storage decision',
+      '--context', '改进决策。',
+      '--decision', '新方案。',
+      '--supersedes', '1',
+    ]);
+    expect(adr2.data.number).toBe('0002');
+    expect(adr2.data.supersedes).toEqual(['0001']); // S5 复核修复:写入时归一化为四位编号
 
     const goal = await run(['goal', 'assess', '实现用户登录']);
     expect(goal.data.kind).toBeDefined();

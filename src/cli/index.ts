@@ -15,6 +15,7 @@ import { SceneManager } from '../core/SceneManager.js';
 import { SpecManager } from '../core/SpecManager.js';
 import { TaskManager } from '../core/TaskManager.js';
 import { GateRunner } from '../core/GateRunner.js';
+import { getSpecWithGuidance } from '../core/SpecGuidance.js';
 import { ADRManager } from '../core/ADRManager.js';
 import { GoalAssessor } from '../core/GoalAssessor.js';
 import { Summarizer } from '../core/Summarizer.js';
@@ -57,10 +58,12 @@ interface CliActionOptions extends CliGlobals {
   content: string;
   context: string;
   decision: string;
+  dependsOn?: string[];
   description?: string;
   fix?: boolean;
   fixAction: string;
   gate: GateType;
+  gcAgents?: boolean;
   id: string;
   intent?: string;
   l0?: string;
@@ -83,6 +86,7 @@ interface CliActionOptions extends CliGlobals {
   spec: string;
   status: TaskStatus;
   summary: string;
+  supersedes?: string[];
   symptom: string;
   title: string;
   touchesFiles?: string[];
@@ -196,7 +200,10 @@ function buildSpecCommand(program: Command, options: BuildCliOptions): Command {
   spec.command('get')
     .requiredOption('--scene <scene>', 'Scene 标识')
     .argument('<spec>', 'Spec 标识')
-    .action(run(program, options, async (opts, specId: string) => managers(opts).specs.get(opts.scene, specId)));
+    .action(run(program, options, async (opts, specId: string) => {
+      const root = opts.workspace ?? resolveWorkspaceRoot().root;
+      return getSpecWithGuidance(new FileStorage(root), managers(opts).specs, opts.scene, specId);
+    }));
   spec.command('update')
     .requiredOption('--scene <scene>', 'Scene 标识')
     .requiredOption('--status <status>', '目标状态 draft/ready/in-progress/completed/archived')
@@ -216,7 +223,8 @@ function buildTaskCommand(program: Command, options: BuildCliOptions): Command {
     .option('--description <description>', '任务描述')
     .option('--acceptance <items...>', '验收标准')
     .option('--parent <task_id>', '父 Task ID；把大执行项拆成可分别认领/验收的子任务时使用，例如 T-003')
-    .option('--validates <anchors...>', '需求/设计锚点，例如 F-01 或 design#3.2')
+    .option('--validates <anchors...>', '需求/设计锚点，例如 F-01 或 D-02')
+    .option('--depends-on <task_ids...>', '依赖的前置 Task ID 列表，例如 T-001 T-002')
     .allowUnknownOption()
     .action(run(program, options, async (opts, title: string) => managers(opts).tasks.create({
       scene: opts.scene,
@@ -226,6 +234,7 @@ function buildTaskCommand(program: Command, options: BuildCliOptions): Command {
       acceptance: opts.acceptance,
       parent: opts.parent,
       validates: opts.validates,
+      depends_on: opts.dependsOn,
     })));
   task.command('update')
     .requiredOption('--scene <scene>', 'Scene 标识')
@@ -293,6 +302,7 @@ function buildAdrCommand(program: Command, options: BuildCliOptions): Command {
     .option('--scope <scope>', 'global 或 scene:{id}', 'global')
     .option('--consequences <text>', '影响')
     .option('--alternatives <items...>', '备选方案')
+    .option('--supersedes <numbers...>', '替代的 ADR 编号，例如 1 2')
     .action(run(program, options, async (opts) => managers(opts).adrs.create({
       title: opts.title,
       scope: normalizeScope(opts.scope),
@@ -300,6 +310,7 @@ function buildAdrCommand(program: Command, options: BuildCliOptions): Command {
       decision: opts.decision,
       alternatives: opts.alternatives,
       consequences: opts.consequences,
+      supersedes: opts.supersedes,
     })));
   adr.command('list')
     .option('--scope <scope>', 'global 或 scene:{id}', 'global')
@@ -470,16 +481,19 @@ function buildDoctorCommand(program: Command, options: BuildCliOptions): Command
     .option('--fix', 'M1 不自动修复，只输出建议')
     .option('--migrate-todos', '把旧模板 TODO 占位精确迁移为 <!-- FILL: ... --> 哨兵')
     .option('--migrate-summaries', '删除旧式目录级摘要文件 .abstract.md / .overview.md')
+    .option('--gc-agents', '显式清理已判 dead 且名下无未过期 claim 的 agent 记录')
     .action(run(program, options, async (opts) => {
       const doctor = managers(opts).doctor;
-      if (opts.migrateTodos && opts.migrateSummaries) {
-        throw new LrnevError(ErrorCode.INVALID_INPUT, 'doctor 迁移命令一次只能选择一种', {
+      const actions = [opts.migrateTodos, opts.migrateSummaries, opts.gcAgents].filter(Boolean).length;
+      if (actions > 1) {
+        throw new LrnevError(ErrorCode.INVALID_INPUT, 'doctor 维护动作一次只能选择一种', {
           field: 'migrate',
-          hint: '分别运行 --migrate-todos 或 --migrate-summaries。',
+          hint: '分别运行 --migrate-todos、--migrate-summaries 或 --gc-agents。',
         });
       }
       if (opts.migrateTodos) return doctor.migrateTodosToSentinels();
       if (opts.migrateSummaries) return doctor.migrateLegacySummaries();
+      if (opts.gcAgents) return doctor.gcAgents();
       return doctor.diagnose();
     }));
 }

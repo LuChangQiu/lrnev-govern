@@ -235,7 +235,55 @@ describe('GateRunner', () => {
     expect(result.checks.find((check) => check.name === 'all_tasks_completed')?.passed).toBe(false);
   });
 
-  it('completion gate 应在所有任务 completed 时通过', async () => {
+  it('completion gate 应在所有任务 completed 且 requirements/design 无 FILL 时通过', async () => {
+    await writeReadyRequirements();
+    await writeCleanDesign();
+    const task = await tasks.create({ scene: sceneId, spec: specId, title: '实现登录接口' });
+    await tasks.update({ scene: sceneId, spec: specId, task_id: task.data.id, status: 'in_progress' });
+    await tasks.update({ scene: sceneId, spec: specId, task_id: task.data.id, status: 'completed' });
+
+    const result = await gates.checkCompletion({ scene: sceneId, spec: specId });
+    expect(result.passed).toBe(true);
+  });
+
+  it('completion gate 应拦截 requirements.md 残留 FILL（I-4）', async () => {
+    await writeCleanDesign(); // design 干净，隔离出 requirements 的 FILL（骨架自带）
+    const task = await tasks.create({ scene: sceneId, spec: specId, title: '实现登录接口' });
+    await tasks.update({ scene: sceneId, spec: specId, task_id: task.data.id, status: 'in_progress' });
+    await tasks.update({ scene: sceneId, spec: specId, task_id: task.data.id, status: 'completed' });
+
+    const result = await gates.checkCompletion({ scene: sceneId, spec: specId });
+    expect(result.passed).toBe(false);
+    expect(result.checks.find((check) => check.name === 'requirements_no_fill')?.passed).toBe(false);
+  });
+
+  it('completion gate 应拦截 design.md 残留 FILL（I-4）', async () => {
+    await writeReadyRequirements(); // requirements 干净，隔离出 design 的 FILL（骨架自带）
+    const task = await tasks.create({ scene: sceneId, spec: specId, title: '实现登录接口' });
+    await tasks.update({ scene: sceneId, spec: specId, task_id: task.data.id, status: 'in_progress' });
+    await tasks.update({ scene: sceneId, spec: specId, task_id: task.data.id, status: 'completed' });
+
+    const result = await gates.checkCompletion({ scene: sceneId, spec: specId });
+    expect(result.passed).toBe(false);
+    expect(result.checks.find((check) => check.name === 'design_no_fill')?.passed).toBe(false);
+  });
+
+  it('completion gate 应在 design.md 缺失时判失败（防“删 design 绕过 FILL 硬拦”）', async () => {
+    await writeReadyRequirements();
+    const task = await tasks.create({ scene: sceneId, spec: specId, title: '实现登录接口' });
+    await tasks.update({ scene: sceneId, spec: specId, task_id: task.data.id, status: 'in_progress' });
+    await tasks.update({ scene: sceneId, spec: specId, task_id: task.data.id, status: 'completed' });
+    await fs.rm(`.lrnev/scenes/${sceneId}/specs/${specId}/design.md`);
+
+    const result = await gates.checkCompletion({ scene: sceneId, spec: specId });
+    expect(result.passed).toBe(false);
+    expect(result.checks.find((check) => check.name === 'design_exists')?.passed).toBe(false);
+  });
+
+  it('completion gate 应忽略 tasks.md 的模板 FILL（I-4：只查 requirements/design）', async () => {
+    await writeReadyRequirements();
+    await writeCleanDesign();
+    // tasks.md 骨架自带模板 FILL（L14/L18），create 只追加任务、不替换占位；不应影响 completion。
     const task = await tasks.create({ scene: sceneId, spec: specId, title: '实现登录接口' });
     await tasks.update({ scene: sceneId, spec: specId, task_id: task.data.id, status: 'in_progress' });
     await tasks.update({ scene: sceneId, spec: specId, task_id: task.data.id, status: 'completed' });
@@ -321,6 +369,29 @@ describe('GateRunner', () => {
       `- [${checked}] ${acceptanceText}`,
       codeMarkers,
       bodyTodo,
+    ].join('\n'));
+  }
+
+  async function writeCleanDesign(): Promise<void> {
+    const path = `.lrnev/scenes/${sceneId}/specs/${specId}/design.md`;
+    const content = await fs.read(path);
+    await fs.write(path, [
+      content.split('---').slice(0, 2).join('---'),
+      '---',
+      '',
+      '# Clean Design',
+      '',
+      '## L0 摘要',
+      '',
+      'Clean design summary, no fill.',
+      '',
+      '## L2 详情',
+      '',
+      '### 模块详细设计',
+      '',
+      '#### D-01 模块设计',
+      '',
+      'Concrete design content.',
     ].join('\n'));
   }
 });

@@ -399,6 +399,55 @@ describe('Doctor', () => {
     expect(report.issues.some((issue) => issue.code === 'STALE_AGENT')).toBe(true);
   });
 
+  it('S5(I-12): gcAgents 只清 dead 且无未过期 claim 的 agent；active 与持 claim 的 dead 保留', async () => {
+    const mkAgent = (id: string, pid: number) => ({
+      agent_id: id,
+      pid,
+      host: hostname(),
+      started_at: new Date().toISOString(),
+      last_heartbeat: new Date().toISOString(),
+      status: 'active',
+    });
+    await fs.writeJson(AGENT_REGISTRY_REL, {
+      'dead-1': mkAgent('dead-1', 2 ** 30),
+      'dead-2': mkAgent('dead-2', 2 ** 30 + 1),
+      'dead-with-claim': mkAgent('dead-with-claim', 2 ** 30 + 2),
+      alive: mkAgent('alive', process.pid),
+    });
+    await fs.writeJson('.lrnev/runtime/claims/01-s__01-00-x__T-001.json', {
+      scene: '01-s',
+      spec: '01-00-x',
+      task: 'T-001',
+      claimed_by: 'dead-with-claim',
+      claimed_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+    });
+
+    const report = await doctor.gcAgents();
+
+    expect(report.removed.sort()).toEqual(['dead-1', 'dead-2']);
+    expect(report.kept_active).toBe(1);
+    expect(report.kept_dead_with_claims).toBe(1);
+    const registry = await fs.readJson<Record<string, unknown>>(AGENT_REGISTRY_REL);
+    expect(Object.keys(registry).sort()).toEqual(['alive', 'dead-with-claim']);
+  });
+
+  it('S5(I-12): diagnose 是只读的，不会顺手清 dead agent', async () => {
+    await fs.writeJson(AGENT_REGISTRY_REL, {
+      ghost: {
+        agent_id: 'ghost',
+        pid: 2 ** 30,
+        host: hostname(),
+        started_at: new Date().toISOString(),
+        last_heartbeat: new Date().toISOString(),
+        status: 'active',
+      },
+    });
+    await doctor.diagnose();
+    const registry = await fs.readJson<Record<string, unknown>>(AGENT_REGISTRY_REL);
+    expect(Object.keys(registry)).toEqual(['ghost']);
+  });
+
   it('F-06: 跨 host 的 agent 不应被 STALE_AGENT 误报(无法探 pid)', async () => {
     await fs.writeJson(AGENT_REGISTRY_REL, {
       remote: {

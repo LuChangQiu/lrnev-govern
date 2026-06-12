@@ -24,6 +24,9 @@ export const ErrorCode = {
   /** Task 不存在。 */
   TASK_NOT_FOUND: 'TASK_NOT_FOUND',
 
+  /** validates 锚点（F-xx/D-xx）在对应文档中不存在。 */
+  ANCHOR_NOT_FOUND: 'ANCHOR_NOT_FOUND',
+
   /** 任务状态转换不合法。 */
   INVALID_STATUS_TRANSITION: 'INVALID_STATUS_TRANSITION',
 
@@ -67,6 +70,7 @@ const DEFAULT_ERROR_HINTS: Record<ErrorCode, string> = {
   SPEC_CORRUPTED: '检查 Spec 目录下 requirements/design/tasks 文档和 frontmatter 是否完整。',
   AMBIGUOUS_REF: '使用返回的 candidates 中的完整 ID 重新调用。',
   TASK_NOT_FOUND: '先调用 task list --scene <scene> --spec <spec> 确认 Task ID。',
+  ANCHOR_NOT_FOUND: '确认对应文档中存在该锚点标题（requirements 的 "#### F-xx" / design 的 "#### D-xx"），或修正 validates 编号。',
   INVALID_STATUS_TRANSITION: '按状态机更新：pending -> in_progress，in_progress -> completed/failed/blocked。',
   INVALID_URI: '使用 context:// 开头的合法 URI；可先运行 lrnev guide tools 查看格式。',
   FILE_NOT_FOUND: '确认路径存在且位于工作区内，再重新调用。',

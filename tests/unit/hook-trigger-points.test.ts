@@ -189,6 +189,30 @@ describe('Hook 事件触发点', () => {
         '',
       ].join('\n'),
     );
+    // I-4 起 completion gate 也硬拦 design.md 的 FILL；补一份无 FILL 的 design。
+    await fs.write(
+      `.lrnev/scenes/01-user-management/specs/${spec.data.spec}/design.md`,
+      [
+        '---',
+        `spec: '${spec.data.spec}'`,
+        "scene: '01-user-management'",
+        "created: '2026-06-01'",
+        '---',
+        '',
+        '# User Login - 设计',
+        '',
+        '## L0 摘要',
+        '登录设计，无占位。',
+        '',
+        '## L2 详情',
+        '',
+        '### 模块详细设计',
+        '',
+        '#### D-01 登录流程',
+        '校验并签发 session。',
+        '',
+      ].join('\n'),
+    );
     return spec;
   }
 

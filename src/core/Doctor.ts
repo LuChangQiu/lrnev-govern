@@ -10,13 +10,13 @@ import { FileStorage } from '../storage/FileStorage.js';
 import { extractCodeRanges, inRanges } from '../storage/MarkdownParser.js';
 import { parseURI, uriToFilePath } from '../storage/URIRouter.js';
 import { migrateLegacyTodoPlaceholders } from './LegacyTodoMigration.js';
-import { parseTasksFromMarkdown } from './TaskManager.js';
+import { parseTasksFromMarkdown, extractAnchorPool } from './TaskManager.js';
 import { HookManager, HOOKS_CONFIG_REL } from './HookManager.js';
 import { HookLog } from './HookLog.js';
 import { AgentRegistry, computeAgentStatus } from './AgentRegistry.js';
 import { ClaimStore } from './ClaimStore.js';
 import { hostname } from 'node:os';
-import type { DiagnosticIssue, DiagnosticReport, SummaryMigrationReport, TodoMigrationReport } from '../types/doctor.js';
+import type { AgentGcReport, DiagnosticIssue, DiagnosticReport, SummaryMigrationReport, TodoMigrationReport } from '../types/doctor.js';
 import type { HookRecord } from '../types/hooks.js';
 
 const REQUIRED_DIRS = [
@@ -80,6 +80,50 @@ export class Doctor {
     };
   }
 
+  /**
+   * S5(I-12): 显式 GC——仅删除“已判 dead 且名下无未过期 claim”的 agent 记录。
+   * 清理是维护动作，只走本显式入口；agent_list/register 等只读/常规路径绝不自动删。
+   * dead 但仍持未过期 claim 的保留（接手线索）；active 的不动。
+   */
+  async gcAgents(): Promise<AgentGcReport> {
+    const registry = new AgentRegistry(this.fs);
+    const claimStore = new ClaimStore(this.fs);
+    const now = Date.now();
+    const claimOwnersWithUnexpired = new Set(
+      (await claimStore.listAll())
+        .filter((claim) => new Date(claim.expires_at).getTime() > now)
+        .map((claim) => claim.claimed_by),
+    );
+    const { registry: entries } = await registry.loadRegistry();
+    const deadMs = loadConfig(this.fs.root).agent.heartbeat_dead_ms;
+    const removed: string[] = [];
+    let releasedExpiredClaims = 0;
+    let keptActive = 0;
+    let keptDeadWithClaims = 0;
+    for (const [agentId, info] of Object.entries(entries)) {
+      if (computeAgentStatus(info, deadMs) !== 'dead') {
+        keptActive += 1;
+        continue;
+      }
+      if (claimOwnersWithUnexpired.has(agentId)) {
+        keptDeadWithClaims += 1;
+        continue;
+      }
+      // 该 agent 名下只可能剩已过期 claim（有未过期的在上面被跳过），一并清掉并计入报告。
+      const { released } = await registry.unregisterAndReleaseClaims(agentId);
+      releasedExpiredClaims += released;
+      removed.push(agentId);
+    }
+    return {
+      ok: true,
+      gc_at: new Date().toISOString(),
+      removed,
+      released_expired_claims: releasedExpiredClaims,
+      kept_active: keptActive,
+      kept_dead_with_claims: keptDeadWithClaims,
+    };
+  }
+
   async diagnose(): Promise<DiagnosticReport> {
     const issues: DiagnosticIssue[] = [];
     await this.checkWorkspaceDirs(issues);
@@ -88,6 +132,7 @@ export class Doctor {
     await this.checkSpecDocumentSizes(issues);
     await this.checkLegacySummaries(issues);
     await this.checkStaleTasks(issues);
+    await this.checkValidatesAnchors(issues);
     await this.checkStaleTaskClaims(issues);
     await this.checkStaleDirectoryLocks(issues);
     await this.checkAdrConflicts(issues);
@@ -181,6 +226,54 @@ export class Doctor {
             path: file,
             suggestion: '确认任务是否仍在执行；必要时改为 blocked、failed 或 completed。',
           });
+        }
+      }
+    }
+  }
+
+  /** S6: 存量 validates 锚点检测——废弃/非法格式与指向不存在锚点的项列出供手改，不自动迁移（design#→D-xx 无确定映射）。 */
+  private async checkValidatesAnchors(issues: DiagnosticIssue[]): Promise<void> {
+    const files = await this.fs.list('.lrnev/scenes/*/specs/*/tasks.md');
+    for (const file of files) {
+      const ids = /^\.lrnev\/scenes\/([^/]+)\/specs\/([^/]+)\/tasks\.md$/.exec(file);
+      if (!ids) continue;
+      const tasks = parseTasksFromMarkdown(await this.fs.read(file), ids[1]!, ids[2]!);
+      const specDir = `.lrnev/scenes/${ids[1]}/specs/${ids[2]}`;
+      let fPool: Set<string> | null = null;
+      let dPool: Set<string> | null = null;
+      for (const task of tasks) {
+        for (const anchor of task.validates ?? []) {
+          if (!/^F-\d+$/.test(anchor) && !/^D-\d+$/.test(anchor)) {
+            issues.push({
+              code: 'VALIDATES_LEGACY_ANCHOR',
+              severity: 'warning',
+              message: `Task ${task.id} 的 validates 锚点 "${anchor}" 非 F-xx/D-xx 规范格式`,
+              path: file,
+              suggestion: '手动改为 requirements 的 F-xx 或 design 的 D-xx；design# 旧写法已废弃且无确定映射，不自动迁移。',
+            });
+            continue;
+          }
+          const isF = anchor.startsWith('F-');
+          if (isF && fPool === null) {
+            fPool = this.fs.exists(`${specDir}/requirements.md`)
+              ? extractAnchorPool(await this.fs.read(`${specDir}/requirements.md`), 'F')
+              : new Set();
+          }
+          if (!isF && dPool === null) {
+            dPool = this.fs.exists(`${specDir}/design.md`)
+              ? extractAnchorPool(await this.fs.read(`${specDir}/design.md`), 'D')
+              : new Set();
+          }
+          const pool = isF ? fPool! : dPool!;
+          if (!pool.has(anchor)) {
+            issues.push({
+              code: 'VALIDATES_ANCHOR_MISSING',
+              severity: 'warning',
+              message: `Task ${task.id} 的 validates 锚点 "${anchor}" 在 ${isF ? 'requirements.md' : 'design.md'} 中不存在`,
+              path: file,
+              suggestion: `在对应文档补 "#### ${anchor}" 标题，或修正该 Task 的锚点编号。`,
+            });
+          }
         }
       }
     }

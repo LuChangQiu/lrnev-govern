@@ -28,6 +28,8 @@ export interface ADRBody {
 export interface ADR extends ADRFrontmatter {
   path: string;
   body: ADRBody;
+  /** 读时派生：取代本条的更新 ADR 编号（来自其它 ADR 的 supersedes 反向计算），不落盘。 */
+  superseded_by?: string[];
 }
 
 /** 创建 ADR 的输入。 */

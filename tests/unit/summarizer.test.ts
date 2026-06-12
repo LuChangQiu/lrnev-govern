@@ -66,6 +66,9 @@ describe('Summarizer', () => {
   });
 
   it('project 与 architecture 摘要应并存且不覆盖', async () => {
+    // I-6 后 summarize 校验目标存在；真实场景里 init 已建这两份，测试里显式补上。
+    await fs.write('.lrnev/PROJECT.md', '# Project');
+    await fs.write('.lrnev/ARCHITECTURE.md', '# Architecture');
     await summarizer.saveSummary({
       uri: 'context://project',
       l0: '项目摘要',
@@ -96,6 +99,25 @@ describe('Summarizer', () => {
 
   it('列表 URI 不能保存摘要', async () => {
     await expect(summarizer.saveSummary({ uri: 'context://scene', l0: '列表' })).rejects.toThrow();
+  });
+
+  it('应拒绝为不存在的目标建孤儿摘要，且不凭空建目录/文件（I-6）', async () => {
+    const ghostDir = '.lrnev/scenes/01-ghost-scene/specs/99-99-ghost-spec';
+    await expect(
+      summarizer.saveSummary({ uri: 'context://spec/01-ghost-scene/99-99-ghost-spec/tasks', l0: '幽灵摘要' }),
+    ).rejects.toThrow();
+    expect(fs.exists(ghostDir)).toBe(false);
+    expect(fs.exists(`${ghostDir}/.tasks.abstract.md`)).toBe(false);
+  });
+
+  it('真实存在的目标仍可正常保存摘要（不回归）', async () => {
+    const scene = await scenes.create({ name: 'user-management' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'user-login' });
+    const res = await summarizer.saveSummary({
+      uri: `context://spec/${scene.data.id}/${spec.data.spec}/tasks`,
+      l0: '任务摘要',
+    });
+    expect(res.ok).toBe(true);
   });
 
   it('未提供 l0/l1 应拒绝', async () => {

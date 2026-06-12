@@ -314,7 +314,7 @@ describe('MCP server', () => {
           spec: 'user-login',
           title: 'Readable task',
           acceptance: ['自然语言验收'],
-          validates: ['F-13'],
+          validates: ['F-01'],
         },
       });
       await client.callTool({
@@ -339,7 +339,7 @@ describe('MCP server', () => {
           title: 'Readable task',
           status: 'in_progress',
           acceptance: ['自然语言验收'],
-          validates: ['F-13'],
+          validates: ['F-01'],
         },
       ]);
       expect(JSON.stringify(payload.data)).not.toContain('history');
@@ -1066,6 +1066,29 @@ async function writeReadyRequirements(root: string, sceneId: string, specId: str
     '',
     '- [x] Login works for valid credentials.',
     '',
+  ].join('\n'));
+
+  // I-4 起 completion gate 也硬拦 design.md 的 FILL；补一份无 FILL 的 design。
+  await fs.write(`.lrnev/scenes/${sceneId}/specs/${specId}/design.md`, [
+    '---',
+    `spec: '${specId}'`,
+    `scene: '${sceneId}'`,
+    "created: '2026-05-28'",
+    '---',
+    '',
+    '# User Login - 设计',
+    '',
+    '## L0 摘要',
+    '',
+    'Login design complete, no fill.',
+    '',
+    '## L2 详情',
+    '',
+    '### 模块详细设计',
+    '',
+    '#### D-01 Login flow',
+    '',
+    'Validate credentials and issue session.',
   ].join('\n'));
 }
 

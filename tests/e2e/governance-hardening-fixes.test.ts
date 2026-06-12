@@ -268,4 +268,27 @@ async function writeReadyRequirements(
     `- [${opts.checked ? 'x' : ' '}] 登录成功返回 session。`,
     '',
   ].join('\n'));
+
+  // I-4 起 completion gate 也硬拦 design.md 的 FILL；补一份无 FILL 的 design 让 completion 可通过。
+  await fs.write(`.lrnev/scenes/${sceneId}/specs/${specId}/design.md`, [
+    '---',
+    `spec: '${specId}'`,
+    `scene: '${sceneId}'`,
+    "created: '2026-06-01'",
+    '---',
+    '',
+    '# Login - 设计',
+    '',
+    '## L0 摘要',
+    '',
+    '登录设计完整，无占位。',
+    '',
+    '## L2 详情',
+    '',
+    '### 模块详细设计',
+    '',
+    '#### D-01 登录校验',
+    '',
+    '校验用户名密码并签发 session。',
+  ].join('\n'));
 }

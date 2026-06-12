@@ -37,7 +37,7 @@ export const TOOL_DESCRIPTIONS = {
   summarize_save: '保存指定 context:// URI 的 L0 / L1 摘要，不调用 LLM。何时用：完成阶段性工作后更新接手摘要时。',
   context_search: '目录优先检索 context:// 资源，优先使用 L0/L1 摘要。何时用：找相关 Spec、ADR、记忆或错误记录时。',
   error_record: '记录错误到 Errorbook incidents，并按指纹自动去重合并。何时用：遇到踩坑、回归或可复用故障经验时。',
-  error_search: '搜索 incidents 和 promoted 错误手册。何时用：修类似问题前查历史根因、修法和验证证据时。',
+  error_search: '搜索 incidents 和 promoted 错误手册。何时用：修类似问题前查历史根因、修法和验证证据时。零模型关键词检索、无语义召回：请用记录原文的关键词/错误码/文件名搜，不要改述或用近义词。',
   error_promote: '将 incidents 错误提升为 promoted，必须提供 verification。何时用：同类错误已验证可复用、需要沉淀为错误手册时。',
   memory_save: '保存一条项目记忆，source 必填，同类别内自动去重。何时用：一句约定、事实或偏好值得后续复用时。',
   memory_search: '搜索项目记忆，可按分类和 scope 过滤。何时用：需要回看项目约定、事实、模式或用户偏好时。',
@@ -94,7 +94,7 @@ const GUIDE_SECTIONS: Record<GuideTopic, GuideSection> = {
     content: [
       '新建：lrnev_init、scene_create、spec_create、spec_gate_check、task_create、task_update。',
       '接手：project_status、scene_list、spec_list、task_list、context_search。',
-      '轻产物：adr_create 记录小决策，error_record 记录踩坑，memory_save 保存一句约定，summarize_save 更新摘要。',
+      '轻产物：adr_create 记录小决策，error_record 记录踩坑，memory_save 保存一句约定，summarize_save 更新摘要。error_search 是零模型关键词检索，搜历史错误请用原文关键词/错误码，别改述。',
       '诊断：lrnev_doctor 查工作区结构、断链引用、stale claim、hook 与 agent 异常；需要时可迁移旧 TODO 占位或清理遗留摘要。',
       '并发：agent_register/agent_heartbeat/agent_unregister 管客户端会话；task_claim/task_release 记录谁声明正在做哪个 Task。',
       '自动化：lrnev_hook_list/trigger/tail_log/enable/disable 管本地 hooks。',
@@ -115,7 +115,7 @@ const GUIDE_SECTIONS: Record<GuideTopic, GuideSection> = {
     content: [
       'Scene 是业务场景，Spec 是可交付特性，Task 是执行单元。',
       'Gate 是结构检查，不替 AI 判断需求质量或代码质量。',
-      'Gate 各档边界：ready gate 校验 requirements 的必填章节(标题须与中文模板一致)与 FILL 哨兵；completion gate 只校验任务结构(tasks 可读/存在/全部 completed)，不检查 design.md / tasks.md 的 FILL。',
+      'Gate 各档边界：ready gate 校验 requirements 的必填章节(标题须与中文模板一致)与 FILL 哨兵；completion gate 校验任务结构(tasks 可读/存在/全部 completed)并硬拦 requirements.md / design.md 残留的 FILL 哨兵(design.md 缺失也判失败)；tasks.md 自带的模板 FILL 不检查。',
       '多 Agent：存活随进程自动判定(同主机 pid 探活,连接断开自动注销),无需定时心跳;跨主机回退到默认 90 秒心跳年龄阈值。',
       'EARS 是推荐写法，不是 gate 规则；简单 Spec 的自然语言验收仍可通过结构检查。',
       DESIGN_DECISION_EXAMPLE,

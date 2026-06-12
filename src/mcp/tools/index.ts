@@ -12,7 +12,8 @@ import { FileStorage } from '../../storage/FileStorage.js';
 import { resolveWorkspaceRoot } from '../../storage/WorkspaceLocator.js';
 import { SceneManager } from '../../core/SceneManager.js';
 import { SpecManager } from '../../core/SpecManager.js';
-import { TaskManager, parseTasksFromMarkdown } from '../../core/TaskManager.js';
+import { TaskManager } from '../../core/TaskManager.js';
+import { getSpecWithGuidance } from '../../core/SpecGuidance.js';
 import { WorkspaceManager } from '../../core/WorkspaceManager.js';
 import { GateRunner } from '../../core/GateRunner.js';
 import { ADRManager } from '../../core/ADRManager.js';
@@ -184,7 +185,10 @@ function registerSpecTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scene, spec }) => toToolResult(specGetWithGuidance(scene, spec)),
+    async ({ scene, spec }) => {
+      const fs = new FileStorage(resolveWorkspaceRoot().root);
+      return toToolResult(getSpecWithGuidance(fs, getManagers().specs, scene, spec));
+    },
   );
 
   server.registerTool(
@@ -253,7 +257,7 @@ function registerTaskTools(server: McpServer): void {
         acceptance: z.array(z.string()).optional().describe('可选：验收标准列表'),
         depends_on: z.array(z.string()).optional().describe('可选：依赖 Task ID 列表'),
         parent: z.string().optional().describe('可选：父 Task ID；把大执行项拆成可分别认领/验收的子任务时使用，例如 T-003'),
-        validates: z.array(z.string()).optional().describe('可选：需求/设计锚点，例如 F-01 或 design#3.2'),
+        validates: z.array(z.string()).optional().describe('可选：需求/设计锚点，例如 F-01 或 D-02'),
       },
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
@@ -472,9 +476,17 @@ function registerErrorTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(Promise.resolve(getManagers().errors.search({
+    async (args) => toToolResult(getManagers().errors.search({
       query: args.query,
       scope: normalizeScope(args.scope),
+    }).then((entries) => (entries.length > 0 ? entries : {
+      ok: true,
+      data: entries,
+      ai_followup: {
+        instructions: [
+          'error_search 是零模型关键词检索、无语义召回：未命中时请换记录原文的关键词/错误码/文件名重试，不要用近义改述（I-14）。',
+        ],
+      },
     }))),
   );
 
@@ -653,19 +665,21 @@ function registerDoctorTools(server: McpServer): void {
         fix: z.boolean().optional().describe('M1 不自动修复，只返回建议'),
         migrate_todos: z.boolean().optional().describe('可选：把旧模板 TODO 占位精确迁移为 <!-- FILL: ... --> 哨兵'),
         migrate_summaries: z.boolean().optional().describe('可选：删除旧式目录级摘要文件 .abstract.md / .overview.md'),
+        gc_agents: z.boolean().optional().describe('可选：显式清理已判 dead 且名下无未过期 claim 的 agent 记录'),
       },
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ migrate_todos, migrate_summaries }) => {
+    async ({ migrate_todos, migrate_summaries, gc_agents }) => {
       const doctor = getManagers().doctor;
-      if (migrate_todos && migrate_summaries) {
-        return toToolResult(Promise.reject(new LrnevError(ErrorCode.INVALID_INPUT, 'lrnev_doctor 一次只能选择一种迁移动作', {
+      if ([migrate_todos, migrate_summaries, gc_agents].filter(Boolean).length > 1) {
+        return toToolResult(Promise.reject(new LrnevError(ErrorCode.INVALID_INPUT, 'lrnev_doctor 一次只能选择一种维护动作', {
           field: 'migrate',
-          hint: '分别使用 migrate_todos 或 migrate_summaries。',
+          hint: '分别使用 migrate_todos、migrate_summaries 或 gc_agents。',
         })));
       }
       if (migrate_todos) return toToolResult(doctor.migrateTodosToSentinels());
       if (migrate_summaries) return toToolResult(doctor.migrateLegacySummaries());
+      if (gc_agents) return toToolResult(doctor.gcAgents());
       return toToolResult(doctor.diagnose());
     },
   );
@@ -731,38 +745,6 @@ function registerHookTools(server: McpServer): void {
     },
     async ({ name }) => toToolResult(getManagers().hooks.setEnabled(name, false)),
   );
-}
-
-/**
- * spec_get + 方案 C 提示：只在 spec 已有实现（有 completed task 或 status=completed）时，
- * 追加"整体重写考虑开新版"的提示；其余情况零噪音。统计失败静默降级。
- */
-async function specGetWithGuidance(scene: string, spec: string): Promise<unknown> {
-  const managers = getManagers();
-  const data = await managers.specs.get(scene, spec);
-  try {
-    const tasksPath = `.lrnev/scenes/${data.scene}/specs/${data.spec}/tasks.md`;
-    const fs = new FileStorage(resolveWorkspaceRoot().root);
-    const completed = fs.exists(tasksPath)
-      ? parseTasksFromMarkdown(await fs.read(tasksPath), data.scene, data.spec)
-          .filter((t) => t.status === 'completed').length
-      : 0;
-    const hasImplementation = completed > 0 || data.status === 'completed';
-    if (hasImplementation) {
-      return {
-        ok: true,
-        data,
-        ai_followup: {
-          instructions: [
-            '这个 Spec 已有实现（有 completed task 或 status=completed）。若要整体推翻重做，建议开新版 spec_create --version（VV+1）保留旧版对照，再用 spec_update 归档旧版；只是增量加需求时在本版 task_create 即可，不必新开 spec。',
-          ],
-        },
-      };
-    }
-  } catch {
-    // 统计失败不阻断 spec_get
-  }
-  return data;
 }
 
 function getManagers(): {

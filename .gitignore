@@ -7,7 +7,6 @@ coverage/
 .env.local
 .npmrc
 *.tgz
-dev-docs/
 .DS_Store
 Thumbs.db
 .vscode/

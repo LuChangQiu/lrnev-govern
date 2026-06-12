@@ -2,6 +2,49 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [SemVer 2.0](https://semver.org/lang/zh-CN/)。
 
+## [2.0.0] - 2026-06-12
+
+把治理保障从「依赖模型听话」迁移到「协议层强制」：确定性事实（FILL 残留、引用目标存在性）硬校验，需判断的语义仍交 AI。源于一轮全面真机测试发现的 17+1 项清单（`dev-docs/FINDINGS-CHECKLIST.md`，Claude/GPT 双向复评 + 用户逐条裁决），按 7 个 spec 用 lrnev 自身治理实现（scene `01-findings-remediation`），每个 spec 经 codex(GPT-5.5) 只读复核。
+
+### ⚠️ Breaking Changes
+
+- **completion gate 硬拦 requirements/design 的 FILL 哨兵**（S2/I-4）：所有 task completed 但 `requirements.md` 或 `design.md` 仍残留 `<!-- FILL: ... -->` 时，completion **不再通过**（新增 `requirements_no_fill` / `design_no_fill` hard check）；`design.md` 缺失同样判失败（`design_exists`，防"删 design 绕过"，codex 复核发现）。`tasks.md` 自带的模板 FILL 不检查。判据：FILL 是"表单必填项未填"的确定性事实，不是语义判断——不判断写得好不好、是否真实现，那些仍交 AI。
+- **validates 锚点体系规范化、去自由字符串化**（S6/I-18+I-5）：`task_create` 的 validates **只接受 `F-xx`（requirements 的 `#### F-xx`）与 `D-xx`（design 的 `#### D-xx`，新规范、与 F-xx 对称）**，并做存在性硬校验——引用不存在的锚点报 `ANCHOR_NOT_FOUND`（新错误码）、不落盘；旧式 `design#3.2` 自由写法废弃，报错引导改用 `D-xx`；其它自由字符串一律拒绝。存量数据不自动迁移（无确定映射）：`task_update` 推进含坏锚点的存量 task 时 followup 软提醒点名，doctor 新增 `VALIDATES_LEGACY_ANCHOR` / `VALIDATES_ANCHOR_MISSING` 列全量供手改。
+- **summarize_save 拒绝孤儿目标**（S2/I-6）：目标 scene/spec/文档不存在时报 `FILE_NOT_FOUND`，**不再凭空创建目录与摘要文件**。
+- **task_create 校验 depends_on 存在性**（S2/I-7）：依赖列表含不存在的 Task ID 时报 `TASK_NOT_FOUND`、不落盘（与 parent 校验同口径）。"依赖未完成"仍只是软提醒、不阻断。
+- **adr_create 的 supersedes 规范化**（S5 复核修复）：非正整数（如 `ADR-1`、空格、`0`）直接拒绝；合法编号统一归一化为四位（`1` → `0001`）。
+
+### Added
+
+- **设计锚点 `D-xx` 规范**（S6）：design 模板新增 `#### D-01` 锚点示范；GOVERNANCE-FLOW 补锚点体系说明。task 可用 `--validates F-01 D-02` 同时追溯需求与设计；lrnev 只判"编号在不在"，不判设计好坏。
+- **显式 dead-agent GC**（S5/I-12）：`lrnev doctor --gc-agents` / MCP `lrnev_doctor{gc_agents}`——仅清"已判 dead 且名下无未过期 claim"的 agent；dead 但持未过期 claim 的保留（接手线索）、active 不动；报告含 `released_expired_claims`。`agent_list` 等只读路径保持零写副作用，`diagnose` 不顺手清。
+- **ADR `superseded_by` 读时计算**（S5/I-17）：`adr_list` / `adr_get` 基于全量 supersedes 反向派生"本条被哪些更新 ADR 取代"，**不回写旧 ADR 文件**（保历史可追溯）。
+- **CLI 补齐与 MCP 的能力对等**（S1/I-1~I-3）：`spec get` 现与 MCP 一致返回"已实现 Spec 考虑开新版"引导（逻辑下沉 `core/SpecGuidance`，两路共用根治漂移）；`task create` 新增 `--depends-on`（此前传了被静默吞）；`adr create` 新增 `--supersedes`。
+- **任务状态软提醒**（S3/I-7+I-8）：task 转 in_progress 时若 depends_on 前置未完成，followup 点名提醒（不阻断，允许知情抢跑）；父任务标 completed 但仍有未完成子任务时提醒（completion gate 本就会拦，提醒防 task_list 快照误读）。
+
+### Changed
+
+- **in_progress 的"拆子任务并行"提示改为弱信号触发**（S4/I-10）：仅当 acceptance≥3 / 描述较长 / 已有子任务 / 多锚点之一命中才提示；子任务一律不提。消除"改个文案"级小任务也被劝拆的噪音。
+- **assess_goal 的 kind 与 reasons 一致**（S4/I-11）：枚举 ≥3 个并列项等强多特性信号直接判 `multi-spec-program`，不再被固定 score 阈值压回 single-spec，与 scene_create intent 路径口径统一。
+- **error_search 明确零模型边界**（S7/I-14）：工具描述与无结果时的 followup 均提示"用记录原文的关键词/错误码/文件名搜，不要近义改述"。
+- **治理边界文档化**（S7/I-9、I-13）：GOVERNANCE-FLOW 显式写明"序号会复用、引用必须用完整 ID"与"ready gate 中文标题是模板契约（国际化走 alias 表，不悄悄放宽）"。
+- guide(concepts) 的 gate 边界描述同步新行为。
+
+### Fixed
+
+- MCP `spec_get` 的"开新版"引导此前 CLI 拿不到（CLI/MCP 行为不一致），现共用 core。
+
+### Tests
+
+- 新增/调整 40+ 条测试（FILL 硬拦、孤儿摘要、坏依赖、锚点格式与存在性、存量坏锚点软提醒、supersedes 归一化、gc 边界、软提醒、弱信号、kind 抬升），全量 **593 条全绿**。
+- 新增 `tests/e2e/mcp-stdio-lifecycle.test.ts`：套件中唯一覆盖真 stdio 进程生命周期（连接自动注册、并发 active、touches 重叠、优雅断开自动注销+释放 claim）的 e2e。
+
+### 迁移指南
+
+- 若有 spec 的 completion 突然不过：检查 requirements/design 是否仍有 `<!-- FILL: ... -->`（或 design.md 缺失），填完即过——这是新规的本意。
+- 若 task_create 因 validates 被拒：把锚点改为 requirements/design 中真实存在的 `F-xx` / `D-xx`；旧 `design#...` 写法请在 design.md 定义 `#### D-xx` 后改用编号。
+- 存量 `.lrnev` 数据无需迁移：运行 `lrnev doctor` 可列出需手改的坏锚点。
+
 ## [1.3.1] - 2026-06-08
 
 ### Changed

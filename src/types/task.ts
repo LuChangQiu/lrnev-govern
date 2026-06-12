@@ -62,7 +62,7 @@ export interface Task {
   /** Parent Task ID. lrnev records hierarchy only; clients orchestrate execution. */
   parent?: string;
 
-  /** 对应的需求/设计锚点，例如 F-01 或 design#3.2 */
+  /** 对应的需求/设计锚点，例如 F-01 或 D-02 */
   validates?: string[];
 
   /** Direct children for hierarchy-aware output; flat task lists remain intact. */

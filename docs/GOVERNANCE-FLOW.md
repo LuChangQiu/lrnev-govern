@@ -50,8 +50,8 @@ NFR 是 Non-Functional Requirement，表示非功能需求。
 Gate 检查结构，不判断 prose 质量。
 
 - `ready` gate 检查 requirements 必填章节、残留 `<!-- FILL: ... -->` 哨兵、未勾选验收项。
-- **`ready` gate 的章节检查要求标题与中文模板完全一致**（`L0 摘要` / `L1 概览` / `L2 详情` / `范围` / `详细需求` / `验收标准`）；翻译或改名会判失败。
-- **`completion` gate 只校验任务结构**（tasks.md 可读、有任务、全部 `completed`）；它**不检查** design.md / tasks.md 里的 FILL 哨兵——requirements 的 FILL 由 `ready` gate 负责。
+- **`ready` gate 的章节检查要求标题与中文模板完全一致**（`L0 摘要` / `L1 概览` / `L2 详情` / `范围` / `详细需求` / `验收标准`）；翻译或改名会判失败。这是**模板契约（I-13，by-design）**：标题即结构锚点，放宽会让结构校验失去确定性；国际化需求将通过标题 alias 表另行设计，不会悄悄放宽现有契约。
+- **`completion` gate 校验任务结构**（tasks.md 可读、有任务、全部 `completed`），并**硬拦 requirements.md / design.md 残留的 `<!-- FILL: ... -->` 哨兵**（design.md 缺失同样判失败）——“任务做完了”不等于“内容填完了”，空壳不能通过。它**不检查** tasks.md 自带的模板 FILL（task_create 只追加任务、不替换占位）。
 - 正文里正常出现 `TODO` 不会导致 gate 失败。
 - 存量旧模板里的裸 TODO 占位需要运行 `lrnev doctor --migrate-todos` 迁移。
 - gate 通过后，`ai_followup` 会要求 AI 自查质量，并提示合适的 `spec.status` 回填值。
@@ -85,7 +85,9 @@ Gate 检查结构，不判断 prose 质量。
 
 Scene ID 保持 `{NN}-{name}`，Spec ID 保持 `{NN}-{VV}-{name}`。Spec ID 不带 Scene 前缀，因为路径已经表达了归属 Scene。
 
-Scene / Spec 序号来自文件系统扫描，不再维护 `scene-numbers.json`。创建时使用原子目录创建和短临界区锁，避免并发 create 拿到同一序号。删除条目后新建可能复用序号；引用应使用完整 ID 和路径，不应把序号当永久业务标识。
+Scene / Spec 序号来自文件系统扫描，不再维护 `scene-numbers.json`。创建时使用原子目录创建和短临界区锁，避免并发 create 拿到同一序号。
+
+**序号会复用、引用必须用完整 ID（I-9，by-design）**：删除条目（用户手动 `rm` 目录——lrnev 没有删除工具）后新建会拿到相同序号；任何用短序号（如“spec 03”）的引用会**静默指向新的同号条目**，lrnev 不警告、不检测悬空引用。所以文档/跨 Spec 引用一律写完整 ID 和路径，不要把序号当永久业务标识。doctor 的悬空序号引用深扫为后续可选项。
 
 ## 状态机
 
@@ -164,11 +166,13 @@ Scene 是业务场景，Spec 是可交付特性，Task 是执行单元。一个 
 
 ## 任务追溯与子任务
 
-Task 可以带可选的需求 / 设计锚点：
+Task 可以带可选的需求 / 设计锚点（validates）：
 
 ```md
-### T-005 实现登录校验 <!-- lrnev-task: status=pending, created=..., validates=F-01|design#3.2 -->
+### T-005 实现登录校验 <!-- lrnev-task: status=pending, created=..., validates=F-01|D-02 -->
 ```
+
+**锚点体系**：`F-xx` 指 requirements 的功能需求（`#### F-xx` 标题），`D-xx` 指 design 的设计点（`#### D-xx` 标题），两者对称。**validates 只接受这两种格式**，并做存在性硬校验——引用 requirements/design 里不存在的编号会被 `task_create` 拒绝、不落盘（与 depends_on 坏引用同类处理）。lrnev 仍不判断需求/设计写得好不好，只判断“这个编号在不在”。旧式 `design#3.2` 自由写法已废弃（design 里没有稳定章节号，无法确定性校验），会被拒绝并提示改用 `D-xx`。
 
 当 Task 改为 `in_progress` 时，`ai_followup` 总会提醒 AI 回看需求 / 设计。带 `validates` 时提示具体锚点；不带时退化为回看本 Spec 的目标和验收标准。
 

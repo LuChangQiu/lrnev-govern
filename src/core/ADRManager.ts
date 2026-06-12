@@ -33,6 +33,19 @@ export class ADRManager {
     if (!title) {
       throw new LrnevError(ErrorCode.INVALID_INPUT, 'ADR title 不能为空', { field: 'title' });
     }
+    // S5 复核修复: supersedes 写入前按正整数校验并归一化为四位编号，
+    // 否则 'ADR-1'/空格等会静默落盘且 superseded_by 永远反算不到。
+    const supersedes = input.supersedes?.map((raw) => {
+      const trimmed = raw.trim();
+      if (!/^\d+$/.test(trimmed) || parseInt(trimmed, 10) <= 0) {
+        throw new LrnevError(ErrorCode.INVALID_INPUT, `supersedes 编号不合法：\"${raw}\"`, {
+          field: 'supersedes',
+          hint: '使用正整数 ADR 编号，例如 1 或 0001。',
+        });
+      }
+      return formatAdrNumber(parseInt(trimmed, 10));
+    });
+    input = { ...input, ...(supersedes && { supersedes }) };
     const scope = await this.resolveScope(input.scope);
     const dir = this.dirForScope(scope);
     const number = await this.nextNumber(dir);
@@ -84,20 +97,32 @@ export class ADRManager {
 
   async list(scope: Scope = 'global'): Promise<ADR[]> {
     const resolvedScope = await this.resolveScope(scope);
-    const dir = this.dirForScope(resolvedScope);
-    const files = await this.fs.list(`${dir}/*.md`);
-    const adrs: ADR[] = [];
-    for (const file of files.filter((f) => /\/\d{4}-.+\.md$/.test(f)).sort()) {
-      const number = /^.*\/(\d{4})-.+\.md$/.exec(file)?.[1];
-      if (!number) continue;
-      adrs.push(await this.get(resolvedScope, String(parseInt(number, 10))));
-    }
-    return adrs;
+    return attachSupersededBy(await this.readAllInScope(resolvedScope));
   }
 
   async get(scope: Scope, input: string): Promise<ADR> {
     const resolvedScope = await this.resolveScope(scope);
     const file = await this.resolveADRPath(resolvedScope, input);
+    const target = await this.readOne(file, resolvedScope);
+    // I-17: superseded_by 是读时派生（需同 scope 全量 supersedes 的反向视角），不回写任何文件。
+    const all = attachSupersededBy(await this.readAllInScope(resolvedScope));
+    return all.find((adr) => adr.number === target.number) ?? target;
+  }
+
+  /** 读取 scope 下全部 ADR（不含派生字段）。 */
+  private async readAllInScope(resolvedScope: Scope): Promise<ADR[]> {
+    const dir = this.dirForScope(resolvedScope);
+    const files = await this.fs.list(`${dir}/*.md`);
+    const adrs: ADR[] = [];
+    for (const file of files.filter((f) => /\/\d{4}-.+\.md$/.test(f)).sort()) {
+      if (!/^.*\/(\d{4})-.+\.md$/.test(file)) continue;
+      adrs.push(await this.readOne(file, resolvedScope));
+    }
+    return adrs;
+  }
+
+  /** 读取单个 ADR 文件（原 get 本体）。 */
+  private async readOne(file: string, resolvedScope: Scope): Promise<ADR> {
     const content = await this.fs.read(file);
     const parsed = parseDocument<ADRFrontmatter>(content);
     const fm = parsed.frontmatter;
@@ -246,6 +271,21 @@ export class ADRManager {
 
 function section<T>(doc: ParsedDocument<T>, title: string): string {
   return doc.sections.find((s) => s.title === title)?.content ?? '';
+}
+
+/** I-17: 基于全量 supersedes 反向计算每条 ADR 的 superseded_by（读时派生，不改文件）。 */
+function attachSupersededBy(adrs: ADR[]): ADR[] {
+  const byNumber = new Map<string, string[]>();
+  for (const adr of adrs) {
+    for (const old of adr.supersedes ?? []) {
+      const key = old.padStart(4, '0');
+      byNumber.set(key, [...(byNumber.get(key) ?? []), adr.number]);
+    }
+  }
+  return adrs.map((adr) => {
+    const by = byNumber.get(adr.number);
+    return by && by.length > 0 ? { ...adr, superseded_by: by } : adr;
+  });
 }
 
 function slugify(title: string): string {

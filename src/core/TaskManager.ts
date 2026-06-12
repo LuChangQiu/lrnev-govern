@@ -139,13 +139,25 @@ export class TaskManager {
 
       const content = await this.fs.read(tasksPath);
       const existing = parseTasksFromMarkdown(content, sceneId, specId);
-      if (input.parent && !existing.some((t) => t.id === input.parent)) {
+      const existingIds = new Set(existing.map((t) => t.id));
+      if (input.parent && !existingIds.has(input.parent)) {
         throw new LrnevError(
           ErrorCode.TASK_NOT_FOUND,
           `父 Task "${input.parent}" 不存在`,
           { field: 'parent' },
         );
       }
+      // I-7（存在性部分）: depends_on 指向不存在的 task ID 时硬拒、不落盘（坏结构引用，与 parent 同类）。
+      const missingDeps = findMissingReferences(input.depends_on ?? [], existingIds);
+      if (missingDeps.length > 0) {
+        throw new LrnevError(
+          ErrorCode.TASK_NOT_FOUND,
+          `depends_on 指向不存在的 Task：${missingDeps.join('、')}`,
+          { field: 'depends_on', hint: '先用 task_list 确认依赖的 Task ID，或去掉不存在的依赖。' },
+        );
+      }
+      // S6（I-18/I-5）: validates 锚点体系——只认 F-xx/D-xx，格式与存在性都硬校验后才落盘。
+      await this.assertValidatesAnchors(input.validates ?? [], sceneId, specId);
 
       const nextNum = computeNextTaskNumber(existing);
       const taskId = formatTaskId(nextNum);
@@ -226,7 +238,7 @@ export class TaskManager {
     const specId = await this.specManager.resolveId(sceneId, input.spec);
     const tasksPath = this.tasksPath(sceneId, specId);
 
-    const { updatedTask, parentReadyId, previousStatus } = await this.withTasksFileLock(sceneId, specId, async () => {
+    const { updatedTask, parentReadyId, previousStatus, incompleteDeps, incompleteChildren, suggestParallel, badAnchors } = await this.withTasksFileLock(sceneId, specId, async () => {
       const content = await this.fs.read(tasksPath);
       const tasks = parseTasksFromMarkdown(content, sceneId, specId);
       const task = tasks.find((t) => t.id === input.task_id);
@@ -269,10 +281,29 @@ export class TaskManager {
       await this.fs.write(tasksPath, updatedContent);
 
       const tasksAfter = tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t));
+      // S3 软提醒数据：依赖未完成（I-7 warning 部分）与父任务先于子任务完成（I-8），均不阻断。
+      const incompleteDeps = input.status === 'in_progress'
+        ? (updatedTask.depends_on ?? []).filter(
+          (dep) => tasksAfter.find((t) => t.id === dep)?.status !== 'completed',
+        )
+        : [];
+      const incompleteChildren = input.status === 'completed'
+        ? tasksAfter.filter((t) => t.parent === updatedTask.id && t.status !== 'completed').length
+        : 0;
+      // S4(I-10): 并行提示按弱信号有条件出现，子任务一律不提，消除小任务噪音。
+      const suggestParallel = input.status === 'in_progress'
+        && shouldSuggestParallelSplit(updatedTask, tasksAfter);
+      // S6 复核修复: update 是状态推进，不重校验 validates（硬拒只在 create 挡新写入）；
+      // 但存量/手改的坏锚点在推进时刻给软提醒，避免坏引用安静地走到 completed。
+      const badAnchors = await this.findBadValidatesAnchors(updatedTask.validates ?? [], sceneId, specId);
       return {
         updatedTask,
         previousStatus: task.status,
         parentReadyId: findCompletedParentReadyForClose(updatedTask, tasksAfter),
+        incompleteDeps,
+        incompleteChildren,
+        suggestParallel,
+        badAnchors,
       };
     });
     const specStatus = await this.readSpecStatus(sceneId, specId);
@@ -290,7 +321,7 @@ export class TaskManager {
     return appendHookWarnings({
       ok: true,
       data: updatedTask,
-      ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult),
+      ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult, incompleteDeps, incompleteChildren, suggestParallel, badAnchors),
     }, hookResult.warnings);
   }
 
@@ -331,6 +362,89 @@ export class TaskManager {
   /** Tasks.md 相对路径 */
   private tasksPath(sceneId: string, specId: string): string {
     return `.lrnev/scenes/${sceneId}/specs/${specId}/tasks.md`;
+  }
+
+  /**
+   * S6 validates 锚点体系硬校验：只接受 F-xx / D-xx，且锚点必须真实存在于对应文档。
+   * lrnev 不判断需求/设计质量，只判断“这个编号在不在”——确定性结构引用，与 depends_on 同口径。
+   */
+  private async assertValidatesAnchors(validates: string[], sceneId: string, specId: string): Promise<void> {
+    if (validates.length === 0) return;
+    const legacy = validates.filter((v) => /^design#/i.test(v));
+    if (legacy.length > 0) {
+      throw new LrnevError(
+        ErrorCode.INVALID_INPUT,
+        `validates 锚点格式已废弃：${legacy.join('、')}`,
+        {
+          field: 'validates',
+          hint: 'design# 自由写法无稳定真相来源、无法确定性校验；请在 design.md 用 "#### D-xx 标题" 定义设计锚点后改用 D-xx。',
+        },
+      );
+    }
+    const invalid = validates.filter((v) => !/^F-\d+$/.test(v) && !/^D-\d+$/.test(v));
+    if (invalid.length > 0) {
+      throw new LrnevError(
+        ErrorCode.INVALID_INPUT,
+        `validates 只接受 F-xx / D-xx 锚点：${invalid.join('、')}`,
+        {
+          field: 'validates',
+          hint: 'F-xx 指 requirements 的 "#### F-xx"，D-xx 指 design 的 "#### D-xx"；请先在对应文档定义锚点。',
+        },
+      );
+    }
+    const specDir = `.lrnev/scenes/${sceneId}/specs/${specId}`;
+    const fRefs = validates.filter((v) => v.startsWith('F-'));
+    if (fRefs.length > 0) {
+      const missing = findMissingReferences(fRefs, await this.readAnchorPool(`${specDir}/requirements.md`, 'F'));
+      if (missing.length > 0) {
+        throw new LrnevError(
+          ErrorCode.ANCHOR_NOT_FOUND,
+          `validates 锚点在 requirements.md 中不存在：${missing.join('、')}`,
+          { field: 'validates' },
+        );
+      }
+    }
+    const dRefs = validates.filter((v) => v.startsWith('D-'));
+    if (dRefs.length > 0) {
+      const missing = findMissingReferences(dRefs, await this.readAnchorPool(`${specDir}/design.md`, 'D'));
+      if (missing.length > 0) {
+        throw new LrnevError(
+          ErrorCode.ANCHOR_NOT_FOUND,
+          `validates 锚点在 design.md 中不存在：${missing.join('、')}`,
+          { field: 'validates' },
+        );
+      }
+    }
+  }
+
+  /** 提取文档中 `#### F-xx` / `#### D-xx` 形式的锚点集合；文档不存在时返回空集（随后报 ANCHOR_NOT_FOUND）。 */
+  private async readAnchorPool(relPath: string, prefix: 'F' | 'D'): Promise<Set<string>> {
+    if (!this.fs.exists(relPath)) return new Set();
+    return extractAnchorPool(await this.fs.read(relPath), prefix);
+  }
+
+  /**
+   * S6 复核修复：找出现有 task 的 validates 中的坏锚点（废弃/非法格式，或文档中不存在）。
+   * 供 task_update 推进时刻的软提醒——存量坏引用不阻断，但不让它安静走到 completed。
+   * 失败静默降级为空（提醒缺失不影响状态推进）。
+   */
+  private async findBadValidatesAnchors(validates: string[], sceneId: string, specId: string): Promise<string[]> {
+    if (validates.length === 0) return [];
+    try {
+      const bad = validates.filter((v) => !/^F-\d+$/.test(v) && !/^D-\d+$/.test(v));
+      const specDir = `.lrnev/scenes/${sceneId}/specs/${specId}`;
+      const fRefs = validates.filter((v) => /^F-\d+$/.test(v));
+      if (fRefs.length > 0) {
+        bad.push(...findMissingReferences(fRefs, await this.readAnchorPool(`${specDir}/requirements.md`, 'F')));
+      }
+      const dRefs = validates.filter((v) => /^D-\d+$/.test(v));
+      if (dRefs.length > 0) {
+        bad.push(...findMissingReferences(dRefs, await this.readAnchorPool(`${specDir}/design.md`, 'D')));
+      }
+      return bad;
+    } catch {
+      return [];
+    }
   }
 
   /** 构造带"属主死活"感知的 ClaimStore;属主已死的 claim 视为可接手。 */
@@ -401,6 +515,23 @@ type TaskUpdateClaimResult =
 /* ============== 纯函数工具（可独立测试） ============== */
 
 /** 格式化 Task ID：1 → "T-001" */
+/**
+ * 返回 ids 中不在 pool 内的项，用于引用存在性硬校验。
+ * depends_on（task id 池）与 S6 的 validates F-xx/D-xx（文档锚点池）复用此谓词，口径一致。
+ */
+export function findMissingReferences(ids: string[], pool: Set<string>): string[] {
+  return ids.filter((id) => !pool.has(id));
+}
+
+/** 提取 markdown 中 `#### F-xx` / `#### D-xx` 行首标题锚点集合（TaskManager 校验与 Doctor 检测共用）。 */
+export function extractAnchorPool(content: string, prefix: 'F' | 'D'): Set<string> {
+  const regex = new RegExp(`^####\\s+(${prefix}-\\d+)\\b`, 'gm');
+  const pool = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(content)) !== null) pool.add(match[1]!);
+  return pool;
+}
+
 export function formatTaskId(n: number): string {
   return `T-${String(n).padStart(3, '0')}`;
 }
@@ -767,6 +898,19 @@ function findCompletedParentReadyForClose(task: Task, tasks: Task[]): string | u
   return siblings.every((candidate) => candidate.status === 'completed') ? task.parent : undefined;
 }
 
+/**
+ * S4(I-10): 并行提示的弱信号判定。子任务（有 parent）一律不提；
+ * 顶层任务需命中任一信号（验收条数多 / 描述较长 / 已有子任务 / 多锚点）才提，
+ * 避免“改个文案”级小任务也被劝拆的噪音。
+ */
+export function shouldSuggestParallelSplit(task: Task, all: Task[]): boolean {
+  if (task.parent) return false;
+  return (task.acceptance?.length ?? 0) >= 3
+    || (task.description?.length ?? 0) >= 80
+    || (task.validates?.length ?? 0) >= 2
+    || all.some((t) => t.parent === task.id);
+}
+
 function safeId(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]+/g, '_');
 }
@@ -786,7 +930,14 @@ function buildFollowupAfterUpdate(
   specStatus?: SpecStatus,
   parentReadyId?: string,
   claimResult?: TaskUpdateClaimResult,
+  incompleteDeps: string[] = [],
+  incompleteChildren = 0,
+  suggestParallel = false,
+  badAnchors: string[] = [],
 ): AiFollowupResponse<Task>['ai_followup'] {
+  const badAnchorWarning = badAnchors.length > 0
+    ? `validates 锚点 ${badAnchors.join('、')} 为废弃格式或在 requirements/design 中不存在；请修正 tasks.md 中该锚点（新建 task 会被硬拒，存量在此提醒，doctor 可列全量）。`
+    : undefined;
   if (newStatus === 'in_progress') {
     const reviewInstruction = task.validates && task.validates.length > 0
       ? `先读 requirements/design 中与 ${task.validates.join('、')} 对应的段落`
@@ -794,9 +945,19 @@ function buildFollowupAfterUpdate(
     const instructions = [
       `Task "${task.id}" 已进入 in_progress。${reviewInstruction}，确认验收口径后再动手。`,
       '可把 spec.status 改为 in-progress；gate 检查不依赖 status。',
-      '这个任务可考虑按文件不相交的边界拆成子任务并行；并行方式由客户端或用户决定，可用 task_create(parent=本任务) 记录。',
-      '并行前请确认各子任务改的源码文件不重叠；lrnev 只锁 tasks.md，不能锁源码文件或裁决源码冲突。',
     ];
+    if (suggestParallel) {
+      instructions.push(
+        '这个任务可考虑按文件不相交的边界拆成子任务并行；并行方式由客户端或用户决定，可用 task_create(parent=本任务) 记录。',
+        '并行前请确认各子任务改的源码文件不重叠；lrnev 只锁 tasks.md，不能锁源码文件或裁决源码冲突。',
+      );
+    }
+    if (incompleteDeps.length > 0) {
+      instructions.push(
+        `前置 ${incompleteDeps.join('、')} 还未完成，确认是否可开始；如确需抢跑，请自行确认依赖影响（lrnev 不阻断）。`,
+      );
+    }
+    if (badAnchorWarning) instructions.push(badAnchorWarning);
     if (specStatus === 'completed') {
       instructions.push('当前 spec.status 是 completed；回退到 in-progress 表示有未完成工作，请检查剩余任务。');
     }
@@ -810,6 +971,12 @@ function buildFollowupAfterUpdate(
       `Task "${task.id}" 已完成`,
       '若该 Spec 的所有 Task 都完成，可调 spec_gate_check(gate=completion) 验收',
     ];
+    if (incompleteChildren > 0) {
+      instructions.push(
+        `注意：该父任务仍有 ${incompleteChildren} 个子任务未完成；task_list 快照可能让人误以为整体已完成，请确认子任务状态（lrnev 不阻断，completion gate 仍会因未完成子任务失败）。`,
+      );
+    }
+    if (badAnchorWarning) instructions.push(badAnchorWarning);
     if (parentReadyId) {
       instructions.push(`父任务 "${parentReadyId}" 的所有子任务已 completed；请检查父任务自身验收，确认后可标为 completed。`);
     }
