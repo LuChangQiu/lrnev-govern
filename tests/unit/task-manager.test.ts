@@ -774,8 +774,36 @@ describe('TaskManager 集成', () => {
       expect(r.data.history?.length).toBe(1);
       expect(r.ai_followup?.instructions.join('\n')).toContain('先回看本 Spec 的 requirements 目标与验收标准');
       expect(r.ai_followup?.instructions.join('\n')).toContain('spec.status 改为 in-progress');
+      // S4(I-10): 无弱信号的小任务不再被劝拆并行
+      expect(r.ai_followup?.instructions.join('\n')).not.toContain('文件不相交');
+    });
+
+    it('S4: 大任务(acceptance≥3) in_progress 仍含并行提示', async () => {
+      const big = await tasks.create({
+        scene: 'user-management',
+        spec: 'user-login',
+        title: '大任务',
+        acceptance: ['一', '二', '三'],
+      });
+      const r = await tasks.update({
+        scene: 'user-management', spec: 'user-login', task_id: big.data.id, status: 'in_progress',
+      });
       expect(r.ai_followup?.instructions.join('\n')).toContain('文件不相交');
       expect(r.ai_followup?.instructions.join('\n')).toContain('lrnev 只锁 tasks.md');
+    });
+
+    it('S4: 子任务(有 parent) in_progress 不含并行提示', async () => {
+      const child = await tasks.create({
+        scene: 'user-management',
+        spec: 'user-login',
+        title: '子任务',
+        parent: taskId,
+        acceptance: ['一', '二', '三'],
+      });
+      const r = await tasks.update({
+        scene: 'user-management', spec: 'user-login', task_id: child.data.id, status: 'in_progress',
+      });
+      expect(r.ai_followup?.instructions.join('\n')).not.toContain('文件不相交');
     });
 
     it('F-08: task_update 到 in_progress 且传 agent_id 时应登记 task claim', async () => {

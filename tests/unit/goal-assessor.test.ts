@@ -65,6 +65,12 @@ describe('GoalAssessor', () => {
     expect(enumerated.data.score).toBeGreaterThan(single.data.score);
   });
 
+  it('S4(I-11): 明显多特性枚举目标的 kind 应升为 multi-spec-program（与 reasons 一致）', () => {
+    const res = assessor.assess('做一个完整代码图谱系统:解析、可视化、搜索、增量更新、导出报告');
+    expect(res.data.kind).toBe('multi-spec-program');
+    expect(res.data.reasons.join('\n')).toContain('并列项');
+  });
+
   it('空目标应拒绝', () => {
     expect(() => assessor.assess('  ')).toThrow();
   });

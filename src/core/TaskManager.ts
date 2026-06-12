@@ -238,7 +238,7 @@ export class TaskManager {
     const specId = await this.specManager.resolveId(sceneId, input.spec);
     const tasksPath = this.tasksPath(sceneId, specId);
 
-    const { updatedTask, parentReadyId, previousStatus, incompleteDeps, incompleteChildren } = await this.withTasksFileLock(sceneId, specId, async () => {
+    const { updatedTask, parentReadyId, previousStatus, incompleteDeps, incompleteChildren, suggestParallel } = await this.withTasksFileLock(sceneId, specId, async () => {
       const content = await this.fs.read(tasksPath);
       const tasks = parseTasksFromMarkdown(content, sceneId, specId);
       const task = tasks.find((t) => t.id === input.task_id);
@@ -290,12 +290,16 @@ export class TaskManager {
       const incompleteChildren = input.status === 'completed'
         ? tasksAfter.filter((t) => t.parent === updatedTask.id && t.status !== 'completed').length
         : 0;
+      // S4(I-10): 并行提示按弱信号有条件出现，子任务一律不提，消除小任务噪音。
+      const suggestParallel = input.status === 'in_progress'
+        && shouldSuggestParallelSplit(updatedTask, tasksAfter);
       return {
         updatedTask,
         previousStatus: task.status,
         parentReadyId: findCompletedParentReadyForClose(updatedTask, tasksAfter),
         incompleteDeps,
         incompleteChildren,
+        suggestParallel,
       };
     });
     const specStatus = await this.readSpecStatus(sceneId, specId);
@@ -313,7 +317,7 @@ export class TaskManager {
     return appendHookWarnings({
       ok: true,
       data: updatedTask,
-      ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult, incompleteDeps, incompleteChildren),
+      ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult, incompleteDeps, incompleteChildren, suggestParallel),
     }, hookResult.warnings);
   }
 
@@ -866,6 +870,19 @@ function findCompletedParentReadyForClose(task: Task, tasks: Task[]): string | u
   return siblings.every((candidate) => candidate.status === 'completed') ? task.parent : undefined;
 }
 
+/**
+ * S4(I-10): 并行提示的弱信号判定。子任务（有 parent）一律不提；
+ * 顶层任务需命中任一信号（验收条数多 / 描述较长 / 已有子任务 / 多锚点）才提，
+ * 避免“改个文案”级小任务也被劝拆的噪音。
+ */
+export function shouldSuggestParallelSplit(task: Task, all: Task[]): boolean {
+  if (task.parent) return false;
+  return (task.acceptance?.length ?? 0) >= 3
+    || (task.description?.length ?? 0) >= 80
+    || (task.validates?.length ?? 0) >= 2
+    || all.some((t) => t.parent === task.id);
+}
+
 function safeId(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]+/g, '_');
 }
@@ -887,6 +904,7 @@ function buildFollowupAfterUpdate(
   claimResult?: TaskUpdateClaimResult,
   incompleteDeps: string[] = [],
   incompleteChildren = 0,
+  suggestParallel = false,
 ): AiFollowupResponse<Task>['ai_followup'] {
   if (newStatus === 'in_progress') {
     const reviewInstruction = task.validates && task.validates.length > 0
@@ -895,9 +913,13 @@ function buildFollowupAfterUpdate(
     const instructions = [
       `Task "${task.id}" 已进入 in_progress。${reviewInstruction}，确认验收口径后再动手。`,
       '可把 spec.status 改为 in-progress；gate 检查不依赖 status。',
-      '这个任务可考虑按文件不相交的边界拆成子任务并行；并行方式由客户端或用户决定，可用 task_create(parent=本任务) 记录。',
-      '并行前请确认各子任务改的源码文件不重叠；lrnev 只锁 tasks.md，不能锁源码文件或裁决源码冲突。',
     ];
+    if (suggestParallel) {
+      instructions.push(
+        '这个任务可考虑按文件不相交的边界拆成子任务并行；并行方式由客户端或用户决定，可用 task_create(parent=本任务) 记录。',
+        '并行前请确认各子任务改的源码文件不重叠；lrnev 只锁 tasks.md，不能锁源码文件或裁决源码冲突。',
+      );
+    }
     if (incompleteDeps.length > 0) {
       instructions.push(
         `前置 ${incompleteDeps.join('、')} 还未完成，确认是否可开始；如确需抢跑，请自行确认依赖影响（lrnev 不阻断）。`,
