@@ -156,6 +156,8 @@ export class TaskManager {
           { field: 'depends_on', hint: '先用 task_list 确认依赖的 Task ID，或去掉不存在的依赖。' },
         );
       }
+      // S6（I-18/I-5）: validates 锚点体系——只认 F-xx/D-xx，格式与存在性都硬校验后才落盘。
+      await this.assertValidatesAnchors(input.validates ?? [], sceneId, specId);
 
       const nextNum = computeNextTaskNumber(existing);
       const taskId = formatTaskId(nextNum);
@@ -343,6 +345,65 @@ export class TaskManager {
     return `.lrnev/scenes/${sceneId}/specs/${specId}/tasks.md`;
   }
 
+  /**
+   * S6 validates 锚点体系硬校验：只接受 F-xx / D-xx，且锚点必须真实存在于对应文档。
+   * lrnev 不判断需求/设计质量，只判断“这个编号在不在”——确定性结构引用，与 depends_on 同口径。
+   */
+  private async assertValidatesAnchors(validates: string[], sceneId: string, specId: string): Promise<void> {
+    if (validates.length === 0) return;
+    const legacy = validates.filter((v) => /^design#/i.test(v));
+    if (legacy.length > 0) {
+      throw new LrnevError(
+        ErrorCode.INVALID_INPUT,
+        `validates 锚点格式已废弃：${legacy.join('、')}`,
+        {
+          field: 'validates',
+          hint: 'design# 自由写法无稳定真相来源、无法确定性校验；请在 design.md 用 "#### D-xx 标题" 定义设计锚点后改用 D-xx。',
+        },
+      );
+    }
+    const invalid = validates.filter((v) => !/^F-\d+$/.test(v) && !/^D-\d+$/.test(v));
+    if (invalid.length > 0) {
+      throw new LrnevError(
+        ErrorCode.INVALID_INPUT,
+        `validates 只接受 F-xx / D-xx 锚点：${invalid.join('、')}`,
+        {
+          field: 'validates',
+          hint: 'F-xx 指 requirements 的 "#### F-xx"，D-xx 指 design 的 "#### D-xx"；请先在对应文档定义锚点。',
+        },
+      );
+    }
+    const specDir = `.lrnev/scenes/${sceneId}/specs/${specId}`;
+    const fRefs = validates.filter((v) => v.startsWith('F-'));
+    if (fRefs.length > 0) {
+      const missing = findMissingReferences(fRefs, await this.readAnchorPool(`${specDir}/requirements.md`, 'F'));
+      if (missing.length > 0) {
+        throw new LrnevError(
+          ErrorCode.ANCHOR_NOT_FOUND,
+          `validates 锚点在 requirements.md 中不存在：${missing.join('、')}`,
+          { field: 'validates' },
+        );
+      }
+    }
+    const dRefs = validates.filter((v) => v.startsWith('D-'));
+    if (dRefs.length > 0) {
+      const missing = findMissingReferences(dRefs, await this.readAnchorPool(`${specDir}/design.md`, 'D'));
+      if (missing.length > 0) {
+        throw new LrnevError(
+          ErrorCode.ANCHOR_NOT_FOUND,
+          `validates 锚点在 design.md 中不存在：${missing.join('、')}`,
+          { field: 'validates' },
+        );
+      }
+    }
+  }
+
+  /** 提取文档中 `#### F-xx` / `#### D-xx` 形式的锚点集合；文档不存在时返回空集（随后报 ANCHOR_NOT_FOUND）。 */
+  private async readAnchorPool(relPath: string, prefix: 'F' | 'D'): Promise<Set<string>> {
+    if (!this.fs.exists(relPath)) return new Set();
+    return extractAnchorPool(await this.fs.read(relPath), prefix);
+  }
+
   /** 构造带"属主死活"感知的 ClaimStore;属主已死的 claim 视为可接手。 */
   private newClaimStore(): ClaimStore {
     const registry = new AgentRegistry(this.fs);
@@ -417,6 +478,15 @@ type TaskUpdateClaimResult =
  */
 export function findMissingReferences(ids: string[], pool: Set<string>): string[] {
   return ids.filter((id) => !pool.has(id));
+}
+
+/** 提取 markdown 中 `#### F-xx` / `#### D-xx` 行首标题锚点集合（TaskManager 校验与 Doctor 检测共用）。 */
+export function extractAnchorPool(content: string, prefix: 'F' | 'D'): Set<string> {
+  const regex = new RegExp(`^####\\s+(${prefix}-\\d+)\\b`, 'gm');
+  const pool = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(content)) !== null) pool.add(match[1]!);
+  return pool;
 }
 
 export function formatTaskId(n: number): string {

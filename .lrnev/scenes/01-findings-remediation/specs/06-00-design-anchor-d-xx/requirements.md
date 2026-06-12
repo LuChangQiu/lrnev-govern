@@ -1,7 +1,7 @@
 ---
 spec: 06-00-design-anchor-d-xx
 scene: 01-findings-remediation
-status: ready
+status: completed
 priority: P1
 created: '2026-06-11'
 updated: '2026-06-12'

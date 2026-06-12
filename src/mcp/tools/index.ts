@@ -253,7 +253,7 @@ function registerTaskTools(server: McpServer): void {
         acceptance: z.array(z.string()).optional().describe('可选：验收标准列表'),
         depends_on: z.array(z.string()).optional().describe('可选：依赖 Task ID 列表'),
         parent: z.string().optional().describe('可选：父 Task ID；把大执行项拆成可分别认领/验收的子任务时使用，例如 T-003'),
-        validates: z.array(z.string()).optional().describe('可选：需求/设计锚点，例如 F-01 或 design#3.2'),
+        validates: z.array(z.string()).optional().describe('可选：需求/设计锚点，例如 F-01 或 D-02'),
       },
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },

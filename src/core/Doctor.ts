@@ -10,7 +10,7 @@ import { FileStorage } from '../storage/FileStorage.js';
 import { extractCodeRanges, inRanges } from '../storage/MarkdownParser.js';
 import { parseURI, uriToFilePath } from '../storage/URIRouter.js';
 import { migrateLegacyTodoPlaceholders } from './LegacyTodoMigration.js';
-import { parseTasksFromMarkdown } from './TaskManager.js';
+import { parseTasksFromMarkdown, extractAnchorPool } from './TaskManager.js';
 import { HookManager, HOOKS_CONFIG_REL } from './HookManager.js';
 import { HookLog } from './HookLog.js';
 import { AgentRegistry, computeAgentStatus } from './AgentRegistry.js';
@@ -88,6 +88,7 @@ export class Doctor {
     await this.checkSpecDocumentSizes(issues);
     await this.checkLegacySummaries(issues);
     await this.checkStaleTasks(issues);
+    await this.checkValidatesAnchors(issues);
     await this.checkStaleTaskClaims(issues);
     await this.checkStaleDirectoryLocks(issues);
     await this.checkAdrConflicts(issues);
@@ -181,6 +182,54 @@ export class Doctor {
             path: file,
             suggestion: '确认任务是否仍在执行；必要时改为 blocked、failed 或 completed。',
           });
+        }
+      }
+    }
+  }
+
+  /** S6: 存量 validates 锚点检测——废弃/非法格式与指向不存在锚点的项列出供手改，不自动迁移（design#→D-xx 无确定映射）。 */
+  private async checkValidatesAnchors(issues: DiagnosticIssue[]): Promise<void> {
+    const files = await this.fs.list('.lrnev/scenes/*/specs/*/tasks.md');
+    for (const file of files) {
+      const ids = /^\.lrnev\/scenes\/([^/]+)\/specs\/([^/]+)\/tasks\.md$/.exec(file);
+      if (!ids) continue;
+      const tasks = parseTasksFromMarkdown(await this.fs.read(file), ids[1]!, ids[2]!);
+      const specDir = `.lrnev/scenes/${ids[1]}/specs/${ids[2]}`;
+      let fPool: Set<string> | null = null;
+      let dPool: Set<string> | null = null;
+      for (const task of tasks) {
+        for (const anchor of task.validates ?? []) {
+          if (!/^F-\d+$/.test(anchor) && !/^D-\d+$/.test(anchor)) {
+            issues.push({
+              code: 'VALIDATES_LEGACY_ANCHOR',
+              severity: 'warning',
+              message: `Task ${task.id} 的 validates 锚点 "${anchor}" 非 F-xx/D-xx 规范格式`,
+              path: file,
+              suggestion: '手动改为 requirements 的 F-xx 或 design 的 D-xx；design# 旧写法已废弃且无确定映射，不自动迁移。',
+            });
+            continue;
+          }
+          const isF = anchor.startsWith('F-');
+          if (isF && fPool === null) {
+            fPool = this.fs.exists(`${specDir}/requirements.md`)
+              ? extractAnchorPool(await this.fs.read(`${specDir}/requirements.md`), 'F')
+              : new Set();
+          }
+          if (!isF && dPool === null) {
+            dPool = this.fs.exists(`${specDir}/design.md`)
+              ? extractAnchorPool(await this.fs.read(`${specDir}/design.md`), 'D')
+              : new Set();
+          }
+          const pool = isF ? fPool! : dPool!;
+          if (!pool.has(anchor)) {
+            issues.push({
+              code: 'VALIDATES_ANCHOR_MISSING',
+              severity: 'warning',
+              message: `Task ${task.id} 的 validates 锚点 "${anchor}" 在 ${isF ? 'requirements.md' : 'design.md'} 中不存在`,
+              path: file,
+              suggestion: `在对应文档补 "#### ${anchor}" 标题，或修正该 Task 的锚点编号。`,
+            });
+          }
         }
       }
     }

@@ -216,7 +216,7 @@ function buildTaskCommand(program: Command, options: BuildCliOptions): Command {
     .option('--description <description>', '任务描述')
     .option('--acceptance <items...>', '验收标准')
     .option('--parent <task_id>', '父 Task ID；把大执行项拆成可分别认领/验收的子任务时使用，例如 T-003')
-    .option('--validates <anchors...>', '需求/设计锚点，例如 F-01 或 design#3.2')
+    .option('--validates <anchors...>', '需求/设计锚点，例如 F-01 或 D-02')
     .allowUnknownOption()
     .action(run(program, options, async (opts, title: string) => managers(opts).tasks.create({
       scene: opts.scene,
