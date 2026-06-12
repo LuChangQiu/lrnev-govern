@@ -19,3 +19,20 @@ created: '2026-06-11'
 - [ ] 所有任务完成
 - [ ] 单元测试通过
 - [ ] 集成测试通过
+
+### T-001 spec_get 开新版引导下沉 core,CLI/MCP 共用 <!-- lrnev-task: status=pending, created=2026-06-12T00:52:52.871Z, validates=F-01|D-01 -->
+
+**验收**：
+- 已实现spec CLI spec get 含开新版引导
+- 未实现spec不追加(零噪音)
+
+### T-002 CLI task create 加 --depends-on(不删allowUnknownOption+回归) <!-- lrnev-task: status=pending, created=2026-06-12T00:52:53.437Z, validates=F-02|D-02 -->
+
+**验收**：
+- --depends-on被解析进depends_on
+- dash-title标题不回归
+
+### T-003 CLI adr create 加 --supersedes(core已支持纯透传) <!-- lrnev-task: status=pending, created=2026-06-12T00:52:54.037Z, validates=F-03|D-03 -->
+
+**验收**：
+- --supersedes写入新ADR

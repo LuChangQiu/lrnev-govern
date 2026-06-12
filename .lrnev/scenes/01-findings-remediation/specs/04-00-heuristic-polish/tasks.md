@@ -19,3 +19,15 @@ created: '2026-06-11'
 - [ ] 所有任务完成
 - [ ] 单元测试通过
 - [ ] 集成测试通过
+
+### T-001 in_progress 并行提示改为弱信号有条件(子任务不提) <!-- lrnev-task: status=pending, created=2026-06-12T00:53:31.989Z, validates=F-01|D-01 -->
+
+**验收**：
+- 小任务/子任务不含并行提示
+- 大任务含
+
+### T-002 assess_goal kind 与 reasons 一致(强多特性升multi-spec) <!-- lrnev-task: status=pending, created=2026-06-12T00:53:32.534Z, validates=F-02|D-02 -->
+
+**验收**：
+- 枚举5项→multi-spec-program
+- 单一小改动→single-spec

@@ -19,3 +19,15 @@ created: '2026-06-11'
 - [ ] 所有任务完成
 - [ ] 单元测试通过
 - [ ] 集成测试通过
+
+### T-001 显式 doctor --gc-agents 清 dead 且无活跃 claim 的 agent <!-- lrnev-task: status=pending, created=2026-06-12T00:53:33.028Z, validates=F-01|D-01 -->
+
+**验收**：
+- dead无claim→清;dead持claim→留;active→不动
+- list/register无新副作用
+
+### T-002 ADR list/get 读时计算 superseded_by(不回写旧ADR) <!-- lrnev-task: status=pending, created=2026-06-12T00:53:33.548Z, validates=F-02|D-02 -->
+
+**验收**：
+- get旧ADR含superseded_by且文件未改
+- list被取代项带标注

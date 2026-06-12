@@ -19,3 +19,20 @@ created: '2026-06-11'
 - [ ] 所有任务完成
 - [ ] 单元测试通过
 - [ ] 集成测试通过
+
+### T-001 depends_on 依赖未完成时 in_progress 软提醒 <!-- lrnev-task: status=pending, created=2026-06-12T00:52:54.531Z, validates=F-01|D-01 -->
+
+**验收**：
+- 前置pending→followup提醒且状态成功
+- 前置全completed→无提醒
+
+### T-002 父任务带未完成子任务标completed时软提醒 <!-- lrnev-task: status=pending, created=2026-06-12T00:52:55.017Z, validates=F-02|D-02 -->
+
+**验收**：
+- 子pending标父completed→提醒N个未完成
+- 子全完→无提醒
+
+### T-003 S3 全量测试回归 <!-- lrnev-task: status=pending, created=2026-06-12T00:52:55.513Z, validates=D-01 -->
+
+**验收**：
+- npm test全绿,两处不阻断
