@@ -1,7 +1,7 @@
 ---
 spec: 01-00-cli-mcp-parity
 scene: 01-findings-remediation
-status: ready
+status: completed
 priority: P1
 created: '2026-06-11'
 updated: '2026-06-12'

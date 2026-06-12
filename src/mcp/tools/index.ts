@@ -12,7 +12,8 @@ import { FileStorage } from '../../storage/FileStorage.js';
 import { resolveWorkspaceRoot } from '../../storage/WorkspaceLocator.js';
 import { SceneManager } from '../../core/SceneManager.js';
 import { SpecManager } from '../../core/SpecManager.js';
-import { TaskManager, parseTasksFromMarkdown } from '../../core/TaskManager.js';
+import { TaskManager } from '../../core/TaskManager.js';
+import { getSpecWithGuidance } from '../../core/SpecGuidance.js';
 import { WorkspaceManager } from '../../core/WorkspaceManager.js';
 import { GateRunner } from '../../core/GateRunner.js';
 import { ADRManager } from '../../core/ADRManager.js';
@@ -184,7 +185,10 @@ function registerSpecTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scene, spec }) => toToolResult(specGetWithGuidance(scene, spec)),
+    async ({ scene, spec }) => {
+      const fs = new FileStorage(resolveWorkspaceRoot().root);
+      return toToolResult(getSpecWithGuidance(fs, getManagers().specs, scene, spec));
+    },
   );
 
   server.registerTool(
@@ -731,38 +735,6 @@ function registerHookTools(server: McpServer): void {
     },
     async ({ name }) => toToolResult(getManagers().hooks.setEnabled(name, false)),
   );
-}
-
-/**
- * spec_get + 方案 C 提示：只在 spec 已有实现（有 completed task 或 status=completed）时，
- * 追加"整体重写考虑开新版"的提示；其余情况零噪音。统计失败静默降级。
- */
-async function specGetWithGuidance(scene: string, spec: string): Promise<unknown> {
-  const managers = getManagers();
-  const data = await managers.specs.get(scene, spec);
-  try {
-    const tasksPath = `.lrnev/scenes/${data.scene}/specs/${data.spec}/tasks.md`;
-    const fs = new FileStorage(resolveWorkspaceRoot().root);
-    const completed = fs.exists(tasksPath)
-      ? parseTasksFromMarkdown(await fs.read(tasksPath), data.scene, data.spec)
-          .filter((t) => t.status === 'completed').length
-      : 0;
-    const hasImplementation = completed > 0 || data.status === 'completed';
-    if (hasImplementation) {
-      return {
-        ok: true,
-        data,
-        ai_followup: {
-          instructions: [
-            '这个 Spec 已有实现（有 completed task 或 status=completed）。若要整体推翻重做，建议开新版 spec_create --version（VV+1）保留旧版对照，再用 spec_update 归档旧版；只是增量加需求时在本版 task_create 即可，不必新开 spec。',
-          ],
-        },
-      };
-    }
-  } catch {
-    // 统计失败不阻断 spec_get
-  }
-  return data;
 }
 
 function getManagers(): {
