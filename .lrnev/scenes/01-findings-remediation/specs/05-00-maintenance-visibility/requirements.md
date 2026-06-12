@@ -1,9 +1,10 @@
 ---
-spec: '05-00-maintenance-visibility'
-scene: '01-findings-remediation'
-status: draft
+spec: 05-00-maintenance-visibility
+scene: 01-findings-remediation
+status: ready
 priority: P2
 created: '2026-06-11'
+updated: '2026-06-12'
 ---
 
 # 05-00 Maintenance Visibility - 需求
@@ -68,6 +69,6 @@ created: '2026-06-11'
 
 <!-- 最初失败信号 / 期望结果 -->
 最初失败信号：C1 中 dead agent 无自动 GC、只能手动逐个 unregister；E3 中读旧 ADR 不知它已被取代。期望结果：有显式可控的 GC，ADR 读时能看出被取代，均不破坏只读/历史约束。
-- [x] 提供显式 gc 命令，只清 dead 且无活跃 claim 的 agent；list/register 无新副作用。
-- [x] adr_list/get 读时计算 superseded_by，不回写旧 ADR 文件。
-- [x] 新增测试覆盖；`npm test` 全绿无回归。
+- [ ] 提供显式 gc 命令，只清 dead 且无活跃 claim 的 agent；list/register 无新副作用。
+- [ ] adr_list/get 读时计算 superseded_by，不回写旧 ADR 文件。
+- [ ] 新增测试覆盖；`npm test` 全绿无回归。

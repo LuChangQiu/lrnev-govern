@@ -1,9 +1,10 @@
 ---
-spec: '01-00-cli-mcp-parity'
-scene: '01-findings-remediation'
-status: draft
+spec: 01-00-cli-mcp-parity
+scene: 01-findings-remediation
+status: ready
 priority: P1
 created: '2026-06-11'
+updated: '2026-06-12'
 ---
 
 # 01-00 Cli Mcp Parity - 需求
@@ -71,7 +72,7 @@ created: '2026-06-11'
 
 <!-- 最初失败信号 / 期望结果 -->
 最初失败信号：A3 中 CLI spec get 对已完成 spec 无开新版引导；D3 中 CLI task create --depends-on 被静默吞；D6 中 CLI adr create 无 --supersedes。期望结果：三处补齐，两路能力一致，旧行为不回归。
-- [x] CLI spec get 对已实现 spec 返回开新版引导，逻辑与 MCP 共用 core。
-- [x] CLI task create --depends-on 生效；dashTitle 不回归；有回归测试。
-- [x] CLI adr create --supersedes 生效，与 MCP 对齐。
-- [x] `npm test` 全绿无回归。
+- [ ] CLI spec get 对已实现 spec 返回开新版引导，逻辑与 MCP 共用 core。
+- [ ] CLI task create --depends-on 生效；dashTitle 不回归；有回归测试。
+- [ ] CLI adr create --supersedes 生效，与 MCP 对齐。
+- [ ] `npm test` 全绿无回归。

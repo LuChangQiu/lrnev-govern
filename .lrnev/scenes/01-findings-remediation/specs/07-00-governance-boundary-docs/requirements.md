@@ -1,9 +1,10 @@
 ---
-spec: '07-00-governance-boundary-docs'
-scene: '01-findings-remediation'
-status: draft
+spec: 07-00-governance-boundary-docs
+scene: 01-findings-remediation
+status: ready
 priority: P2
 created: '2026-06-11'
+updated: '2026-06-12'
 ---
 
 # 07-00 Governance Boundary Docs - 需求
@@ -60,7 +61,7 @@ created: '2026-06-11'
 
 <!-- 最初失败信号 / 期望结果 -->
 最初失败信号：D5/A2/A5 三处边界对用户不显式，易被当 bug。期望结果：三条边界在文档/工具描述里讲清，代码行为不变，测试不回归。
-- [x] I-9：文档强调用完整 ID、序号会复用，已写明。
-- [x] I-13：文档说明标题模板契约 + 国际化 alias 留后续。
-- [x] I-14：error_search 工具描述/followup 强调按原文关键词搜、零模型。
-- [x] 相关 docs/tool-description 测试同步通过；`npm test` 全绿。
+- [ ] I-9：文档强调用完整 ID、序号会复用，已写明。
+- [ ] I-13：文档说明标题模板契约 + 国际化 alias 留后续。
+- [ ] I-14：error_search 工具描述/followup 强调按原文关键词搜、零模型。
+- [ ] 相关 docs/tool-description 测试同步通过；`npm test` 全绿。

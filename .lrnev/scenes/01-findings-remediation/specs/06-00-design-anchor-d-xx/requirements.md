@@ -1,9 +1,10 @@
 ---
-spec: '06-00-design-anchor-d-xx'
-scene: '01-findings-remediation'
-status: draft
+spec: 06-00-design-anchor-d-xx
+scene: 01-findings-remediation
+status: ready
 priority: P1
 created: '2026-06-11'
+updated: '2026-06-12'
 ---
 
 # 06-00 Design Anchor D Xx - 需求
@@ -82,8 +83,8 @@ created: '2026-06-11'
 
 <!-- 最初失败信号 / 期望结果 -->
 最初失败信号：D1 中 validates=F-99/design#9.9 等照单全收、指向空气，validates 是自由字符串无治理能力。期望结果：validates 只认 F-xx/D-xx 且存在性硬校验，废弃格式被拒，例子清理干净，validates 成为可追溯的结构化锚点。
-- [x] design 锚点规范 D-xx 落入模板与文档。
-- [x] validates 只接受 F-xx/D-xx，其它（含 design#3.2、自由串）硬拒。
-- [x] F-xx/D-xx 存在性硬校验，找不到不落盘。
-- [x] 仓库内 design#3.2 例子全部改 D-xx；doctor 检测存量坏锚点不自动迁移。
-- [x] 新增/修改测试覆盖；`npm test` 全绿无回归。
+- [ ] design 锚点规范 D-xx 落入模板与文档。
+- [ ] validates 只接受 F-xx/D-xx，其它（含 design#3.2、自由串）硬拒。
+- [ ] F-xx/D-xx 存在性硬校验，找不到不落盘。
+- [ ] 仓库内 design#3.2 例子全部改 D-xx；doctor 检测存量坏锚点不自动迁移。
+- [ ] 新增/修改测试覆盖；`npm test` 全绿无回归。

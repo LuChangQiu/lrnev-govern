@@ -1,9 +1,10 @@
 ---
-spec: '04-00-heuristic-polish'
-scene: '01-findings-remediation'
-status: draft
+spec: 04-00-heuristic-polish
+scene: 01-findings-remediation
+status: ready
 priority: P2
 created: '2026-06-11'
+updated: '2026-06-12'
 ---
 
 # 04-00 Heuristic Polish - 需求
@@ -68,6 +69,6 @@ created: '2026-06-11'
 
 <!-- 最初失败信号 / 期望结果 -->
 最初失败信号：A3 中小任务“改空态文案”也被劝拆子任务（噪音）；A5 中 5 模块目标 reasons 识别了多特性但 kind 仍 single-spec。期望结果：提示按弱信号出现、kind 与 reasons 一致。
-- [x] 小任务/子任务 in_progress 不再追加并行提示；大任务仍追加。
-- [x] assess_goal 对明显多特性目标判 multi-spec-program，单一小改动仍 single-spec。
-- [x] 新增测试覆盖；`npm test` 全绿无回归。
+- [ ] 小任务/子任务 in_progress 不再追加并行提示；大任务仍追加。
+- [ ] assess_goal 对明显多特性目标判 multi-spec-program，单一小改动仍 single-spec。
+- [ ] 新增测试覆盖；`npm test` 全绿无回归。

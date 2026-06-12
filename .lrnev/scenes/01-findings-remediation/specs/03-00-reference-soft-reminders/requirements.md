@@ -1,9 +1,10 @@
 ---
-spec: '03-00-reference-soft-reminders'
-scene: '01-findings-remediation'
-status: draft
+spec: 03-00-reference-soft-reminders
+scene: 01-findings-remediation
+status: ready
 priority: P1
 created: '2026-06-11'
+updated: '2026-06-12'
 ---
 
 # 03-00 Reference Soft Reminders - 需求
@@ -66,6 +67,6 @@ created: '2026-06-11'
 
 <!-- 最初失败信号 / 期望结果 -->
 最初失败信号：D3 中 depends_on 未完成无提醒；D4 中父 completed 子 pending 快照易误读。期望结果：两处给出软提醒但不阻断，正确路径无新增噪音。
-- [x] depends_on 有未完成前置时 in_progress 给提醒，不 block。
-- [x] 父任务带未完成子任务标 completed 时给提醒，不加 gate、不阻断。
-- [x] 新增测试覆盖；`npm test` 全绿无回归。
+- [ ] depends_on 有未完成前置时 in_progress 给提醒，不 block。
+- [ ] 父任务带未完成子任务标 completed 时给提醒，不加 gate、不阻断。
+- [ ] 新增测试覆盖；`npm test` 全绿无回归。
