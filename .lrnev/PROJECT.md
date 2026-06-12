@@ -24,7 +24,7 @@ AI 协作开发的项目治理引擎——MCP 服务 + CLI 双形态，文件即
 ### 当前阶段
 
 - v1.3.1 已发布；不绑定客户端（Claude Code / Cursor / Codex / 任意 MCP 客户端，或直接用 CLI）
-- 进行中：`fix/findings-checklist` 分支，落实 2026-06-11 全面真机测试发现的清单（见 `dev-docs/FINDINGS-CHECKLIST.md`），用 lrnev 自身治理（Scene `01-findings-remediation`，7 个 spec）
+- v2.0.0（2026-06-12）：scene `01-findings-remediation` 七个 spec 全部完成——确定性硬校验(FILL/孤儿/坏引用)、F-xx/D-xx 锚点体系、CLI/MCP 对等、软提醒、显式 gc、superseded_by、边界文档化；经 codex 双轮只读复核
 
 ## L2 详情
 
@@ -50,5 +50,5 @@ AI 协作开发的项目治理引擎——MCP 服务 + CLI 双形态，文件即
 - 文件即真相：全部状态落 `.lrnev/` Markdown + frontmatter，无数据库、无黑盒
 - 零模型 / 零新运行时强依赖：只用 Node 内置能力 + 少量轻依赖（commander/glob/gray-matter/zod/MCP SDK）
 - 确定性归代码、判断归 AI：工具列事实、给 `ai_followup` 提示，不维护隐藏状态或模型推理结果
-- 向后兼容：既有 `.lrnev/` 数据持续可读；行为变更须有测试覆盖（当前 570 测试）
-- CLI 与 MCP 能力对等：同一能力两条路都能走（`dev-docs/FINDINGS-CHECKLIST.md` 的 S1 正在补齐尚存的不对等）
+- 向后兼容：既有 `.lrnev/` 数据持续可读；行为变更须有测试覆盖（当前 593 测试）
+- CLI 与 MCP 能力对等：同一能力两条路都能走（v2.0 已补齐 spec_get 引导、--depends-on、--supersedes 三处历史不对等）

@@ -15,7 +15,7 @@ created: '2026-06-11'
 
 - TypeScript（ESM，Node >= 20）
 - 运行依赖：`@modelcontextprotocol/sdk`（MCP）、`commander`（CLI）、`glob`、`gray-matter`（frontmatter）、`zod`（schema 校验）
-- 开发/测试：`vitest`（570 测试，unit/integration/e2e）、`tsx`、`tsc`
+- 开发/测试：`vitest`（593 测试，unit/integration/e2e）、`tsx`、`tsc`
 - 双入口：`bin/lrnev.mjs`（CLI）、`bin/lrnev-mcp.mjs`（MCP stdio 服务，import dist）
 
 ### 主要模块
