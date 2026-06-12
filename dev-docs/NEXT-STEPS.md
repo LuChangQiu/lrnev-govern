@@ -11,24 +11,48 @@
 ```
 0. 开工整备（5 分钟）                            ✅ 完成（2026-06-12，commit 38b4251）
 
-1. scene 01-findings-remediation 实现           ✅ 完成（2026-06-12，649cff8..2c8c520）
+1. scene 01-findings-remediation 实现           ✅ 完成（2026-06-12，649cff8..0b6b69f）
    7 spec 全部 completion gate passed + status=completed
-   独立核验通过：591 测试全绿、构建零警告、
-   checklist 边界逐条验证、5 项硬校验真机冒烟全过
-   ⚠ 遗留：版本仍 1.3.1、CHANGELOG 未补——行为变更（gate 变严、
-   validates 收紧）发布前应升 1.4.0 + CHANGELOG 条目
+   codex 双轮只读复核（S2 design 缺失绕过 + S6/S5/S7 三处）全部修复
+   ⚠ 遗留已清：v2.0.0 已发（semver major：gate 变严 + validates 收紧
+   均为 breaking）——CHANGELOG 2.0.0 完整、含迁移指南
 
-2. 每批实现完成 → 真机回归                       ◐ 部分完成
-   ✅ 单测/构建/CLI 冒烟（2026-06-12 独立核验）
-   ☐ 真实客户端回归：dev-docs/INTEGRATION-TEST.md 第三节（黄金路径）、
-     第五节（新行为）、第六节（边界自救）、第八节（ai_followup 真驱动）
-   ☐ 多模型矩阵（第九节）至少跑 Claude + 一个非 Claude 模型
-   ☐ 顺手修正文档数字漂移：实测为 41 文件 / 591 测试（INTEGRATION-TEST
-     写 520+、PROJECT.md 写 570）
+2. 每批实现完成 → 真机回归                       ✅ 完成（2026-06-12 发版前）
+   黄金路径 1-11 + 负向边界（ANCHOR_NOT_FOUND/废弃格式/非法跃迁/
+   claim 冲突/gc）+ 性能（status 303ms / gate 289ms）全过；593 测试全绿
+   ☐ 仍开放：多模型矩阵（第九节）与 AI 体验层（第八节）——属
+     「v2.0 真实使用中持续观察」，不专门跑一轮
 
-3. 任务启动上下文（锚点内容回填）                 ← S6 完成后立即，窗口最佳
-   依据：dev-docs/TASK-START-CONTEXT.md（验收口径已收敛，按文档开 spec）
-   复用 S6 的锚点基础设施（extractAnchorPool → 新增 extractAnchorSections）
+2.5 发布 v2.0.0                                  ✅ 完成（2026-06-12）
+   npm publish lrnev@2.0.0（官方源，shasum ee5e844f）
+   git: merge main(d085e9f) + tag v2.0.0 + 分支已推 GitHub
+   GitHub Release: releases/tag/v2.0.0 + lrnev-2.0.0.tgz 产物已挂
+   GitHub Packages 评估结论：不做（公开包下载也要 token=纯摩擦；
+   双源=分发层的"两路不对等"；Release tarball 已覆盖直链需求）
+
+3. scene 02-context-delivery：任务启动上下文      ← 下一步，方案已拍板（2026-06-12 GPT 复核 + 用户确认）
+   【scene 边界】业务线=「把治理数据在正确时刻送进 AI 上下文」：
+   S8 任务启动回填是第一个 spec；治理地图、context_search 升级
+   （锚点抽段+BM25）、维护通道铺显后续作为同 scene spec 进来。
+   scene 名不用 02-anchor-payoff（太抽象）也不用 02-task-start-context
+   （拿 spec 名当 scene 名=粒度混淆）。
+   【S8 requirements 必须写入】
+   a. TASK-START-CONTEXT.md 的收敛验收口径（含截断 400/1200、
+      D-xx 默认只回首行+标题、降级链、task_claim 堵旁路）
+   b. 回填走独立结构化字段（如 anchor_context），不塞 instructions
+      ——CLI/MCP 对等的硬要求：独立字段可被 CLI JSON 同构消费，
+      字符串塞 instructions 则 CLI 侧无法程序化处理
+   c. 验收条目（非 design 备注）：「回填不替代原文，followup 保留
+      指向原文的提示」——防弱模型把 400 字截断当全部需求
+   【流程】scene_create 02-context-delivery → S8 spec_create →
+   requirements → ready gate → 停下等用户审。只写 spec 不动代码。
+   【roadmap 必须列入计划中】治理地图、搜索升级、维护通道铺显
+   （PRODUCT-STRATEGY 第一步，纯 followup 文案级、体量极小，
+   可与 S8 平行或紧随——不列入就成孤儿，讽刺的是维护态缺口的
+   解法自己掉进维护态缺口）
+   依据：dev-docs/TASK-START-CONTEXT.md + 本节拍板记录
+   复用 S6 的锚点基础设施（extractAnchorPool → 新增 extractAnchorSections，
+   沉淀为共享工具供治理地图复用）
 
 4. 检索三件套（见第三节结论）
    ① 治理地图（repo-map 思路，定位的"不搜索"解法）
