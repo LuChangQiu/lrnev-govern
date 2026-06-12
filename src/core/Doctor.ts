@@ -16,7 +16,7 @@ import { HookLog } from './HookLog.js';
 import { AgentRegistry, computeAgentStatus } from './AgentRegistry.js';
 import { ClaimStore } from './ClaimStore.js';
 import { hostname } from 'node:os';
-import type { DiagnosticIssue, DiagnosticReport, SummaryMigrationReport, TodoMigrationReport } from '../types/doctor.js';
+import type { AgentGcReport, DiagnosticIssue, DiagnosticReport, SummaryMigrationReport, TodoMigrationReport } from '../types/doctor.js';
 import type { HookRecord } from '../types/hooks.js';
 
 const REQUIRED_DIRS = [
@@ -77,6 +77,46 @@ export class Doctor {
       migrated_at: new Date().toISOString(),
       removed_count: legacyFiles.length,
       removed: legacyFiles,
+    };
+  }
+
+  /**
+   * S5(I-12): 显式 GC——仅删除“已判 dead 且名下无未过期 claim”的 agent 记录。
+   * 清理是维护动作，只走本显式入口；agent_list/register 等只读/常规路径绝不自动删。
+   * dead 但仍持未过期 claim 的保留（接手线索）；active 的不动。
+   */
+  async gcAgents(): Promise<AgentGcReport> {
+    const registry = new AgentRegistry(this.fs);
+    const claimStore = new ClaimStore(this.fs);
+    const now = Date.now();
+    const claimOwnersWithUnexpired = new Set(
+      (await claimStore.listAll())
+        .filter((claim) => new Date(claim.expires_at).getTime() > now)
+        .map((claim) => claim.claimed_by),
+    );
+    const { registry: entries } = await registry.loadRegistry();
+    const deadMs = loadConfig(this.fs.root).agent.heartbeat_dead_ms;
+    const removed: string[] = [];
+    let keptActive = 0;
+    let keptDeadWithClaims = 0;
+    for (const [agentId, info] of Object.entries(entries)) {
+      if (computeAgentStatus(info, deadMs) !== 'dead') {
+        keptActive += 1;
+        continue;
+      }
+      if (claimOwnersWithUnexpired.has(agentId)) {
+        keptDeadWithClaims += 1;
+        continue;
+      }
+      await registry.unregisterAndReleaseClaims(agentId);
+      removed.push(agentId);
+    }
+    return {
+      ok: true,
+      gc_at: new Date().toISOString(),
+      removed,
+      kept_active: keptActive,
+      kept_dead_with_claims: keptDeadWithClaims,
     };
   }
 

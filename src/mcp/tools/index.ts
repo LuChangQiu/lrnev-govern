@@ -657,19 +657,21 @@ function registerDoctorTools(server: McpServer): void {
         fix: z.boolean().optional().describe('M1 不自动修复，只返回建议'),
         migrate_todos: z.boolean().optional().describe('可选：把旧模板 TODO 占位精确迁移为 <!-- FILL: ... --> 哨兵'),
         migrate_summaries: z.boolean().optional().describe('可选：删除旧式目录级摘要文件 .abstract.md / .overview.md'),
+        gc_agents: z.boolean().optional().describe('可选：显式清理已判 dead 且名下无未过期 claim 的 agent 记录'),
       },
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ migrate_todos, migrate_summaries }) => {
+    async ({ migrate_todos, migrate_summaries, gc_agents }) => {
       const doctor = getManagers().doctor;
-      if (migrate_todos && migrate_summaries) {
-        return toToolResult(Promise.reject(new LrnevError(ErrorCode.INVALID_INPUT, 'lrnev_doctor 一次只能选择一种迁移动作', {
+      if ([migrate_todos, migrate_summaries, gc_agents].filter(Boolean).length > 1) {
+        return toToolResult(Promise.reject(new LrnevError(ErrorCode.INVALID_INPUT, 'lrnev_doctor 一次只能选择一种维护动作', {
           field: 'migrate',
-          hint: '分别使用 migrate_todos 或 migrate_summaries。',
+          hint: '分别使用 migrate_todos、migrate_summaries 或 gc_agents。',
         })));
       }
       if (migrate_todos) return toToolResult(doctor.migrateTodosToSentinels());
       if (migrate_summaries) return toToolResult(doctor.migrateLegacySummaries());
+      if (gc_agents) return toToolResult(doctor.gcAgents());
       return toToolResult(doctor.diagnose());
     },
   );

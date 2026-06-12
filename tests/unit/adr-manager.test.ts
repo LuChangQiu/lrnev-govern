@@ -92,4 +92,26 @@ describe('ADRManager', () => {
     expect(got.body.decision).toContain('输出 JSON');
     expect(got.body.alternatives?.join('\n')).toContain('YAML');
   });
+
+  it('S5(I-17): supersedes 应读时反算 superseded_by，且不回写旧 ADR 文件', async () => {
+    const first = await adrs.create({
+      title: 'Old decision', scope: 'global', context: 'c1', decision: 'd1',
+    });
+    const oldPath = first.data.path;
+    const before = await fs.read(oldPath.replace(/\\/g, '/').split(`${workspace.path.replace(/\\/g, '/')}/`)[1] ?? oldPath);
+    await adrs.create({
+      title: 'New decision', scope: 'global', context: 'c2', decision: 'd2', supersedes: ['1'],
+    });
+
+    const oldGot = await adrs.get('global', '1');
+    expect(oldGot.superseded_by).toEqual(['0002']);
+    expect(oldGot.status).toBe('proposed');
+
+    const after = await fs.read(oldPath.replace(/\\/g, '/').split(`${workspace.path.replace(/\\/g, '/')}/`)[1] ?? oldPath);
+    expect(after).toBe(before);
+
+    const list = await adrs.list('global');
+    expect(list.find((a) => a.number === '0001')?.superseded_by).toEqual(['0002']);
+    expect(list.find((a) => a.number === '0002')?.superseded_by).toBeUndefined();
+  });
 });

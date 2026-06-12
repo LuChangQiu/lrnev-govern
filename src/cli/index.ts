@@ -63,6 +63,7 @@ interface CliActionOptions extends CliGlobals {
   fix?: boolean;
   fixAction: string;
   gate: GateType;
+  gcAgents?: boolean;
   id: string;
   intent?: string;
   l0?: string;
@@ -480,16 +481,19 @@ function buildDoctorCommand(program: Command, options: BuildCliOptions): Command
     .option('--fix', 'M1 不自动修复，只输出建议')
     .option('--migrate-todos', '把旧模板 TODO 占位精确迁移为 <!-- FILL: ... --> 哨兵')
     .option('--migrate-summaries', '删除旧式目录级摘要文件 .abstract.md / .overview.md')
+    .option('--gc-agents', '显式清理已判 dead 且名下无未过期 claim 的 agent 记录')
     .action(run(program, options, async (opts) => {
       const doctor = managers(opts).doctor;
-      if (opts.migrateTodos && opts.migrateSummaries) {
-        throw new LrnevError(ErrorCode.INVALID_INPUT, 'doctor 迁移命令一次只能选择一种', {
+      const actions = [opts.migrateTodos, opts.migrateSummaries, opts.gcAgents].filter(Boolean).length;
+      if (actions > 1) {
+        throw new LrnevError(ErrorCode.INVALID_INPUT, 'doctor 维护动作一次只能选择一种', {
           field: 'migrate',
-          hint: '分别运行 --migrate-todos 或 --migrate-summaries。',
+          hint: '分别运行 --migrate-todos、--migrate-summaries 或 --gc-agents。',
         });
       }
       if (opts.migrateTodos) return doctor.migrateTodosToSentinels();
       if (opts.migrateSummaries) return doctor.migrateLegacySummaries();
+      if (opts.gcAgents) return doctor.gcAgents();
       return doctor.diagnose();
     }));
 }

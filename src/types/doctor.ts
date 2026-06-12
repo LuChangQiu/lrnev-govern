@@ -39,3 +39,12 @@ export interface SummaryMigrationReport {
   removed_count: number;
   removed: string[];
 }
+
+/** S5(I-12): 显式 dead-agent GC 的执行报告。 */
+export interface AgentGcReport {
+  ok: true;
+  gc_at: string;
+  removed: string[];
+  kept_active: number;
+  kept_dead_with_claims: number;
+}
