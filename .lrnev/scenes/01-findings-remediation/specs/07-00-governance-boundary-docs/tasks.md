@@ -20,7 +20,8 @@ created: '2026-06-11'
 - [ ] 单元测试通过
 - [ ] 集成测试通过
 
-### T-001 文档化三条治理边界 I-9/13/14(含error_search工具描述) <!-- lrnev-task: status=pending, created=2026-06-12T00:53:34.100Z, validates=F-01|D-01 -->
+### T-001 文档化三条治理边界 I-9/13/14(含error_search工具描述) <!-- lrnev-task: status=completed, created=2026-06-12T00:53:34.100Z, updated=2026-06-12T08:18:29.225Z, validates=F-01|D-01 -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-06-12T08:06:35.568Z"},{"from":"in_progress","to":"completed","at":"2026-06-12T08:18:29.225Z"}] -->
 
 **验收**：
 - 文档含完整ID/标题契约/error_search原文检索说明

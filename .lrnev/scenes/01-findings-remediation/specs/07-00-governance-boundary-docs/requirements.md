@@ -1,7 +1,7 @@
 ---
 spec: 07-00-governance-boundary-docs
 scene: 01-findings-remediation
-status: ready
+status: completed
 priority: P2
 created: '2026-06-11'
 updated: '2026-06-12'
