@@ -1,9 +1,10 @@
 ---
-spec: '02-00-deterministic-hard-checks'
-scene: '01-findings-remediation'
-status: draft
+spec: 02-00-deterministic-hard-checks
+scene: 01-findings-remediation
+status: completed
 priority: P0
 created: '2026-06-11'
+updated: '2026-06-12'
 ---
 
 # 02-00 Deterministic Hard Checks - 需求
@@ -74,7 +75,7 @@ created: '2026-06-11'
 
 <!-- 最初失败信号 / 期望结果 -->
 最初失败信号：D2 中 requirements/design 全 FILL 也能 completion pass；D6 中给幽灵 spec 存摘要凭空建文件；D3 中 depends_on 指向不存在 task 不报错。期望结果：三处确定性缺口被硬挡，正确用法不回归。
-- [x] completion gate 对 requirements/design 残留 FILL 判 fail；tasks.md FILL 不影响。
-- [x] summarize_save 对不存在目标报错且不建孤儿文件；真实目标正常写入。
-- [x] task_create 对不存在的 depends_on id 硬拒绝；有效依赖正常创建。
-- [x] 新增/修改均有测试覆盖；`npm test` 全绿无回归。
+- [ ] completion gate 对 requirements/design 残留 FILL 判 fail；tasks.md FILL 不影响。
+- [ ] summarize_save 对不存在目标报错且不建孤儿文件；真实目标正常写入。
+- [ ] task_create 对不存在的 depends_on id 硬拒绝；有效依赖正常创建。
+- [ ] 新增/修改均有测试覆盖；`npm test` 全绿无回归。

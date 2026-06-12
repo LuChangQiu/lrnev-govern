@@ -139,11 +139,21 @@ export class TaskManager {
 
       const content = await this.fs.read(tasksPath);
       const existing = parseTasksFromMarkdown(content, sceneId, specId);
-      if (input.parent && !existing.some((t) => t.id === input.parent)) {
+      const existingIds = new Set(existing.map((t) => t.id));
+      if (input.parent && !existingIds.has(input.parent)) {
         throw new LrnevError(
           ErrorCode.TASK_NOT_FOUND,
           `父 Task "${input.parent}" 不存在`,
           { field: 'parent' },
+        );
+      }
+      // I-7（存在性部分）: depends_on 指向不存在的 task ID 时硬拒、不落盘（坏结构引用，与 parent 同类）。
+      const missingDeps = findMissingReferences(input.depends_on ?? [], existingIds);
+      if (missingDeps.length > 0) {
+        throw new LrnevError(
+          ErrorCode.TASK_NOT_FOUND,
+          `depends_on 指向不存在的 Task：${missingDeps.join('、')}`,
+          { field: 'depends_on', hint: '先用 task_list 确认依赖的 Task ID，或去掉不存在的依赖。' },
         );
       }
 
@@ -401,6 +411,14 @@ type TaskUpdateClaimResult =
 /* ============== 纯函数工具（可独立测试） ============== */
 
 /** 格式化 Task ID：1 → "T-001" */
+/**
+ * 返回 ids 中不在 pool 内的项，用于引用存在性硬校验。
+ * depends_on（task id 池）与 S6 的 validates F-xx/D-xx（文档锚点池）复用此谓词，口径一致。
+ */
+export function findMissingReferences(ids: string[], pool: Set<string>): string[] {
+  return ids.filter((id) => !pool.has(id));
+}
+
 export function formatTaskId(n: number): string {
   return `T-${String(n).padStart(3, '0')}`;
 }

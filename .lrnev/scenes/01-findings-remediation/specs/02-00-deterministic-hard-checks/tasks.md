@@ -20,26 +20,30 @@ created: '2026-06-11'
 - [ ] 单元测试通过
 - [ ] 集成测试通过
 
-### T-001 completion gate 硬拦 requirements/design FILL <!-- lrnev-task: status=pending, created=2026-06-11T10:48:25.806Z, validates=F-01|D-01 -->
+### T-001 completion gate 硬拦 requirements/design FILL <!-- lrnev-task: status=completed, created=2026-06-11T10:48:25.806Z, updated=2026-06-12T01:51:40.076Z, validates=F-01|D-01 -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-06-12T01:34:23.378Z"},{"from":"in_progress","to":"completed","at":"2026-06-12T01:51:40.076Z"}] -->
 
 **验收**：
 - requirements 有FILL→completion fail
 - design 有FILL→fail
 - 均无+任务全完→pass(tasks.md FILL不影响)
 
-### T-002 summarize_save 拒绝为不存在目标建孤儿摘要 <!-- lrnev-task: status=pending, created=2026-06-11T10:48:26.514Z, validates=F-02|D-02 -->
+### T-002 summarize_save 拒绝为不存在目标建孤儿摘要 <!-- lrnev-task: status=completed, created=2026-06-11T10:48:26.514Z, updated=2026-06-12T01:56:53.994Z, validates=F-02|D-02 -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-06-12T01:52:31.520Z"},{"from":"in_progress","to":"completed","at":"2026-06-12T01:56:53.994Z"}] -->
 
 **验收**：
 - 不存在spec URI→报错且磁盘无新文件
 - 真实URI→正常写入
 
-### T-003 task_create 拒绝指向不存在 task 的 depends_on <!-- lrnev-task: status=pending, created=2026-06-11T10:48:27.039Z, validates=F-03|D-03 -->
+### T-003 task_create 拒绝指向不存在 task 的 depends_on <!-- lrnev-task: status=completed, created=2026-06-11T10:48:27.039Z, updated=2026-06-12T02:19:19.524Z, validates=F-03|D-03 -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-06-12T01:58:05.521Z"},{"from":"in_progress","to":"completed","at":"2026-06-12T02:19:19.524Z"}] -->
 
 **验收**：
 - depends_on含不存在id→TASK_NOT_FOUND且未创建
 - 有效依赖→正常
 
-### T-004 S2 回归:抽共用引用存在性工具+全量测试 <!-- lrnev-task: status=pending, created=2026-06-11T10:48:27.544Z, validates=D-03 -->
+### T-004 S2 回归:抽共用引用存在性工具+全量测试 <!-- lrnev-task: status=completed, created=2026-06-11T10:48:27.544Z, updated=2026-06-12T02:19:20.564Z, validates=D-03 -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-06-12T02:19:20.069Z"},{"from":"in_progress","to":"completed","at":"2026-06-12T02:19:20.564Z"}] -->
 
 **验收**：
 - 抽assertReferenceExists供S6复用

@@ -319,18 +319,30 @@ describe('TaskManager 集成', () => {
     });
 
     it('应保存描述 / 验收 / 依赖', async () => {
+      const dep = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '前置任务' });
       const r = await tasks.create({
         scene: 'user-management',
         spec: 'user-login',
         title: '示例',
         description: '描述内容',
         acceptance: ['验收 1', '验收 2'],
-        depends_on: ['T-005'],
+        depends_on: [dep.data.id],
       });
       const got = await tasks.get('user-management', 'user-login', r.data.id);
       expect(got.title).toBe('示例');
       expect(got.acceptance).toEqual(['验收 1', '验收 2']);
-      expect(got.depends_on).toEqual(['T-005']);
+      expect(got.depends_on).toEqual([dep.data.id]);
+    });
+
+    it('depends_on 指向不存在的 Task 应硬拒、不落盘（I-7）', async () => {
+      await expect(tasks.create({
+        scene: 'user-management',
+        spec: 'user-login',
+        title: '坏依赖任务',
+        depends_on: ['T-099'],
+      })).rejects.toThrow(/T-099/);
+      const list = await tasks.list('user-management', 'user-login');
+      expect(list.find((t) => t.title === '坏依赖任务')).toBeUndefined();
     });
 
     it('应保存 validates 并在 tasks.md 可见', async () => {

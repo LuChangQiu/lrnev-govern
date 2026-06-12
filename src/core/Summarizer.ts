@@ -34,6 +34,14 @@ export class Summarizer {
       });
     }
     const concretePath = await this.resolveConcretePath(relPath);
+    // I-6: 写摘要前校验目标文档真实存在；否则会给不存在的 scene/spec 凭空建孤儿摘要文件。
+    // 校验放在算路径阶段（写文件前），不存在即抛错、不创建任何目录/文件。
+    if (!this.fs.exists(concretePath)) {
+      throw new LrnevError(ErrorCode.FILE_NOT_FOUND, `摘要目标文档不存在：${concretePath}`, {
+        field: 'uri',
+        hint: '确认 URI 指向的 scene/spec/文档已存在，再保存摘要；不要为不存在的目标建摘要。',
+      });
+    }
     return summaryPathFor(concretePath, level);
   }
 

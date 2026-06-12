@@ -123,8 +123,8 @@ export class GateRunner {
   }
 
   async checkCompletion(input: GateCheckInput): Promise<GateResult> {
-    const creation = await this.checkCreation(input);
-    const checks = [...creation.checks];
+    const creationDetails = await this.checkCreationDetails(input);
+    const checks = [...creationDetails.result.checks];
 
     let tasks: Task[];
     try {
@@ -165,6 +165,36 @@ export class GateRunner {
         hint: '完成所有 Task 后再检查 completion gate',
       }),
     });
+
+    // I-4: completion 硬拦 requirements/design 残留 FILL 哨兵。
+    // FILL 是确定性结构事实（非语义判断），用精确的 findFillSentinels（已排除代码块/正文里的 FILL 词）。
+    // 不查 tasks.md：其模板自带 FILL（task_create 只追加任务、不替换占位）。
+    if (creationDetails.content !== undefined) {
+      const reqFill = findFillSentinels(creationDetails.content);
+      checks.push({
+        name: 'requirements_no_fill',
+        passed: reqFill.length === 0,
+        hard_fail: true,
+        ...(reqFill.length > 0 && {
+          message: `requirements.md 仍有未填哨兵：${reqFill.slice(0, 5).map((s) => `L${s.line}`).join(', ')}`,
+          hint: '把 <!-- FILL: ... --> 替换为具体内容后再检查 completion',
+        }),
+      });
+    }
+
+    const designPath = `.lrnev/scenes/${creationDetails.sceneId}/specs/${creationDetails.specId}/design.md`;
+    if (this.fs.exists(designPath)) {
+      const designFill = findFillSentinels(await this.fs.read(designPath));
+      checks.push({
+        name: 'design_no_fill',
+        passed: designFill.length === 0,
+        hard_fail: true,
+        ...(designFill.length > 0 && {
+          message: `design.md 仍有未填哨兵：${designFill.slice(0, 5).map((s) => `L${s.line}`).join(', ')}`,
+          hint: '把 design.md 的 <!-- FILL: ... --> 替换为具体内容后再检查 completion',
+        }),
+      });
+    }
 
     const result = buildResult('completion', checks);
     if (result.passed) {
