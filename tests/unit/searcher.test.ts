@@ -113,4 +113,33 @@ describe('Searcher', () => {
     const longIdx = res.data.results.findIndex((r) => r.path.includes(long.data.spec));
     expect(shortIdx).toBeLessThan(longIdx);
   });
+
+  it('F-02: 命中 requirements 的 #### F-xx 段时返回该段 + anchor 字段', async () => {
+    const scene = await scenes.create({ name: 'user-management' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'login' });
+    await fs.write(
+      `.lrnev/scenes/${scene.data.id}/specs/${spec.data.spec}/requirements.md`,
+      '# 需求\n\n## L2 详情\n\n#### F-01 记住我登录\n勾选记住我后保持会话。\n\n#### F-02 短信验证\n发送短信验证码。\n',
+    );
+
+    const res = await searcher.search({ query: '记住我' });
+    const hit = res.data.results.find((r) => r.path.includes(spec.data.spec));
+    expect(hit?.anchor).toBe('F-01');
+    expect(hit?.snippet).toContain('#### F-01 记住我登录');
+    expect(hit?.snippet).toContain('勾选记住我后保持会话');
+  });
+
+  it('F-02: 命中锚点段之外（L0 摘要正文）保持行级 snippet、无 anchor', async () => {
+    const scene = await scenes.create({ name: 'user-management' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'login' });
+    await fs.write(
+      `.lrnev/scenes/${scene.data.id}/specs/${spec.data.spec}/requirements.md`,
+      '# 需求\n\n## L0 摘要\n\n这里提到独角兽关键词。\n\n#### F-01 别的功能\n无关内容。\n',
+    );
+
+    const res = await searcher.search({ query: '独角兽' });
+    const hit = res.data.results.find((r) => r.path.includes(spec.data.spec));
+    expect(hit).toBeDefined();
+    expect(hit?.anchor).toBeUndefined();
+  });
 });

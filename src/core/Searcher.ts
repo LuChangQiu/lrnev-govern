@@ -9,6 +9,7 @@ import { FileStorage } from '../storage/FileStorage.js';
 import { filePathToURI } from '../storage/URIRouter.js';
 import { loadConfig } from '../shared/config.js';
 import { LrnevError, ErrorCode } from '../shared/errors.js';
+import { extractAnchorSections, clampText, ANCHOR_CONTEXT_SECTION_CAP } from './TaskManager.js';
 import type { AiFollowupResponse, Scope } from '../types/response.js';
 import type { SearchInput, SearchResponse, SearchResult } from '../types/search.js';
 
@@ -43,12 +44,16 @@ export class Searcher {
         + (config.search.use_l0_ranking ? levelBoost(doc.file) : 0);
       const uri = filePathToURI(doc.file) ?? filePathToURI(this.stripSummaryFile(doc.file));
       if (!uri) continue;
+      // F-02：命中落在 requirements/design 的 #### F-xx / #### D-xx 段内时，snippet 升级为该锚点段落 + anchor 字段；
+      // 命中段外（L0 摘要/frontmatter）保持行级 snippet。
+      const anchored = resolveAnchorSnippet(doc.file, doc.text, terms);
       results.push({
         uri,
         path: doc.file,
         score: rank,
         matched_level: matchedLevel(doc.file),
-        snippet: makeSnippet(doc.text, terms, config.search.snippet_length),
+        snippet: anchored ? anchored.snippet : makeSnippet(doc.text, terms, config.search.snippet_length),
+        ...(anchored && { anchor: anchored.anchor }),
       });
     }
 
@@ -155,6 +160,35 @@ function makeSnippet(text: string, terms: string[], maxLength: number): string {
   const lines = text.split(/\r?\n/);
   const found = lines.find((line) => terms.some((term) => line.toLowerCase().includes(term)));
   return (found ?? lines.find((line) => line.trim().length > 0) ?? '').trim().slice(0, maxLength);
+}
+
+/** requirements.md→F 锚点，design.md→D 锚点，其余文件无锚点。 */
+function anchorPrefixForFile(file: string): 'F' | 'D' | null {
+  if (file.endsWith('/requirements.md')) return 'F';
+  if (file.endsWith('/design.md')) return 'D';
+  return null;
+}
+
+/**
+ * F-02：若命中落在 requirements/design 的某个 `#### F-xx`/`#### D-xx` 锚点段内，
+ * 返回该段（受 01-00 同款截断）+ 锚点 ID；多段命中取词频最高的一段；命中段外返回 null（退回行级 snippet）。
+ * 复用 01-00 沉淀的 extractAnchorSections（定位逻辑），不复用其 IO。
+ */
+function resolveAnchorSnippet(
+  file: string,
+  text: string,
+  terms: string[],
+): { anchor: string; snippet: string } | null {
+  const prefix = anchorPrefixForFile(file);
+  if (!prefix) return null;
+  let best: { anchor: string; section: string; score: number } | null = null;
+  for (const [anchor, section] of extractAnchorSections(text, prefix)) {
+    const lower = section.toLowerCase();
+    const score = terms.reduce((sum, term) => sum + countOccurrences(lower, term), 0);
+    if (score > 0 && (!best || score > best.score)) best = { anchor, section, score };
+  }
+  if (!best) return null;
+  return { anchor: best.anchor, snippet: clampText(best.section, ANCHOR_CONTEXT_SECTION_CAP).text };
 }
 
 function depthFromBase(file: string, base: string): number {
