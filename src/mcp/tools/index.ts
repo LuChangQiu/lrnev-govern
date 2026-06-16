@@ -884,6 +884,7 @@ function buildPassedGateFollowup(gate: string, scene: string, spec: string): {
     return {
       instructions: [
         'ready gate 已通过：requirements 结构契约完整。',
+        '请暂停：把 requirements.md 展示给用户确认「做什么」后再继续——这是用户审核需求方向的唯一人工门，确认后再建 task 与设计；如用户明确说「直接做」则可跳过。',
         '请 AI 自查需求质量和验收标准是否可验证。',
         '建议把 Spec 状态回填为 ready；gate 检查不依赖 status。',
         '若涉及跨模块/跨 Spec 改动，请在 design.md 说明影响面，也可在 Scene 的 architecture.md 用自然语言记录关键实体与依赖；若涉及框架/存储/协议/安全等关键技术决策，建议询问用户是否调用 adr_create 沉淀“为什么”（不强制，不新建本体文件，无决策则不阻塞进入 tasks）。',

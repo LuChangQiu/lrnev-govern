@@ -36,6 +36,7 @@ import { SpecManager } from './SpecManager.js';
 import { appendHookWarnings, getHookManager } from './HookManager.js';
 import { ClaimStore } from './ClaimStore.js';
 import { AgentRegistry } from './AgentRegistry.js';
+import { readSpecSummary } from './Summarizer.js';
 import type {
   Task,
   TaskStatus,
@@ -46,7 +47,7 @@ import type {
 } from '../types/task.js';
 import { VALID_TASK_TRANSITIONS, isValidTransition } from '../types/task.js';
 import type { SpecStatus } from '../types/spec.js';
-import type { AiFollowupResponse } from '../types/response.js';
+import type { AiFollowupResponse, AnchorContext, SummaryContext } from '../types/response.js';
 import type {
   ClaimTaskInput,
   ReleaseTaskClaimInput,
@@ -194,15 +195,23 @@ export class TaskManager {
       validates: task.validates,
     });
 
+    const specStatus = await this.readSpecStatus(sceneId, specId);
+    const createInstructions = [
+      `Task "${task.id}" 已创建，状态为 pending`,
+      '开始工作前调 task_update 把状态改为 in_progress',
+      '完成后调 task_update 改为 completed，注意状态机限制',
+    ];
+    if (specStatus === 'completed') {
+      createInstructions.push(
+        '当前 spec.status 是 completed；在已完成 spec 上加 task 表示有维护态新增工作，可调 spec_update 把 status 回退到 in-progress（completed→in-progress 合法）。',
+      );
+    }
+
     return appendHookWarnings({
       ok: true,
       data: task,
       ai_followup: {
-        instructions: [
-          `Task "${task.id}" 已创建，状态为 pending`,
-          '开始工作前调 task_update 把状态改为 in_progress',
-          '完成后调 task_update 改为 completed，注意状态机限制',
-        ],
+        instructions: createInstructions,
         suggested_tools: [
           {
             name: 'task_update',
@@ -318,17 +327,27 @@ export class TaskManager {
       reason: input.reason,
     });
 
+    const anchorContext = input.status === 'in_progress'
+      ? await this.buildAnchorContext(updatedTask.validates ?? [], sceneId, specId)
+      : undefined;
+    // 降级档：in_progress 且无锚点段落可回填时，回填 spec 级 L0/L1 摘要（sidecar 优先、内联兜底）。
+    const summaryContext = input.status === 'in_progress' && !anchorContext
+      ? await this.buildSummaryContext(sceneId, specId)
+      : undefined;
+
     return appendHookWarnings({
       ok: true,
       data: updatedTask,
-      ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult, incompleteDeps, incompleteChildren, suggestParallel, badAnchors),
+      ...(anchorContext && { anchor_context: anchorContext }),
+      ...(summaryContext && { summary_context: summaryContext }),
+      ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult, incompleteDeps, incompleteChildren, suggestParallel, badAnchors, Boolean(anchorContext || summaryContext)),
     }, hookResult.warnings);
   }
 
   async claim(input: ClaimTaskInput): Promise<AiFollowupResponse<TaskClaimResult>> {
     const sceneId = await this.sceneManager.resolveId(input.scene);
     const specId = await this.specManager.resolveId(sceneId, input.spec);
-    await this.get(sceneId, specId, input.task);
+    const task = await this.get(sceneId, specId, input.task);
     const claims = this.newClaimStore();
     const result = await claims.claim({
       ...input,
@@ -336,10 +355,17 @@ export class TaskManager {
       spec: specId,
     });
     const hasParallelContext = await hasParallelClaimContext(claims, result);
+    // F-03 堵 claim 旁路：claim 进任务不走 update，同样回填 anchor_context + 漂移软告警。
+    const validates = task.validates ?? [];
+    const anchorContext = await this.buildAnchorContext(validates, sceneId, specId);
+    const summaryContext = anchorContext ? undefined : await this.buildSummaryContext(sceneId, specId);
+    const badAnchors = await this.findBadValidatesAnchors(validates, sceneId, specId);
     return {
       ok: true,
       data: result,
-      ai_followup: buildClaimResponseFollowup(result, hasParallelContext),
+      ...(anchorContext && { anchor_context: anchorContext }),
+      ...(summaryContext && { summary_context: summaryContext }),
+      ai_followup: buildClaimResponseFollowup(result, hasParallelContext, anchorContext !== undefined, badAnchors, summaryContext !== undefined),
     };
   }
 
@@ -447,6 +473,72 @@ export class TaskManager {
     }
   }
 
+  /**
+   * F-03：按 task 的 validates 锚点回填 requirements/design 段落，作为 anchor_context 送达 AI。
+   * 按 F-/D- 前缀裁剪读取（只有 F-xx 就不读 design）；D-xx 默认只回首行 + 标题；
+   * 单段 / 总量超限截断；无 validates 或无可解析段落返回 undefined（不回空数组误导）。
+   * 失败静默降级（不影响状态推进）。task_update(in_progress) 与 task_claim 共用，堵 claim 旁路。
+   */
+  async buildAnchorContext(
+    validates: string[],
+    sceneId: string,
+    specId: string,
+  ): Promise<AnchorContext[] | undefined> {
+    if (validates.length === 0) return undefined;
+    const specDir = `.lrnev/scenes/${sceneId}/specs/${specId}`;
+    const out: AnchorContext[] = [];
+    let total = 0;
+    try {
+      const collect = async (
+        refs: string[],
+        prefix: 'F' | 'D',
+        relPath: string,
+        source: 'requirements' | 'design',
+      ): Promise<void> => {
+        if (refs.length === 0 || !this.fs.exists(relPath)) return;
+        const sections = extractAnchorSections(await this.fs.read(relPath), prefix);
+        for (const ref of refs) {
+          if (total >= ANCHOR_CONTEXT_TOTAL_CAP) break;
+          const raw = sections.get(ref);
+          if (raw === undefined) continue;
+          const body = source === 'design' ? designFirstLine(raw) : raw;
+          const cap = Math.min(ANCHOR_CONTEXT_SECTION_CAP, ANCHOR_CONTEXT_TOTAL_CAP - total);
+          const { text, truncated } = clampText(body, cap);
+          out.push({ anchor: ref, source, text, truncated });
+          total += text.length;
+        }
+      };
+      await collect(validates.filter((v) => /^F-\d+$/.test(v)), 'F', `${specDir}/requirements.md`, 'requirements');
+      await collect(validates.filter((v) => /^D-\d+$/.test(v)), 'D', `${specDir}/design.md`, 'design');
+    } catch {
+      return out.length > 0 ? out : undefined;
+    }
+    return out.length > 0 ? out : undefined;
+  }
+
+  /**
+   * F-03 降级档：task 无可回填锚点段落时，回填 spec 级 L0/L1 摘要做快速定向。
+   * 读取契约 sidecar 优先、requirements 内联兜底（见 readSpecSummary）；L0/L1 各自截断控体积。
+   * 两级皆无返回 undefined（走现有"回看原文"文案）。失败静默降级。
+   */
+  async buildSummaryContext(sceneId: string, specId: string): Promise<SummaryContext | undefined> {
+    try {
+      const summary = await readSpecSummary(this.fs, sceneId, specId);
+      if (!summary.source) return undefined;
+      const l0 = summary.l0 ? clampText(summary.l0, SUMMARY_CONTEXT_L0_CAP) : undefined;
+      const l1 = summary.l1 ? clampText(summary.l1, SUMMARY_CONTEXT_L1_CAP) : undefined;
+      if (!l0 && !l1) return undefined;
+      return {
+        source: summary.source,
+        ...(l0 && { l0: l0.text }),
+        ...(l1 && { l1: l1.text }),
+        truncated: Boolean(l0?.truncated || l1?.truncated),
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
   /** 构造带"属主死活"感知的 ClaimStore;属主已死的 claim 视为可接手。 */
   private newClaimStore(): ClaimStore {
     const registry = new AgentRegistry(this.fs);
@@ -530,6 +622,78 @@ export function extractAnchorPool(content: string, prefix: 'F' | 'D'): Set<strin
   let match: RegExpExecArray | null;
   while ((match = regex.exec(content)) !== null) pool.add(match[1]!);
   return pool;
+}
+
+/**
+ * 提取 `#### F-xx` / `#### D-xx` 锚点段落：从标题行到下一个同级或更高级标题（`#`~`####`）之间的正文，
+ * 返回 ID→段落映射（段落含标题行）。`#####` 及更深标题视为段落内容，不切段。
+ *
+ * 与 `extractAnchorPool` 同正则家族（后者返回 ID 集合，本函数返回 ID→正文），供 F-03 任务启动锚点
+ * 回填、以及定位升级（治理地图 / context_search 抽段）复用。不复用 S6 的 IO——只复用定位逻辑。
+ */
+export function extractAnchorSections(content: string, prefix: 'F' | 'D'): Map<string, string> {
+  const anchorRegex = new RegExp(`^####\\s+(${prefix}-\\d+)\\b`);
+  const sectionEndRegex = /^#{1,4}\s/;
+  const result = new Map<string, string>();
+  let current: string | null = null;
+  let buffer: string[] = [];
+  const flush = (): void => {
+    if (current !== null) result.set(current, buffer.join('\n').trim());
+  };
+  for (const line of content.split(/\r?\n/)) {
+    const anchorMatch = anchorRegex.exec(line);
+    if (anchorMatch) {
+      flush();
+      current = anchorMatch[1]!;
+      buffer = [line];
+      continue;
+    }
+    if (current !== null && sectionEndRegex.test(line)) {
+      flush();
+      current = null;
+      buffer = [];
+      continue;
+    }
+    if (current !== null) buffer.push(line);
+  }
+  flush();
+  return result;
+}
+
+/** F-03 锚点回填截断上限（保守起始值，真机用后再调）：单段字符数 / 总量字符数。 */
+export const ANCHOR_CONTEXT_SECTION_CAP = 400;
+export const ANCHOR_CONTEXT_TOTAL_CAP = 1200;
+
+/** F-03 降级档 summary_context 截断：L0 短、L1 概览也要控量（L1 模板预算约 2000 token，全塞会撑爆启动上下文）。 */
+export const SUMMARY_CONTEXT_L0_CAP = 200;
+export const SUMMARY_CONTEXT_L1_CAP = 600;
+
+/**
+ * 按上限截断文本，超出标记 truncated。
+ * 零模型质量改进：截断时**优先切在 cap 以内的最后一个换行 / 中英文句末标点**，避免切在半句中间；
+ * 边界太靠前（< 60% cap，会丢太多）才退回硬截。纯算术、不调模型。
+ */
+export function clampText(text: string, cap: number): { text: string; truncated: boolean } {
+  if (cap <= 0) return { text: '', truncated: text.length > 0 };
+  if (text.length <= cap) return { text, truncated: false };
+  const head = text.slice(0, cap);
+  const boundary = lastSentenceBoundary(head);
+  const cut = boundary >= cap * 0.6 ? boundary : cap;
+  return { text: head.slice(0, cut).trimEnd(), truncated: true };
+}
+
+/** 返回 s 中最后一个换行 / 中英文句末标点之后的位置（含标点）；无则 -1。 */
+function lastSentenceBoundary(s: string): number {
+  const match = /[\s\S]*[。！？.!?\n]/.exec(s);
+  return match ? match[0].length : -1;
+}
+
+/** D-xx 段默认只回首行（标题行 + 首个非空正文行），控制设计段体积。 */
+export function designFirstLine(section: string): string {
+  const lines = section.split('\n');
+  const heading = lines[0] ?? '';
+  const firstBody = lines.slice(1).find((line) => line.trim().length > 0);
+  return firstBody ? `${heading}\n${firstBody}` : heading;
 }
 
 export function formatTaskId(n: number): string {
@@ -934,14 +1098,17 @@ function buildFollowupAfterUpdate(
   incompleteChildren = 0,
   suggestParallel = false,
   badAnchors: string[] = [],
+  hasContext = false,
 ): AiFollowupResponse<Task>['ai_followup'] {
   const badAnchorWarning = badAnchors.length > 0
     ? `validates 锚点 ${badAnchors.join('、')} 为废弃格式或在 requirements/design 中不存在；请修正 tasks.md 中该锚点（新建 task 会被硬拒，存量在此提醒，doctor 可列全量）。`
     : undefined;
   if (newStatus === 'in_progress') {
-    const reviewInstruction = task.validates && task.validates.length > 0
-      ? `先读 requirements/design 中与 ${task.validates.join('、')} 对应的段落`
-      : '先回看本 Spec 的 requirements 目标与验收标准';
+    const reviewInstruction = hasContext
+      ? '返回里若有 anchor_context / summary_context，先看它；仍需回看 requirements.md / design.md 原文确认完整口径'
+      : (task.validates && task.validates.length > 0
+        ? `先读 requirements/design 中与 ${task.validates.join('、')} 对应的段落`
+        : '先回看本 Spec 的 requirements 目标与验收标准');
     const instructions = [
       `Task "${task.id}" 已进入 in_progress。${reviewInstruction}，确认验收口径后再动手。`,
       '可把 spec.status 改为 in-progress；gate 检查不依赖 status。',
@@ -1038,10 +1205,19 @@ function buildFollowupAfterUpdate(
 function buildClaimResponseFollowup(
   result: TaskClaimResult,
   hasParallelContext?: boolean,
+  hasAnchorContext = false,
+  badAnchors: string[] = [],
+  hasSummaryContext = false,
 ): AiFollowupResponse<TaskClaimResult>['ai_followup'] {
   const instructions: string[] = [];
   appendClaimFollowup(instructions, { kind: 'claim', result, hasParallelContext });
   instructions.push('claim 是运行态软占用，不改 tasks.md；agent 进程退出时会自动释放,无需定时心跳维持。');
+  if (hasAnchorContext || hasSummaryContext) {
+    instructions.push('返回里若有 anchor_context / summary_context，先看它；仍需回看 requirements.md / design.md 原文确认完整验收口径。');
+  }
+  if (badAnchors.length > 0) {
+    instructions.push(`validates 锚点 ${badAnchors.join('、')} 为废弃格式或在 requirements/design 中不存在，可能漂移；请核实（claim 不阻断）。`);
+  }
   return {
     instructions,
     suggested_tools: [

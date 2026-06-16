@@ -446,6 +446,8 @@ describe('MCP server', () => {
       };
 
       expect(readyPayload.data.passed).toBe(true);
+      expect(readyPayload.ai_followup?.instructions.join('\n')).toContain('请暂停');
+      expect(readyPayload.ai_followup?.instructions.join('\n')).toContain('展示给用户确认');
       expect(readyPayload.ai_followup?.instructions.join('\n')).toContain('状态回填为 ready');
       expect(readyPayload.ai_followup?.instructions.join('\n')).not.toContain('in-progress');
       expect(readyPayload.ai_followup?.instructions.join('\n')).toContain('adr_create');

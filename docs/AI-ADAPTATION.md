@@ -99,7 +99,7 @@ CLI 与 MCP 共用 core 逻辑；差异只在入口层。
 本项目用 lrnev 治理。规则：
 1. 先分清"只读"还是"要改"：纯查代码、定位、解释、回答问题这类不改任何文件的事，直接做——不用先 project_status，也不用开 spec。下面的流程只在"要动手改代码或推进治理(建/改 spec、task)"时才走。
 2. 要改且不确定进度时，先调 project_status 接手现状，别凭记忆直接改代码。
-3. 该不该开 spec 自己判断、别对着清单匹配：这事(a)能写出一条有意义的"WHEN…THEN"验收吗？(b)是可独立交付的特性吗？两个都"是"才 spec_create。否则——改文档/排版/注释、小重构、调参数、回答问题等(只是举例，不止这些)——直接做，不要开 spec。拿不准就问我，别默认开。
+3. 该不该开 spec、开在哪，按从便宜到贵判断：①写不出独立"WHEN…THEN"验收的小改动（改文档/排版/小重构/调参数/答问题）→直接做，不开 spec/task；②给已完成特性加东西、能落到某现有 spec→先 context_search 找到它，task_create 落位（不新开 spec，scene 沿用；completed spec 可 spec_update 回退到 in-progress）；③真正独立可交付的新特性才开 spec——优先归入已有匹配业务域 scene；只有用户明确确认、或上下文非常清楚这是会承载多个 spec 的新业务域，才 scene_create；确实无稳定业务域、又是零散小型独立特性，才落 00-default（兜底，不是默认堆放处）。④scene / 00-default 是结构决策、事后难迁：该新建 scene 还是落 00-default 拿不准时就问我，别默认建新 scene、也别默认丢 00。
 4. 踩坑→error_record，技术决策→adr_create，约定→memory_save；都不沾的小事直接做。
 5. 多特性需求先按拆分标尺判断单/多 Spec（可用 assess_goal 辅助），别把多个特性塞进一个 Spec。
 6. 改代码前确认对应 task 已 task_update(in_progress)，完成后 task_update(completed)；纯只读/答问题不涉及 task。
