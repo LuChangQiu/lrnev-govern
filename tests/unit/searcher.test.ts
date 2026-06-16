@@ -89,4 +89,57 @@ describe('Searcher', () => {
     expect(res.data.results[0]?.uri).toBe('context://project');
     expect(res.data.results[0]?.snippet.length).toBeLessThanOrEqual(6);
   });
+
+  it('F-03: BM25 让短而精准的文档胜过长文档高频词，且召回集不缩小', async () => {
+    const scene = await scenes.create({ name: 'user-management' });
+    const short = await specs.create({ scene: scene.data.id, name: 'short-precise' });
+    const long = await specs.create({ scene: scene.data.id, name: 'long-noisy' });
+    const reqPath = (specId: string): string => `.lrnev/scenes/${scene.data.id}/specs/${specId}/requirements.md`;
+    // 短而精准：标题即登录，仅一次。长而泛泛：大量无关噪声中只零星提到登录——BM25 的长度归一化让前者胜出。
+    await fs.write(reqPath(short.data.spec), '登录\n');
+    await fs.write(
+      reqPath(long.data.spec),
+      '订单 支付 报表 配置 权限 用户 流程 状态 字段 校验 缓存 索引 摘要 迁移 钩子 队列 通道 网关\n'.repeat(12)
+        + '登录 登录\n',
+    );
+
+    const res = await searcher.search({ query: '登录' });
+    const paths = res.data.results.map((r) => r.path);
+    // 两个都被召回（BM25 只改排序、不缩召回集）
+    expect(paths.some((p) => p.includes(short.data.spec))).toBe(true);
+    expect(paths.some((p) => p.includes(long.data.spec))).toBe(true);
+    // 短而精准排在长而高频之前
+    const shortIdx = res.data.results.findIndex((r) => r.path.includes(short.data.spec));
+    const longIdx = res.data.results.findIndex((r) => r.path.includes(long.data.spec));
+    expect(shortIdx).toBeLessThan(longIdx);
+  });
+
+  it('F-02: 命中 requirements 的 #### F-xx 段时返回该段 + anchor 字段', async () => {
+    const scene = await scenes.create({ name: 'user-management' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'login' });
+    await fs.write(
+      `.lrnev/scenes/${scene.data.id}/specs/${spec.data.spec}/requirements.md`,
+      '# 需求\n\n## L2 详情\n\n#### F-01 记住我登录\n勾选记住我后保持会话。\n\n#### F-02 短信验证\n发送短信验证码。\n',
+    );
+
+    const res = await searcher.search({ query: '记住我' });
+    const hit = res.data.results.find((r) => r.path.includes(spec.data.spec));
+    expect(hit?.anchor).toBe('F-01');
+    expect(hit?.snippet).toContain('#### F-01 记住我登录');
+    expect(hit?.snippet).toContain('勾选记住我后保持会话');
+  });
+
+  it('F-02: 命中锚点段之外（L0 摘要正文）保持行级 snippet、无 anchor', async () => {
+    const scene = await scenes.create({ name: 'user-management' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'login' });
+    await fs.write(
+      `.lrnev/scenes/${scene.data.id}/specs/${spec.data.spec}/requirements.md`,
+      '# 需求\n\n## L0 摘要\n\n这里提到独角兽关键词。\n\n#### F-01 别的功能\n无关内容。\n',
+    );
+
+    const res = await searcher.search({ query: '独角兽' });
+    const hit = res.data.results.find((r) => r.path.includes(spec.data.spec));
+    expect(hit).toBeDefined();
+    expect(hit?.anchor).toBeUndefined();
+  });
 });

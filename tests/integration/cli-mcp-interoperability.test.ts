@@ -147,6 +147,40 @@ describe('CLI / MCP interoperability', () => {
       restoreEnv();
     }
   });
+
+  it('F-01/F-02: governance_map 与 context_search anchor 在 CLI 与 MCP 对等', async () => {
+    workspace = await tmpDir({ unsafeCleanup: true });
+    const { server, client, restoreEnv } = await connect(workspace.path);
+    try {
+      await runCli(workspace.path, ['init', '--project-name', 'demo']);
+      await runCli(workspace.path, ['scene', 'create', 'user-management']);
+      await runCli(workspace.path, ['spec', 'create', '--scene', 'user-management', 'login']);
+      const fs = new FileStorage(workspace.path);
+      await fs.write(
+        '.lrnev/scenes/01-user-management/specs/01-00-login/requirements.md',
+        '# 登录\n\n## L2 详情\n\n#### F-01 记住我功能\n勾选独角兽关键词后保持会话。\n',
+      );
+
+      // governance_map：CLI map 与 MCP governance_map 内容对等（不比 generated_at）
+      const cliMap = await runCli(workspace.path, ['map']);
+      const mcpMapRaw = await client.callTool({ name: 'governance_map', arguments: {} });
+      const mcpMap = JSON.parse(mcpMapRaw.content[0]?.type === 'text' ? mcpMapRaw.content[0].text : '{}');
+      expect(cliMap.data.scenes).toEqual(mcpMap.data.scenes);
+
+      // context_search 锚点：CLI search 与 MCP context_search 命中同一 anchor
+      const cliSearch = await runCli(workspace.path, ['search', '独角兽']);
+      const mcpSearchRaw = await client.callTool({ name: 'context_search', arguments: { query: '独角兽' } });
+      const mcpSearch = JSON.parse(mcpSearchRaw.content[0]?.type === 'text' ? mcpSearchRaw.content[0].text : '{}');
+      const cliAnchor = cliSearch.data.results.find((r: { path: string }) => r.path.includes('01-00-login'));
+      const mcpAnchor = mcpSearch.data.results.find((r: { path: string }) => r.path.includes('01-00-login'));
+      expect(cliAnchor?.anchor).toBe('F-01');
+      expect(mcpAnchor?.anchor).toBe('F-01');
+    } finally {
+      await client.close();
+      await server.close();
+      restoreEnv();
+    }
+  });
 });
 
 async function connect(workspacePath: string): Promise<{

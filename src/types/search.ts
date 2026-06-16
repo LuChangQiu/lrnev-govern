@@ -12,6 +12,9 @@ export interface SearchResult {
   matched_level: Level;
   score: number;
   snippet: string;
+
+  /** F-02：命中落在某 `#### F-xx` / `#### D-xx` 锚点段内时，标明命中哪个锚点（段外命中无此字段）。 */
+  anchor?: string;
 }
 
 export interface SearchResponse {

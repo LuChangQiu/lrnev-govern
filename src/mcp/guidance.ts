@@ -17,6 +17,7 @@ export const TOOL_DESCRIPTIONS = {
   lrnev_guide: '返回 lrnev 工作流、工具速查、错误自救和核心概念。何时用：不确定下一步、刚接入 MCP、或 gate/状态机报错时。前置：无。例子：lrnev_guide{topic:"errors"} → 只看错误自救。',
   lrnev_init: '初始化 .lrnev 工作区。何时用：新项目首次接入。前置：项目根目录已确定。例子：lrnev_init{project_name:"demo"} → 创建默认治理骨架。',
   project_status: '返回接手快照。何时用：继续已有项目或新会话开头。前置：已 init。例子：project_status{} → 查看 active tasks、ADR 和 open errors。',
+  governance_map: '返回治理地图：scene→spec(状态/L0)→锚点标题 的压缩全景（只读、只含标题级，不含正文）。何时用：接手项目或需要一次性了解全貌、按 URI 直接跳转时，替代反复 context_search + 读全文。',
   scene_create: '创建业务 Scene，并生成 scene.md、architecture.md、roadmap.md。何时用：需要按业务域隔离一组 Specs 时；传 intent 可在 followup 获得单/多 Spec 拆分信号。',
   scene_list: '列出当前工作区中的所有 Scene。何时用：接手项目、选择工作场景或排查 broken Scene 时。',
   scene_get: '读取一个 Scene 的元信息和统计信息。何时用：需要确认某个 Scene 的文档与统计概况时。',
