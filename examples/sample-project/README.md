@@ -105,7 +105,7 @@ lrnev task create "实现登录 API" \
   --validates F-01 \
   --acceptance "POST /login 200 含 session cookie" "错误密码 401"
 
-# 开始干活：状态机会校验 pending → in_progress；ai_followup 提示"先读 F-01 对应段落"
+# 开始干活：状态机会校验 pending → in_progress；ai_followup 回填 anchor_context（F-01 验收口径段落），无 validates 则回填 spec 级 summary_context
 lrnev task update T-001 --scene 00-default --spec 01-00-user-login --status in_progress
 
 # ... 写代码、写测试 ...

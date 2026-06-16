@@ -2,6 +2,39 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [SemVer 2.0](https://semver.org/lang/zh-CN/)。
 
+## [2.1.0] - 2026-06-16
+
+把治理数据「在正确时刻送进 AI 上下文」：v2.0 解决了写入时的确定性硬校验（挡坏引用），本版补上**使用时的送达**与**定位升级**。用 lrnev 自身治理实现（scene `02-context-delivery`，两个 spec：`01-00 维护态流程+需求审核门+任务启动上下文`、`02-00 定位升级`），每个 spec 经 codex(GPT-5.5) 两轮只读复核，意见逐条落地。**无破坏性改动**：响应契约只新增可选字段，新增能力均为加法。
+
+### Added
+
+- **任务启动上下文回填 `anchor_context`**（01-00 F-03）：`task_update(in_progress)` 与 `task_claim` 两入口，若 task 带 `validates`（`F-xx`/`D-xx`），从 requirements/design 抽出对应 `#### F-xx`/`#### D-xx` 段落，作为**响应顶层结构化字段** `anchor_context` 随返回送达 AI（不再只是"提示去读"）。截断策略：单段 ≤400 字、总量 ≤1200 字、`D-xx` 默认只回首行+标题；超长按句末/换行边界截断、标 `truncated`。`task_claim` 同样回填——**堵 claim 旁路**（claim 进任务不走 update）。锚点在 create 后被删时给**漂移软告警**（点名、不报错、不阻断），claim 入口补齐了此前缺失的坏锚点检测。
+- **任务启动降级档 `summary_context`**（01-00 F-03）：task 无 `validates`（无锚点段落可回填）时，回填 spec 级 L0/L1 摘要做快速定向。**统一摘要读取契约**：sidecar（`.requirements.abstract.md`/`.overview.md`）优先、requirements 内联 `## L0 摘要`/`## L1 概览` 兜底；两者皆无才退回纯文字"回看本 Spec 目标与验收"。L0≤200/L1≤600 截断，防 L1 撑爆启动上下文。
+- **需求审核门**（01-00 F-02）：`spec_gate_check(gate=ready)` 通过时，`ai_followup` 追加"请暂停，把 requirements.md 展示给用户确认后再继续"——用户审核"做什么"方向的人工门（只引导不强制，用户说"直接做"可跳过）。落位到已有 spec 加 task 不触发；`completion`/`creation` 不受影响。
+- **治理地图 `governance_map` / `lrnev map`**（02-00 F-01）：新增只读能力，输出 scene→spec(状态/优先级/L0)→`#### F-xx`/`#### D-xx` 锚点标题 的压缩全景（读文件但**只含标题级、不放正文**），AI 看图用 URI 直接定位，把"反复搜索+读全文"变成 O(1) 跳转。空 `00-default` 不出现；未填的模板哨兵锚点不进图。MCP 工具与 CLI 命令输出对等。
+- **`context_search` 锚点级抽段返回**（02-00 F-02）：命中落在某 `#### F-xx`/`#### D-xx` 段内时，`snippet` 升级为该锚点段落、并附 `anchor` 字段；多段命中取词频最高段；命中段外保持行级 snippet。
+- **共享锚点工具 `extractAnchorSections`**：返回锚点 ID→段落映射，供任务回填、治理地图、检索抽段复用（与 v2.0 的 `extractAnchorPool` 同族）。
+
+### Changed
+
+- **`context_search` 排序从裸命中计数换为 BM25**（02-00 F-03）：词频饱和 + 文档长度归一化，短而精准的文档不再被长文档高频词压过。**召回谓词独立于排序分**（裸命中判召回、BM25 只排序），负 IDF 不会缩小召回集；`tokenize` 子串口径不变，中文照常；零模型、零新依赖。
+- **分流指引从二元/三元扩为四路**（01-00 F-01/F-04）：`spec_create`/`task_create` 的 followup、`guidance` 工作流摘要、`docs/AI-ADAPTATION.md` 常驻模板统一为——有业务域→对应 scene 开 spec、无业务域→`00-default` 开 spec、给已完成特性加小增量→落位已有 spec 加 task、写不出独立验收→直接做不开 spec；`scene_create` 门槛提到"用户明确确认/上下文非常清楚会承载多 spec"，scene/00-default 拿不准就问用户（防 00-default 滥用与 scene 滥建）。在 completed spec 上 `task_create` 时提示状态回退语义。
+- **文本截断按边界切**：`clampText` 截断时优先切在上限内最后一个换行/中英文句末标点，边界过早才硬截——避免预览切在半句中间（纯算术、不调模型）。
+
+### 契约变更（向后兼容）
+
+- `AiFollowupResponse` 顶层新增可选字段 `anchor_context` / `summary_context`；`SearchResult` 新增可选 `anchor`。均为加法，旧消费方忽略即可，CLI JSON 与 MCP 返回对等。
+- lrnev 仍**零模型**：摘要由客户端经 `summarize_save` 写入，lrnev 只读只递、不调用任何 LLM/Embedding。
+
+### Tests
+
+- 全量 **626 条全绿**（v2.0 为 593）。新增覆盖：`extractAnchorSections` 边界、`anchor_context` 两入口回填/截断/D-xx 首行/漂移告警、`summary_context` sidecar-优先/内联兜底/截断、需求审核门 followup、四路分流文案、BM25 短精准胜长高频且召回不缩、`context_search` 锚点抽段、治理地图、`clampText` 边界截断，以及 `anchor_context`/`summary_context`/`governance_map`/`context_search` 的 CLI↔MCP 对等集成用例。
+
+### 升级指南
+
+- 无需迁移、无破坏性。接入方若消费 `task_update`/`task_claim`/`context_search` 返回，可选用新增的 `anchor_context`/`summary_context`/`anchor` 字段（不用则行为不变）。
+- 想用治理地图：MCP 调 `governance_map`，或 CLI `lrnev map`。
+
 ## [2.0.0] - 2026-06-12
 
 把治理保障从「依赖模型听话」迁移到「协议层强制」：确定性事实（FILL 残留、引用目标存在性）硬校验，需判断的语义仍交 AI。源于一轮全面真机测试发现的 17+1 项清单（`dev-docs/FINDINGS-CHECKLIST.md`，Claude/GPT 双向复评 + 用户逐条裁决），按 7 个 spec 用 lrnev 自身治理实现（scene `01-findings-remediation`），每个 spec 经 codex(GPT-5.5) 只读复核。

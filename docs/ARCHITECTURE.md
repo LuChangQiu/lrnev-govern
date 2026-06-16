@@ -45,8 +45,9 @@ lrnev-govern/
 │   │   ├── LegacyTodoMigration.ts
 │   │   ├── MemoryManager.ts
 │   │   ├── ProjectStatus.ts
+│   │   ├── GovernanceMap.ts         # 治理地图：scene→spec(状态/L0)→锚点标题 全景（v2.1）
 │   │   ├── SceneManager.ts
-│   │   ├── Searcher.ts
+│   │   ├── Searcher.ts              # 目录优先检索：BM25 排序 + 锚点段抽取（v2.1）
 │   │   ├── SessionCommit.ts
 │   │   ├── SpecManager.ts
 │   │   ├── Summarizer.ts           # 不调 LLM，只组装 ai_followup

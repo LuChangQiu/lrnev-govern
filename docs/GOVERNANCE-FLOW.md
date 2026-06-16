@@ -55,6 +55,7 @@ Gate 检查结构，不判断 prose 质量。
 - 正文里正常出现 `TODO` 不会导致 gate 失败。
 - 存量旧模板里的裸 TODO 占位需要运行 `lrnev doctor --migrate-todos` 迁移。
 - gate 通过后，`ai_followup` 会要求 AI 自查质量，并提示合适的 `spec.status` 回填值。
+- **需求审核门（`ready` gate passed，v2.1）**：`ready` 通过时 `ai_followup` 追加"请暂停，把 requirements.md 展示给用户确认后再继续"——这是用户审核"做什么"方向的人工门（只引导不强制；用户说"直接做"可跳过）。落位到已有 spec 加 task 不触发；`completion`/`creation` 不受影响。
 - gate 不读取也不要求 `spec.status`。status 是流程状态提示，不是 gate 前置条件。
 
 ## 多 Agent 存活
@@ -174,7 +175,7 @@ Task 可以带可选的需求 / 设计锚点（validates）：
 
 **锚点体系**：`F-xx` 指 requirements 的功能需求（`#### F-xx` 标题），`D-xx` 指 design 的设计点（`#### D-xx` 标题），两者对称。**validates 只接受这两种格式**，并做存在性硬校验——引用 requirements/design 里不存在的编号会被 `task_create` 拒绝、不落盘（与 depends_on 坏引用同类处理）。lrnev 仍不判断需求/设计写得好不好，只判断“这个编号在不在”。旧式 `design#3.2` 自由写法已废弃（design 里没有稳定章节号，无法确定性校验），会被拒绝并提示改用 `D-xx`。
 
-当 Task 改为 `in_progress` 时，`ai_followup` 总会提醒 AI 回看需求 / 设计。带 `validates` 时提示具体锚点；不带时退化为回看本 Spec 的目标和验收标准。
+当 Task 改为 `in_progress`（或经 `task_claim` 领取）时，除文字提醒外还**把验收口径作为结构化字段随返回回填**（v2.1）：带 `validates` 时返回顶层 `anchor_context`——从 requirements/design 抽出对应 `#### F-xx`/`#### D-xx` 段落（按句末/换行边界截断，D-xx 默认首行+标题）；不带 `validates` 时退化为 `summary_context`——spec 级 L0/L1 摘要（**读取契约：sidecar 优先、requirements 内联兜底**）；两者皆无才退回纯文字"回看本 Spec 目标与验收"。followup 始终保留"仍需回看原文"，`task_claim` 同样回填（堵旁路）。
 
 Task 也可以记录父子关系：
 

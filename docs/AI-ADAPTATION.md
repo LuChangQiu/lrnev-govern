@@ -135,7 +135,7 @@ CLI 与 MCP 共用 core 逻辑；差异只在入口层。
 第一次接入一个模型时，把项目根和治理要求说清楚：
 
 ```text
-项目根是 E:/project/.lrnev/lrnev-cli。这个项目用 lrnev 管理，请优先调用 lrnev_guide 了解流程，再调用 project_status 接手当前状态。
+项目根是 <你的项目根目录>。这个项目用 lrnev 管理，请优先调用 lrnev_guide 了解流程，再调用 project_status 接手当前状态。
 ```
 
 模型已经熟悉 lrnev 后，可以简化为：
