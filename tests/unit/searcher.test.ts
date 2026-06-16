@@ -89,4 +89,28 @@ describe('Searcher', () => {
     expect(res.data.results[0]?.uri).toBe('context://project');
     expect(res.data.results[0]?.snippet.length).toBeLessThanOrEqual(6);
   });
+
+  it('F-03: BM25 让短而精准的文档胜过长文档高频词，且召回集不缩小', async () => {
+    const scene = await scenes.create({ name: 'user-management' });
+    const short = await specs.create({ scene: scene.data.id, name: 'short-precise' });
+    const long = await specs.create({ scene: scene.data.id, name: 'long-noisy' });
+    const reqPath = (specId: string): string => `.lrnev/scenes/${scene.data.id}/specs/${specId}/requirements.md`;
+    // 短而精准：标题即登录，仅一次。长而泛泛：大量无关噪声中只零星提到登录——BM25 的长度归一化让前者胜出。
+    await fs.write(reqPath(short.data.spec), '登录\n');
+    await fs.write(
+      reqPath(long.data.spec),
+      '订单 支付 报表 配置 权限 用户 流程 状态 字段 校验 缓存 索引 摘要 迁移 钩子 队列 通道 网关\n'.repeat(12)
+        + '登录 登录\n',
+    );
+
+    const res = await searcher.search({ query: '登录' });
+    const paths = res.data.results.map((r) => r.path);
+    // 两个都被召回（BM25 只改排序、不缩召回集）
+    expect(paths.some((p) => p.includes(short.data.spec))).toBe(true);
+    expect(paths.some((p) => p.includes(long.data.spec))).toBe(true);
+    // 短而精准排在长而高频之前
+    const shortIdx = res.data.results.findIndex((r) => r.path.includes(short.data.spec));
+    const longIdx = res.data.results.findIndex((r) => r.path.includes(long.data.spec));
+    expect(shortIdx).toBeLessThan(longIdx);
+  });
 });
