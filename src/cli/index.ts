@@ -26,6 +26,7 @@ import { SessionCommit } from '../core/SessionCommit.js';
 import { Doctor } from '../core/Doctor.js';
 import { HookManager } from '../core/HookManager.js';
 import { ProjectStatus } from '../core/ProjectStatus.js';
+import { GovernanceMap } from '../core/GovernanceMap.js';
 import { AgentRegistry } from '../core/AgentRegistry.js';
 import { MemoryCategory, type MemoryCandidate, type SessionCommitInput } from '../types/memory.js';
 import { ErrorCode, LrnevError, isLrnevError } from '../shared/errors.js';
@@ -125,6 +126,7 @@ export function buildCli(options: BuildCliOptions = {}): Command {
   program.addCommand(buildDoctorCommand(program, options));
   program.addCommand(buildSearchCommand(program, options));
   program.addCommand(buildStatusCommand(program, options));
+  program.addCommand(buildMapCommand(program, options));
 
   return program;
 }
@@ -518,6 +520,12 @@ function buildStatusCommand(program: Command, options: BuildCliOptions): Command
     .action(run(program, options, async (opts) => managers(opts).projectStatus.get({ scene: opts.scene })));
 }
 
+function buildMapCommand(program: Command, options: BuildCliOptions): Command {
+  return new Command('map')
+    .description('治理地图：scene→spec(状态/L0)→锚点标题 的压缩全景')
+    .action(run(program, options, async (opts) => managers(opts).governanceMap.build()));
+}
+
 function run<Args extends unknown[]>(
   program: Command,
   options: BuildCliOptions,
@@ -559,7 +567,8 @@ function createManagers(root: string) {
   const hooks = new HookManager(fs);
   const agents = new AgentRegistry(fs);
   const projectStatus = new ProjectStatus(fs, scenes);
-  return { scenes, specs, tasks, gates, adrs, summaries, searcher, errors, memories, sessionCommit, doctor, hooks, agents, projectStatus };
+  const governanceMap = new GovernanceMap(fs, scenes);
+  return { scenes, specs, tasks, gates, adrs, summaries, searcher, errors, memories, sessionCommit, doctor, hooks, agents, projectStatus, governanceMap };
 }
 
 function withTaskListFollowup<T>(tasks: T[]): { ok: true; data: T[]; ai_followup: { instructions: string[] } } {

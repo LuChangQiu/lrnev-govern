@@ -26,6 +26,7 @@ import { SessionCommit } from '../../core/SessionCommit.js';
 import { Doctor } from '../../core/Doctor.js';
 import { HookManager } from '../../core/HookManager.js';
 import { ProjectStatus } from '../../core/ProjectStatus.js';
+import { GovernanceMap } from '../../core/GovernanceMap.js';
 import { AgentRegistry } from '../../core/AgentRegistry.js';
 import { MemoryCategory } from '../../types/memory.js';
 import { ErrorCode, LrnevError, isLrnevError } from '../../shared/errors.js';
@@ -41,6 +42,7 @@ export function registerTools(server: McpServer): void {
   registerWorkspaceTools(server);
   registerGuideTools(server);
   registerProjectStatusTools(server);
+  registerGovernanceMapTools(server);
   registerSceneTools(server);
   registerSpecTools(server);
   registerTaskTools(server);
@@ -100,6 +102,19 @@ function registerProjectStatusTools(server: McpServer): void {
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ scene }) => toToolResult(getManagers().projectStatus.get({ scene }).then(withProjectStatusFollowup)),
+  );
+}
+
+function registerGovernanceMapTools(server: McpServer): void {
+  server.registerTool(
+    'governance_map',
+    {
+      title: 'Governance Map',
+      description: TOOL_DESCRIPTIONS.governance_map,
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    },
+    async () => toToolResult(getManagers().governanceMap.build()),
   );
 }
 
@@ -762,6 +777,7 @@ function getManagers(): {
   hooks: HookManager;
   agents: AgentRegistry;
   projectStatus: ProjectStatus;
+  governanceMap: GovernanceMap;
 } {
   const root = resolveWorkspaceRoot().root;
   const fs = new FileStorage(root);
@@ -779,7 +795,8 @@ function getManagers(): {
   const hooks = new HookManager(fs);
   const agents = new AgentRegistry(fs);
   const projectStatus = new ProjectStatus(fs, scenes);
-  return { scenes, specs, tasks, gates, adrs, summaries, searcher, errors, memories, sessionCommit, doctor, hooks, agents, projectStatus };
+  const governanceMap = new GovernanceMap(fs, scenes);
+  return { scenes, specs, tasks, gates, adrs, summaries, searcher, errors, memories, sessionCommit, doctor, hooks, agents, projectStatus, governanceMap };
 }
 
 async function toToolResult(value: Promise<unknown>): Promise<ToolResult> {
