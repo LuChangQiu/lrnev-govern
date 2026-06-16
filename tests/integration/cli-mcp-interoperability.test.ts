@@ -59,6 +59,35 @@ describe('CLI / MCP interoperability', () => {
       restoreEnv();
     }
   });
+
+  it('F-03: task update(in_progress) 的 anchor_context 在 CLI 与 MCP 对等', async () => {
+    workspace = await tmpDir({ unsafeCleanup: true });
+    const { server, client, restoreEnv } = await connect(workspace.path);
+    try {
+      await runCli(workspace.path, ['init', '--project-name', 'demo']);
+      await runCli(workspace.path, ['scene', 'create', 'user-management']);
+      await runCli(workspace.path, ['spec', 'create', '--scene', 'user-management', 'user-login']);
+      await runCli(workspace.path, ['task', 'create', '任务A', '--scene', 'user-management', '--spec', 'user-login', '--validates', 'F-01']);
+      await runCli(workspace.path, ['task', 'create', '任务B', '--scene', 'user-management', '--spec', 'user-login', '--validates', 'F-01']);
+
+      const cliUpd = await runCli(workspace.path, ['task', 'update', 'T-001', '--scene', 'user-management', '--spec', 'user-login', '--status', 'in_progress']);
+      const mcpRes = await client.callTool({
+        name: 'task_update',
+        arguments: { scene: 'user-management', spec: 'user-login', task_id: 'T-002', status: 'in_progress' },
+      });
+      const mcpText = mcpRes.content[0]?.type === 'text' ? mcpRes.content[0].text : '';
+      const mcpUpd = JSON.parse(mcpText) as { anchor_context?: Array<{ anchor: string; source: string }> };
+
+      expect(cliUpd.anchor_context?.[0]?.anchor).toBe('F-01');
+      expect(mcpUpd.anchor_context?.[0]?.anchor).toBe('F-01');
+      expect(cliUpd.anchor_context?.[0]?.source).toBe('requirements');
+      expect(cliUpd.anchor_context?.[0]?.source).toBe(mcpUpd.anchor_context?.[0]?.source);
+    } finally {
+      await client.close();
+      await server.close();
+      restoreEnv();
+    }
+  });
 });
 
 async function connect(workspacePath: string): Promise<{
