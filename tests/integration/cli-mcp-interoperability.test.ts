@@ -11,6 +11,7 @@ import { dir as tmpDir, type DirectoryResult } from 'tmp-promise';
 
 import { createMcpServer } from '../../src/mcp/server.js';
 import { buildCli } from '../../src/cli/index.js';
+import { FileStorage } from '../../src/storage/FileStorage.js';
 
 describe('CLI / MCP interoperability', () => {
   let workspace: DirectoryResult | null = null;
@@ -110,6 +111,36 @@ describe('CLI / MCP interoperability', () => {
       expect(mcpClaim.anchor_context?.[0]?.anchor).toBe('F-01');
       expect(cliClaim.anchor_context?.[0]?.source).toBe('requirements');
       expect(cliClaim.anchor_context?.[0]?.source).toBe(mcpClaim.anchor_context?.[0]?.source);
+    } finally {
+      await client.close();
+      await server.close();
+      restoreEnv();
+    }
+  });
+
+  it('F-03: task update 的 summary_context 在 CLI 与 MCP 对等', async () => {
+    workspace = await tmpDir({ unsafeCleanup: true });
+    const { server, client, restoreEnv } = await connect(workspace.path);
+    try {
+      await runCli(workspace.path, ['init', '--project-name', 'demo']);
+      await runCli(workspace.path, ['scene', 'create', 'user-management']);
+      await runCli(workspace.path, ['spec', 'create', '--scene', 'user-management', 'user-login']);
+      // 写 sidecar 摘要：task 无 validates 时回填 summary_context 的来源
+      const fs = new FileStorage(workspace.path);
+      await fs.write('.lrnev/scenes/01-user-management/specs/01-00-user-login/.requirements.abstract.md', '打通登录与会话管理。\n');
+      await runCli(workspace.path, ['task', 'create', '任务A', '--scene', 'user-management', '--spec', 'user-login']);
+      await runCli(workspace.path, ['task', 'create', '任务B', '--scene', 'user-management', '--spec', 'user-login']);
+
+      const cliUpd = await runCli(workspace.path, ['task', 'update', 'T-001', '--scene', 'user-management', '--spec', 'user-login', '--status', 'in_progress']);
+      const mcpRaw = await client.callTool({
+        name: 'task_update',
+        arguments: { scene: 'user-management', spec: 'user-login', task_id: 'T-002', status: 'in_progress' },
+      });
+      const mcpUpd = JSON.parse(mcpRaw.content[0]?.type === 'text' ? mcpRaw.content[0].text : '{}');
+
+      expect(cliUpd.summary_context?.source).toBe('sidecar');
+      expect(cliUpd.summary_context?.l0).toBe('打通登录与会话管理。');
+      expect(cliUpd.summary_context).toEqual(mcpUpd.summary_context);
     } finally {
       await client.close();
       await server.close();
