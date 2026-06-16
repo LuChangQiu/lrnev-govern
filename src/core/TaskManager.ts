@@ -333,7 +333,7 @@ export class TaskManager {
   async claim(input: ClaimTaskInput): Promise<AiFollowupResponse<TaskClaimResult>> {
     const sceneId = await this.sceneManager.resolveId(input.scene);
     const specId = await this.specManager.resolveId(sceneId, input.spec);
-    await this.get(sceneId, specId, input.task);
+    const task = await this.get(sceneId, specId, input.task);
     const claims = this.newClaimStore();
     const result = await claims.claim({
       ...input,
@@ -341,10 +341,15 @@ export class TaskManager {
       spec: specId,
     });
     const hasParallelContext = await hasParallelClaimContext(claims, result);
+    // F-03 堵 claim 旁路：claim 进任务不走 update，同样回填 anchor_context + 漂移软告警。
+    const validates = task.validates ?? [];
+    const anchorContext = await this.buildAnchorContext(validates, sceneId, specId);
+    const badAnchors = await this.findBadValidatesAnchors(validates, sceneId, specId);
     return {
       ok: true,
       data: result,
-      ai_followup: buildClaimResponseFollowup(result, hasParallelContext),
+      ...(anchorContext && { anchor_context: anchorContext }),
+      ai_followup: buildClaimResponseFollowup(result, hasParallelContext, anchorContext !== undefined, badAnchors),
     };
   }
 
@@ -1141,10 +1146,18 @@ function buildFollowupAfterUpdate(
 function buildClaimResponseFollowup(
   result: TaskClaimResult,
   hasParallelContext?: boolean,
+  hasAnchorContext = false,
+  badAnchors: string[] = [],
 ): AiFollowupResponse<TaskClaimResult>['ai_followup'] {
   const instructions: string[] = [];
   appendClaimFollowup(instructions, { kind: 'claim', result, hasParallelContext });
   instructions.push('claim 是运行态软占用，不改 tasks.md；agent 进程退出时会自动释放,无需定时心跳维持。');
+  if (hasAnchorContext) {
+    instructions.push('anchor_context 已回填本任务 validates 对应的需求/设计段落；请回看 requirements.md / design.md 原文确认完整验收口径。');
+  }
+  if (badAnchors.length > 0) {
+    instructions.push(`validates 锚点 ${badAnchors.join('、')} 为废弃格式或在 requirements/design 中不存在，可能漂移；请核实（claim 不阻断）。`);
+  }
   return {
     instructions,
     suggested_tools: [

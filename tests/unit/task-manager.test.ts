@@ -390,6 +390,15 @@ describe('TaskManager 集成', () => {
       const r = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'completed' });
       expect(r.anchor_context).toBeUndefined();
     });
+
+    it('claim 同样回填 anchor_context（堵 claim 旁路）', async () => {
+      const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: 'claim 锚点', validates: ['F-01'] });
+      const r = await tasks.claim({ scene: 'user-management', spec: 'user-login', task: t.data.id, agent_id: 'agent-a' });
+      expect(r.anchor_context).toHaveLength(1);
+      expect(r.anchor_context?.[0]?.anchor).toBe('F-01');
+      expect(r.anchor_context?.[0]?.source).toBe('requirements');
+      expect(r.ai_followup?.instructions.join('\n')).toContain('请回看 requirements.md / design.md 原文');
+    });
   });
 
   describe('create', () => {
