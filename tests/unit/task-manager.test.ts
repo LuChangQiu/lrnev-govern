@@ -24,6 +24,8 @@ import {
   renderTaskBlock,
   parseTasksFromMarkdown,
   toReadableTask,
+  extractAnchorPool,
+  extractAnchorSections,
 } from '../../src/core/TaskManager.js';
 import { isLrnevError } from '../../src/shared/errors.js';
 import type { Task } from '../../src/types/task.js';
@@ -259,6 +261,55 @@ describe('TaskManager 纯函数', () => {
       const md = '### T-002 子任务 <!-- lrnev-task: status=pending, created=t1, parent=T-001 -->';
       const tasks = parseTasksFromMarkdown(md, '01-s', '01-00-x');
       expect(tasks[0]?.parent).toBe('T-001');
+    });
+  });
+
+  describe('extractAnchorSections', () => {
+    const doc = [
+      '# 需求',
+      '',
+      '## L2 详情',
+      '',
+      '#### F-01 第一个功能',
+      '描述 F-01。',
+      '',
+      '- 验收：A',
+      '',
+      '#### F-02 第二个功能',
+      '描述 F-02。',
+      '##### 子标题（应算正文，不切段）',
+      '更多 F-02。',
+      '',
+      '### 非功能性需求',
+      '与锚点无关的内容。',
+    ].join('\n');
+
+    it('切到下一个同级或更高级标题边界', () => {
+      const sections = extractAnchorSections(doc, 'F');
+      expect([...sections.keys()]).toEqual(['F-01', 'F-02']);
+      expect(sections.get('F-01')).toBe('#### F-01 第一个功能\n描述 F-01。\n\n- 验收：A');
+    });
+
+    it('##### 更深标题算正文不切段；### 同级以上切段', () => {
+      const sections = extractAnchorSections(doc, 'F');
+      const f2 = sections.get('F-02') ?? '';
+      expect(f2).toContain('##### 子标题（应算正文，不切段）');
+      expect(f2).toContain('更多 F-02。');
+      expect(f2).not.toContain('与锚点无关的内容。');
+    });
+
+    it('文档无对应前缀锚点时返回空 Map', () => {
+      expect(extractAnchorSections(doc, 'D').size).toBe(0);
+    });
+
+    it('末尾锚点（无后续标题）收到文件末尾', () => {
+      const md = '#### D-01 设计点\n正文一\n正文二';
+      const sections = extractAnchorSections(md, 'D');
+      expect(sections.get('D-01')).toBe('#### D-01 设计点\n正文一\n正文二');
+    });
+
+    it('与 extractAnchorPool 的 ID 集合一致', () => {
+      expect(new Set(extractAnchorSections(doc, 'F').keys())).toEqual(extractAnchorPool(doc, 'F'));
     });
   });
 });

@@ -532,6 +532,42 @@ export function extractAnchorPool(content: string, prefix: 'F' | 'D'): Set<strin
   return pool;
 }
 
+/**
+ * 提取 `#### F-xx` / `#### D-xx` 锚点段落：从标题行到下一个同级或更高级标题（`#`~`####`）之间的正文，
+ * 返回 ID→段落映射（段落含标题行）。`#####` 及更深标题视为段落内容，不切段。
+ *
+ * 与 `extractAnchorPool` 同正则家族（后者返回 ID 集合，本函数返回 ID→正文），供 F-03 任务启动锚点
+ * 回填、以及定位升级（治理地图 / context_search 抽段）复用。不复用 S6 的 IO——只复用定位逻辑。
+ */
+export function extractAnchorSections(content: string, prefix: 'F' | 'D'): Map<string, string> {
+  const anchorRegex = new RegExp(`^####\\s+(${prefix}-\\d+)\\b`);
+  const sectionEndRegex = /^#{1,4}\s/;
+  const result = new Map<string, string>();
+  let current: string | null = null;
+  let buffer: string[] = [];
+  const flush = (): void => {
+    if (current !== null) result.set(current, buffer.join('\n').trim());
+  };
+  for (const line of content.split(/\r?\n/)) {
+    const anchorMatch = anchorRegex.exec(line);
+    if (anchorMatch) {
+      flush();
+      current = anchorMatch[1]!;
+      buffer = [line];
+      continue;
+    }
+    if (current !== null && sectionEndRegex.test(line)) {
+      flush();
+      current = null;
+      buffer = [];
+      continue;
+    }
+    if (current !== null) buffer.push(line);
+  }
+  flush();
+  return result;
+}
+
 export function formatTaskId(n: number): string {
   return `T-${String(n).padStart(3, '0')}`;
 }
