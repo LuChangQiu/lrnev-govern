@@ -9,7 +9,7 @@ import { FileStorage } from '../storage/FileStorage.js';
 import { filePathToURI } from '../storage/URIRouter.js';
 import { loadConfig } from '../shared/config.js';
 import { LrnevError, ErrorCode } from '../shared/errors.js';
-import { extractAnchorSections, clampText, ANCHOR_CONTEXT_SECTION_CAP } from './TaskManager.js';
+import { extractAnchorSections, clampText } from './TaskManager.js';
 import type { AiFollowupResponse, Scope } from '../types/response.js';
 import type { SearchInput, SearchResponse, SearchResult } from '../types/search.js';
 
@@ -162,6 +162,12 @@ function makeSnippet(text: string, terms: string[], maxLength: number): string {
   return (found ?? lines.find((line) => line.trim().length > 0) ?? '').trim().slice(0, maxLength);
 }
 
+/**
+ * 搜索结果锚点段落截断上限。初值 400 与任务启动上下文一致，但**刻意独立常量**：
+ * 「搜索结果摘要」与「任务启动回填」是两个场景，不让一方的预算调整牵动另一方。
+ */
+const SEARCH_ANCHOR_SNIPPET_CAP = 400;
+
 /** requirements.md→F 锚点，design.md→D 锚点，其余文件无锚点。 */
 function anchorPrefixForFile(file: string): 'F' | 'D' | null {
   if (file.endsWith('/requirements.md')) return 'F';
@@ -188,7 +194,7 @@ function resolveAnchorSnippet(
     if (score > 0 && (!best || score > best.score)) best = { anchor, section, score };
   }
   if (!best) return null;
-  return { anchor: best.anchor, snippet: clampText(best.section, ANCHOR_CONTEXT_SECTION_CAP).text };
+  return { anchor: best.anchor, snippet: clampText(best.section, SEARCH_ANCHOR_SNIPPET_CAP).text };
 }
 
 function depthFromBase(file: string, base: string): number {

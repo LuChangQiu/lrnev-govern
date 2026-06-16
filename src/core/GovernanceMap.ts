@@ -10,6 +10,7 @@ import { FileStorage } from '../storage/FileStorage.js';
 import { parseFrontmatter } from '../storage/FrontmatterCodec.js';
 import { DEFAULT_SCENE_ID, SceneManager } from './SceneManager.js';
 import { tryParseSpecParts } from './SpecManager.js';
+import { readSpecSummary } from './Summarizer.js';
 import type { AiFollowupResponse } from '../types/response.js';
 import type { SpecFrontmatter } from '../types/spec.js';
 import type {
@@ -69,7 +70,9 @@ export class GovernanceMap {
       const { frontmatter } = parseFrontmatter<Partial<SpecFrontmatter>>(reqContent);
       const designPath = `.lrnev/scenes/${sceneId}/specs/${specId}/design.md`;
       const designContent = this.fs.exists(designPath) ? await this.fs.read(designPath) : '';
-      const l0 = extractL0(reqContent);
+      // L0 走统一摘要读取契约：sidecar 优先、requirements 内联兜底。地图只取 L0 一句话。
+      const summary = await readSpecSummary(this.fs, sceneId, specId);
+      const l0 = summary.l0?.slice(0, L0_MAX);
 
       specs.push({
         spec: specId,
@@ -90,30 +93,4 @@ function anchorHeadings(content: string, prefix: 'F' | 'D'): string[] {
   return (content.match(regex) ?? [])
     .map((line) => line.trim())
     .filter((line) => !line.includes('<!-- FILL:'));
-}
-
-/**
- * 抽 `## L0 摘要` 段首个有效行；跳过空行与模板占位（HTML 注释、整行全角括号占位），取首个真实摘要行。
- * 只按精确模板哨兵判断占位——不按"含 FILL 单词"过滤，否则会误伤正文里恰好提到 FILL 的真实摘要。
- */
-function extractL0(content: string): string | undefined {
-  const lines = content.split(/\r?\n/);
-  let inL0 = false;
-  for (const raw of lines) {
-    if (/^##\s*L0\b/.test(raw)) {
-      inL0 = true;
-      continue;
-    }
-    if (!inL0) continue;
-    if (/^#{1,6}\s/.test(raw)) break; // 下一个标题结束 L0 段
-    const line = raw.trim();
-    if (!line || isTemplatePlaceholder(line)) continue;
-    return line.slice(0, L0_MAX);
-  }
-  return undefined;
-}
-
-/** 模板哨兵：HTML 注释 `<!-- ... -->`，或整行被全角括号包裹的占位「（...）」。 */
-function isTemplatePlaceholder(line: string): boolean {
-  return line.startsWith('<!--') || /^（.*）$/.test(line);
 }
