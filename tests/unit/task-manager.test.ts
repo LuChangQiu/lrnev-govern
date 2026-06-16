@@ -399,6 +399,20 @@ describe('TaskManager 集成', () => {
       expect(r.anchor_context?.[0]?.source).toBe('requirements');
       expect(r.ai_followup?.instructions.join('\n')).toContain('请回看 requirements.md / design.md 原文');
     });
+
+    it('claim 对漂移锚点（create 后被删）给软告警、不阻断', async () => {
+      const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '漂移', validates: ['F-01'] });
+      const sceneId = await scenes.resolveId('user-management');
+      const specId = await specs.resolveId(sceneId, 'user-login');
+      // 启动前把 F-01 从 requirements 删掉，模拟锚点漂移
+      await fs.write(`.lrnev/scenes/${sceneId}/specs/${specId}/requirements.md`, '# 需求\n\n锚点已被删除。\n');
+
+      const r = await tasks.claim({ scene: 'user-management', spec: 'user-login', task: t.data.id, agent_id: 'agent-a' });
+      expect(r.ai_followup?.instructions.join('\n')).toContain('可能漂移');
+      expect(r.ai_followup?.instructions.join('\n')).toContain('F-01');
+      expect(r.data.claim.claimed_by).toBe('agent-a'); // 不阻断：claim 仍成功
+      expect(r.anchor_context).toBeUndefined(); // 段落已不存在，不回填
+    });
   });
 
   describe('create', () => {
