@@ -31,6 +31,12 @@ export interface AiFollowupResponse<T = unknown> {
    */
   anchor_context?: AnchorContext[];
 
+  /**
+   * F-03 降级档：task 无 validates（无可回填的锚点段落）时，回填 spec 级 L0/L1 摘要做快速定向。
+   * 读取契约：sidecar 优先、requirements 内联兜底。两者皆无时不出现（走现有"回看原文"文案）。
+   */
+  summary_context?: SummaryContext;
+
   /** 错误列表（ok=false 时必填） */
   errors?: ErrorInfo[];
 
@@ -50,6 +56,16 @@ export interface AnchorContext {
   text: string;
 
   /** 是否被截断 */
+  truncated: boolean;
+}
+
+/** F-03 降级档：spec 级摘要（按场景截断后）。 */
+export interface SummaryContext {
+  /** 摘要来源：sidecar 文件优先，否则 requirements 内联段。 */
+  source: 'sidecar' | 'inline';
+  l0?: string;
+  l1?: string;
+  /** l0 或 l1 是否被截断。 */
   truncated: boolean;
 }
 
