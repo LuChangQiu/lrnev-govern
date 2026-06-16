@@ -369,11 +369,46 @@ describe('TaskManager 集成', () => {
       expect(r.anchor_context?.[0]?.truncated).toBe(false);
     });
 
-    it('无 validates 不回 anchor_context（不回空数组），保留现有回看文案', async () => {
+    it('无 validates 且无摘要时，不回 context、保留现有回看文案', async () => {
       const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '无锚点' });
       const r = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'in_progress' });
       expect(r.anchor_context).toBeUndefined();
+      expect(r.summary_context).toBeUndefined();
       expect(r.ai_followup?.instructions.join('\n')).toContain('先回看本 Spec 的 requirements');
+    });
+
+    it('无 validates 时降级回填 summary_context（内联 L0 兜底，source=inline）', async () => {
+      const sceneId = await scenes.resolveId('user-management');
+      const specId = await specs.resolveId(sceneId, 'user-login');
+      await fs.write(`.lrnev/scenes/${sceneId}/specs/${specId}/requirements.md`, '# 需求\n\n## L0 摘要\n\n打通登录与会话管理。\n');
+      const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '无锚点有摘要' });
+      const r = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'in_progress' });
+      expect(r.anchor_context).toBeUndefined();
+      expect(r.summary_context?.source).toBe('inline');
+      expect(r.summary_context?.l0).toBe('打通登录与会话管理。');
+      expect(r.ai_followup?.instructions.join('\n')).toContain('summary_context');
+    });
+
+    it('summary_context：sidecar 优先于内联（source=sidecar）', async () => {
+      const sceneId = await scenes.resolveId('user-management');
+      const specId = await specs.resolveId(sceneId, 'user-login');
+      const dir = `.lrnev/scenes/${sceneId}/specs/${specId}`;
+      await fs.write(`${dir}/requirements.md`, '# 需求\n\n## L0 摘要\n\n内联摘要。\n');
+      await fs.write(`${dir}/.requirements.abstract.md`, 'sidecar 摘要。\n');
+      const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: 'x' });
+      const r = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'in_progress' });
+      expect(r.summary_context?.source).toBe('sidecar');
+      expect(r.summary_context?.l0).toBe('sidecar 摘要。');
+    });
+
+    it('claim 无 validates 时也回填 summary_context', async () => {
+      const sceneId = await scenes.resolveId('user-management');
+      const specId = await specs.resolveId(sceneId, 'user-login');
+      await fs.write(`.lrnev/scenes/${sceneId}/specs/${specId}/.requirements.abstract.md`, 'claim 用摘要。\n');
+      const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: 'x' });
+      const r = await tasks.claim({ scene: 'user-management', spec: 'user-login', task: t.data.id, agent_id: 'agent-a' });
+      expect(r.summary_context?.source).toBe('sidecar');
+      expect(r.summary_context?.l0).toBe('claim 用摘要。');
     });
 
     it('D-xx 默认只回首行 + 标题', async () => {
@@ -397,7 +432,7 @@ describe('TaskManager 集成', () => {
       expect(r.anchor_context).toHaveLength(1);
       expect(r.anchor_context?.[0]?.anchor).toBe('F-01');
       expect(r.anchor_context?.[0]?.source).toBe('requirements');
-      expect(r.ai_followup?.instructions.join('\n')).toContain('请回看 requirements.md / design.md 原文');
+      expect(r.ai_followup?.instructions.join('\n')).toContain('仍需回看 requirements.md / design.md 原文');
     });
 
     it('claim 对漂移锚点（create 后被删）给软告警、不阻断', async () => {
@@ -1052,7 +1087,9 @@ describe('TaskManager 集成', () => {
         status: 'in_progress',
       });
 
-      expect(r.ai_followup?.instructions.join('\n')).toContain('F-01、D-01');
+      // 有锚点回填时，followup 用统一文案指向 anchor_context；具体锚点在结构化字段里
+      expect(r.ai_followup?.instructions.join('\n')).toContain('anchor_context / summary_context');
+      expect(r.anchor_context?.map((a) => a.anchor)).toEqual(expect.arrayContaining(['F-01', 'D-01']));
     });
 
     it('Spec 已 completed 时开始 Task 应提示这是状态回退', async () => {

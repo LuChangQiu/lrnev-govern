@@ -36,6 +36,7 @@ import { SpecManager } from './SpecManager.js';
 import { appendHookWarnings, getHookManager } from './HookManager.js';
 import { ClaimStore } from './ClaimStore.js';
 import { AgentRegistry } from './AgentRegistry.js';
+import { readSpecSummary } from './Summarizer.js';
 import type {
   Task,
   TaskStatus,
@@ -46,7 +47,7 @@ import type {
 } from '../types/task.js';
 import { VALID_TASK_TRANSITIONS, isValidTransition } from '../types/task.js';
 import type { SpecStatus } from '../types/spec.js';
-import type { AiFollowupResponse, AnchorContext } from '../types/response.js';
+import type { AiFollowupResponse, AnchorContext, SummaryContext } from '../types/response.js';
 import type {
   ClaimTaskInput,
   ReleaseTaskClaimInput,
@@ -329,12 +330,17 @@ export class TaskManager {
     const anchorContext = input.status === 'in_progress'
       ? await this.buildAnchorContext(updatedTask.validates ?? [], sceneId, specId)
       : undefined;
+    // 降级档：in_progress 且无锚点段落可回填时，回填 spec 级 L0/L1 摘要（sidecar 优先、内联兜底）。
+    const summaryContext = input.status === 'in_progress' && !anchorContext
+      ? await this.buildSummaryContext(sceneId, specId)
+      : undefined;
 
     return appendHookWarnings({
       ok: true,
       data: updatedTask,
       ...(anchorContext && { anchor_context: anchorContext }),
-      ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult, incompleteDeps, incompleteChildren, suggestParallel, badAnchors),
+      ...(summaryContext && { summary_context: summaryContext }),
+      ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult, incompleteDeps, incompleteChildren, suggestParallel, badAnchors, Boolean(anchorContext || summaryContext)),
     }, hookResult.warnings);
   }
 
@@ -352,12 +358,14 @@ export class TaskManager {
     // F-03 堵 claim 旁路：claim 进任务不走 update，同样回填 anchor_context + 漂移软告警。
     const validates = task.validates ?? [];
     const anchorContext = await this.buildAnchorContext(validates, sceneId, specId);
+    const summaryContext = anchorContext ? undefined : await this.buildSummaryContext(sceneId, specId);
     const badAnchors = await this.findBadValidatesAnchors(validates, sceneId, specId);
     return {
       ok: true,
       data: result,
       ...(anchorContext && { anchor_context: anchorContext }),
-      ai_followup: buildClaimResponseFollowup(result, hasParallelContext, anchorContext !== undefined, badAnchors),
+      ...(summaryContext && { summary_context: summaryContext }),
+      ai_followup: buildClaimResponseFollowup(result, hasParallelContext, anchorContext !== undefined, badAnchors, summaryContext !== undefined),
     };
   }
 
@@ -508,6 +516,29 @@ export class TaskManager {
     return out.length > 0 ? out : undefined;
   }
 
+  /**
+   * F-03 降级档：task 无可回填锚点段落时，回填 spec 级 L0/L1 摘要做快速定向。
+   * 读取契约 sidecar 优先、requirements 内联兜底（见 readSpecSummary）；L0/L1 各自截断控体积。
+   * 两级皆无返回 undefined（走现有"回看原文"文案）。失败静默降级。
+   */
+  async buildSummaryContext(sceneId: string, specId: string): Promise<SummaryContext | undefined> {
+    try {
+      const summary = await readSpecSummary(this.fs, sceneId, specId);
+      if (!summary.source) return undefined;
+      const l0 = summary.l0 ? clampText(summary.l0, SUMMARY_CONTEXT_L0_CAP) : undefined;
+      const l1 = summary.l1 ? clampText(summary.l1, SUMMARY_CONTEXT_L1_CAP) : undefined;
+      if (!l0 && !l1) return undefined;
+      return {
+        source: summary.source,
+        ...(l0 && { l0: l0.text }),
+        ...(l1 && { l1: l1.text }),
+        truncated: Boolean(l0?.truncated || l1?.truncated),
+      };
+    } catch {
+      return undefined;
+    }
+  }
+
   /** 构造带"属主死活"感知的 ClaimStore;属主已死的 claim 视为可接手。 */
   private newClaimStore(): ClaimStore {
     const registry = new AgentRegistry(this.fs);
@@ -632,6 +663,10 @@ export function extractAnchorSections(content: string, prefix: 'F' | 'D'): Map<s
 /** F-03 锚点回填截断上限（保守起始值，真机用后再调）：单段字符数 / 总量字符数。 */
 export const ANCHOR_CONTEXT_SECTION_CAP = 400;
 export const ANCHOR_CONTEXT_TOTAL_CAP = 1200;
+
+/** F-03 降级档 summary_context 截断：L0 短、L1 概览也要控量（L1 模板预算约 2000 token，全塞会撑爆启动上下文）。 */
+export const SUMMARY_CONTEXT_L0_CAP = 200;
+export const SUMMARY_CONTEXT_L1_CAP = 600;
 
 /** 按上限截断文本，超出标记 truncated。 */
 export function clampText(text: string, cap: number): { text: string; truncated: boolean } {
@@ -1050,14 +1085,17 @@ function buildFollowupAfterUpdate(
   incompleteChildren = 0,
   suggestParallel = false,
   badAnchors: string[] = [],
+  hasContext = false,
 ): AiFollowupResponse<Task>['ai_followup'] {
   const badAnchorWarning = badAnchors.length > 0
     ? `validates 锚点 ${badAnchors.join('、')} 为废弃格式或在 requirements/design 中不存在；请修正 tasks.md 中该锚点（新建 task 会被硬拒，存量在此提醒，doctor 可列全量）。`
     : undefined;
   if (newStatus === 'in_progress') {
-    const reviewInstruction = task.validates && task.validates.length > 0
-      ? `先读 requirements/design 中与 ${task.validates.join('、')} 对应的段落`
-      : '先回看本 Spec 的 requirements 目标与验收标准';
+    const reviewInstruction = hasContext
+      ? '返回里若有 anchor_context / summary_context，先看它；仍需回看 requirements.md / design.md 原文确认完整口径'
+      : (task.validates && task.validates.length > 0
+        ? `先读 requirements/design 中与 ${task.validates.join('、')} 对应的段落`
+        : '先回看本 Spec 的 requirements 目标与验收标准');
     const instructions = [
       `Task "${task.id}" 已进入 in_progress。${reviewInstruction}，确认验收口径后再动手。`,
       '可把 spec.status 改为 in-progress；gate 检查不依赖 status。',
@@ -1156,12 +1194,13 @@ function buildClaimResponseFollowup(
   hasParallelContext?: boolean,
   hasAnchorContext = false,
   badAnchors: string[] = [],
+  hasSummaryContext = false,
 ): AiFollowupResponse<TaskClaimResult>['ai_followup'] {
   const instructions: string[] = [];
   appendClaimFollowup(instructions, { kind: 'claim', result, hasParallelContext });
   instructions.push('claim 是运行态软占用，不改 tasks.md；agent 进程退出时会自动释放,无需定时心跳维持。');
-  if (hasAnchorContext) {
-    instructions.push('anchor_context 已回填本任务 validates 对应的需求/设计段落；请回看 requirements.md / design.md 原文确认完整验收口径。');
+  if (hasAnchorContext || hasSummaryContext) {
+    instructions.push('返回里若有 anchor_context / summary_context，先看它；仍需回看 requirements.md / design.md 原文确认完整验收口径。');
   }
   if (badAnchors.length > 0) {
     instructions.push(`validates 锚点 ${badAnchors.join('、')} 为废弃格式或在 requirements/design 中不存在，可能漂移；请核实（claim 不阻断）。`);

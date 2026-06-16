@@ -104,3 +104,72 @@ export class Summarizer {
 function normalizeSummary(content: string): string {
   return content.trim() + '\n';
 }
+
+/**
+ * 摘要读取契约（01-00 F-03 / 02-00 F-01 共用）：**sidecar 优先、requirements 内联兜底**。
+ * 即 summarize_save 产出的 `.requirements.abstract.md` / `.overview.md` 是可更新摘要源；
+ * 没有 sidecar 时，回退读 requirements.md 里的 `## L0 摘要` / `## L1 概览` 段。
+ * 不做迁移、不假装单一物理存储——只把读取优先级定成系统契约。返回原始文本（不截断），由调用方按场景截断。
+ */
+export interface SpecSummary {
+  l0?: string;
+  l1?: string;
+  /** 至少有一级来自 sidecar 时为 'sidecar'，否则（全部来自内联）为 'inline'；两级皆无时为 undefined。 */
+  source?: 'sidecar' | 'inline';
+}
+
+export async function readSpecSummary(
+  fs: FileStorage,
+  sceneId: string,
+  specId: string,
+): Promise<SpecSummary> {
+  const reqRel = `.lrnev/scenes/${sceneId}/specs/${specId}/requirements.md`;
+  const l0 = await readSummaryLevel(fs, reqRel, 'L0');
+  const l1 = await readSummaryLevel(fs, reqRel, 'L1');
+  if (!l0 && !l1) return {};
+  const source = l0?.source === 'sidecar' || l1?.source === 'sidecar' ? 'sidecar' : 'inline';
+  return { ...(l0 && { l0: l0.text }), ...(l1 && { l1: l1.text }), source };
+}
+
+async function readSummaryLevel(
+  fs: FileStorage,
+  reqRel: string,
+  level: 'L0' | 'L1',
+): Promise<{ text: string; source: 'sidecar' | 'inline' } | undefined> {
+  const sidecar = summaryPathFor(reqRel, level);
+  if (fs.exists(sidecar)) {
+    const text = (await fs.read(sidecar)).trim();
+    if (text) return { text, source: 'sidecar' };
+  }
+  if (!fs.exists(reqRel)) return undefined;
+  const inline = extractInlineSection(await fs.read(reqRel), level);
+  return inline ? { text: inline, source: 'inline' } : undefined;
+}
+
+/**
+ * 抽 requirements 内联 `## L0 摘要` / `## L1 概览` 段的真实正文（跳过空行与模板哨兵），到下一个标题为止。
+ * 只按精确模板哨兵判占位（HTML 注释、整行全角括号占位）——不按"含 FILL 单词"过滤，避免误伤真实摘要。
+ */
+export function extractInlineSection(content: string, level: 'L0' | 'L1'): string | undefined {
+  const lines = content.split(/\r?\n/);
+  const headRe = new RegExp(`^##\\s*${level}\\b`);
+  let inSection = false;
+  const body: string[] = [];
+  for (const raw of lines) {
+    if (headRe.test(raw)) {
+      inSection = true;
+      continue;
+    }
+    if (!inSection) continue;
+    if (/^#{1,6}\s/.test(raw)) break;
+    const line = raw.trim();
+    if (!line || isTemplatePlaceholder(line)) continue;
+    body.push(line);
+  }
+  return body.length > 0 ? body.join(' ') : undefined;
+}
+
+/** 模板哨兵：HTML 注释 `<!-- ... -->`，或整行被全角括号包裹的占位「（...）」。 */
+export function isTemplatePlaceholder(line: string): boolean {
+  return line.startsWith('<!--') || /^（.*）$/.test(line);
+}
