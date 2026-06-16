@@ -324,6 +324,18 @@ describe('TaskManager 纯函数', () => {
       expect(r.text).toBe('abc');
       expect(r.truncated).toBe(true);
     });
+    it('clampText 超限时优先切在 cap 内的句末边界，不切半句', () => {
+      // "第一句结束。" 6 字符（句末 。 在 60%*10=6 处）→ 切到句末，不带半句
+      const r = clampText('第一句结束。后面还有很多超出上限的内容', 10);
+      expect(r.text).toBe('第一句结束。');
+      expect(r.truncated).toBe(true);
+    });
+    it('clampText 边界太靠前（<60% cap）时退回硬截', () => {
+      // 句末标点在第 2 字符，远 < 60%*20 → 硬截到 20
+      const r = clampText('短。这之后是一长串没有任何句末标点的连续文本继续拉长超过上限', 20);
+      expect(r.text.length).toBe(20);
+      expect(r.truncated).toBe(true);
+    });
     it('designFirstLine 取标题 + 首个非空正文行', () => {
       expect(designFirstLine('#### D-01 标题\n\n首行正文\n第二行')).toBe('#### D-01 标题\n首行正文');
     });

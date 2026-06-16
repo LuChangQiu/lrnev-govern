@@ -668,11 +668,24 @@ export const ANCHOR_CONTEXT_TOTAL_CAP = 1200;
 export const SUMMARY_CONTEXT_L0_CAP = 200;
 export const SUMMARY_CONTEXT_L1_CAP = 600;
 
-/** 按上限截断文本，超出标记 truncated。 */
+/**
+ * 按上限截断文本，超出标记 truncated。
+ * 零模型质量改进：截断时**优先切在 cap 以内的最后一个换行 / 中英文句末标点**，避免切在半句中间；
+ * 边界太靠前（< 60% cap，会丢太多）才退回硬截。纯算术、不调模型。
+ */
 export function clampText(text: string, cap: number): { text: string; truncated: boolean } {
   if (cap <= 0) return { text: '', truncated: text.length > 0 };
   if (text.length <= cap) return { text, truncated: false };
-  return { text: text.slice(0, cap), truncated: true };
+  const head = text.slice(0, cap);
+  const boundary = lastSentenceBoundary(head);
+  const cut = boundary >= cap * 0.6 ? boundary : cap;
+  return { text: head.slice(0, cut).trimEnd(), truncated: true };
+}
+
+/** 返回 s 中最后一个换行 / 中英文句末标点之后的位置（含标点）；无则 -1。 */
+function lastSentenceBoundary(s: string): number {
+  const match = /[\s\S]*[。！？.!?\n]/.exec(s);
+  return match ? match[0].length : -1;
 }
 
 /** D-xx 段默认只回首行（标题行 + 首个非空正文行），控制设计段体积。 */
