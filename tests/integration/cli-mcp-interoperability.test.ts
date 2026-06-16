@@ -88,6 +88,34 @@ describe('CLI / MCP interoperability', () => {
       restoreEnv();
     }
   });
+
+  it('F-03: task claim 的 anchor_context 在 CLI 与 MCP 对等', async () => {
+    workspace = await tmpDir({ unsafeCleanup: true });
+    const { server, client, restoreEnv } = await connect(workspace.path);
+    try {
+      await runCli(workspace.path, ['init', '--project-name', 'demo']);
+      await runCli(workspace.path, ['scene', 'create', 'user-management']);
+      await runCli(workspace.path, ['spec', 'create', '--scene', 'user-management', 'user-login']);
+      await runCli(workspace.path, ['task', 'create', '任务A', '--scene', 'user-management', '--spec', 'user-login', '--validates', 'F-01']);
+      await runCli(workspace.path, ['task', 'create', '任务B', '--scene', 'user-management', '--spec', 'user-login', '--validates', 'F-01']);
+
+      const cliClaim = await runCli(workspace.path, ['task', 'claim', 'T-001', '--scene', 'user-management', '--spec', 'user-login', '--agent-id', 'agent-cli']);
+      const mcpClaimRaw = await client.callTool({
+        name: 'task_claim',
+        arguments: { scene: 'user-management', spec: 'user-login', task: 'T-002', agent_id: 'agent-mcp' },
+      });
+      const mcpClaim = JSON.parse(mcpClaimRaw.content[0]?.type === 'text' ? mcpClaimRaw.content[0].text : '{}');
+
+      expect(cliClaim.anchor_context?.[0]?.anchor).toBe('F-01');
+      expect(mcpClaim.anchor_context?.[0]?.anchor).toBe('F-01');
+      expect(cliClaim.anchor_context?.[0]?.source).toBe('requirements');
+      expect(cliClaim.anchor_context?.[0]?.source).toBe(mcpClaim.anchor_context?.[0]?.source);
+    } finally {
+      await client.close();
+      await server.close();
+      restoreEnv();
+    }
+  });
 });
 
 async function connect(workspacePath: string): Promise<{
