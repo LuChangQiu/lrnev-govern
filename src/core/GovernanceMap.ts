@@ -84,13 +84,18 @@ export class GovernanceMap {
   }
 }
 
-/** 只取 `#### F-xx` / `#### D-xx` 标题行（不读正文段落）。 */
+/** 只取 `#### F-xx` / `#### D-xx` 标题行（不读正文段落）；排除未填的模板哨兵标题（`<!-- FILL: -->`）。 */
 function anchorHeadings(content: string, prefix: 'F' | 'D'): string[] {
   const regex = new RegExp(`^####\\s+${prefix}-\\d+\\b.*$`, 'gm');
-  return (content.match(regex) ?? []).map((line) => line.trim());
+  return (content.match(regex) ?? [])
+    .map((line) => line.trim())
+    .filter((line) => !line.includes('<!-- FILL:'));
 }
 
-/** 抽 `## L0 摘要` 段首个有效行；占位/FILL/空段返回 undefined（不读全文兜底）。 */
+/**
+ * 抽 `## L0 摘要` 段首个有效行；跳过空行与模板占位（HTML 注释、整行全角括号占位），取首个真实摘要行。
+ * 只按精确模板哨兵判断占位——不按"含 FILL 单词"过滤，否则会误伤正文里恰好提到 FILL 的真实摘要。
+ */
 function extractL0(content: string): string | undefined {
   const lines = content.split(/\r?\n/);
   let inL0 = false;
@@ -102,9 +107,13 @@ function extractL0(content: string): string | undefined {
     if (!inL0) continue;
     if (/^#{1,6}\s/.test(raw)) break; // 下一个标题结束 L0 段
     const line = raw.trim();
-    if (!line) continue;
-    if (line.startsWith('<!--') || line.includes('FILL') || line.startsWith('（')) return undefined;
+    if (!line || isTemplatePlaceholder(line)) continue;
     return line.slice(0, L0_MAX);
   }
   return undefined;
+}
+
+/** 模板哨兵：HTML 注释 `<!-- ... -->`，或整行被全角括号包裹的占位「（...）」。 */
+function isTemplatePlaceholder(line: string): boolean {
+  return line.startsWith('<!--') || /^（.*）$/.test(line);
 }

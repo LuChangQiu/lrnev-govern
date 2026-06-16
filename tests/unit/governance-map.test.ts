@@ -67,4 +67,19 @@ describe('GovernanceMap', () => {
     expect(sp).toBeDefined();
     expect(sp?.l0).toBeUndefined();
   });
+
+  it('Medium 修复：含 FILL 词的真实 L0 不被过滤；未填模板哨兵锚点被排除', async () => {
+    const scene = await scenes.create({ name: 'findings' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'hard-checks' });
+    await fs.write(
+      `.lrnev/scenes/${scene.data.id}/specs/${spec.data.spec}/requirements.md`,
+      '# 需求\n\n## L0 摘要\n\ncompletion gate 拦 requirements/design 残留 FILL 哨兵。\n\n## L2\n\n#### F-01 真实功能\n正文\n\n#### F-02 <!-- FILL: 功能标题 -->\n',
+    );
+    const res = await map.build();
+    const sp = res.data.scenes.flatMap((s) => s.specs).find((x) => x.spec === spec.data.spec);
+    // 真实摘要（含 "FILL" 单词）保留
+    expect(sp?.l0).toBe('completion gate 拦 requirements/design 残留 FILL 哨兵。');
+    // 真实锚点保留、未填哨兵锚点排除
+    expect(sp?.anchors).toEqual(['#### F-01 真实功能']);
+  });
 });
