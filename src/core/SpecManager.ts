@@ -214,7 +214,7 @@ export class SpecManager {
 
     const instructions = [
       `Spec "${spec.spec}" 已创建于 Scene "${sceneId}"，路径 .lrnev/scenes/${sceneId}/specs/${spec.spec}`,
-      '分流提醒：小增量（给已完成特性加参数/改边角）通常该落位到对应 spec 用 task_create 加任务、而非新开 spec；写不出独立 WHEN…THEN 验收的小改动直接做即可（一个 commit，不开 spec）；确需新开时，有业务域归对应 scene、无业务域归 00-default。拿不准先用 context_search 查有无可落位的现有 spec。',
+      '分流提醒（你正在开 spec，先确认该不该开、开在哪）：若这其实是给已完成特性加的小增量，通常该 context_search 找到对应 spec 用 task_create 落位、而非新开；若确是独立新特性，scene 选择——优先归入已有匹配业务域 scene；只有用户明确确认、或上下文非常清楚这是会承载多个 spec 的新业务域，才 scene_create；零散无稳定业务域的小型独立特性才落 00-default（兜底）。scene / 00-default 难回退，拿不准就问用户、别默认。',
       '请协助用户填充 requirements.md 的"目标"、"用户故事"、"详细需求"',
       '需求填完后调用 spec_gate_check(gate=ready) 检查',
       '通过后再填 design.md（技术方案），最后填 tasks.md（任务清单）',

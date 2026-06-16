@@ -130,12 +130,14 @@ describe('SpecManager', () => {
       expect(r.ai_followup!.suggested_tools?.length).toBeGreaterThan(0);
     });
 
-    it('F-01/F-04: spec_create followup 含四路分流提醒（落位 / 00-default / context_search）', async () => {
+    it('F-01/F-04: spec_create followup 含分流提醒（落位 / scene 偏置 / 00-default 兜底 / 问用户）', async () => {
       const r = await specs.create({ scene: 'user-management', name: 'another-feature' });
       const text = r.ai_followup!.instructions.join('\n');
-      expect(text).toContain('落位到对应 spec');
-      expect(text).toContain('00-default');
       expect(text).toContain('context_search');
+      expect(text).toContain('优先归入已有匹配业务域 scene');
+      expect(text).toContain('scene_create');
+      expect(text).toContain('00-default');
+      expect(text).toContain('问用户');
     });
 
     it('F-11: spec_create followup 应包含 EARS 验收示范', async () => {
