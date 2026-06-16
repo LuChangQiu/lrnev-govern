@@ -194,15 +194,23 @@ export class TaskManager {
       validates: task.validates,
     });
 
+    const specStatus = await this.readSpecStatus(sceneId, specId);
+    const createInstructions = [
+      `Task "${task.id}" 已创建，状态为 pending`,
+      '开始工作前调 task_update 把状态改为 in_progress',
+      '完成后调 task_update 改为 completed，注意状态机限制',
+    ];
+    if (specStatus === 'completed') {
+      createInstructions.push(
+        '当前 spec.status 是 completed；在已完成 spec 上加 task 表示有维护态新增工作，可调 spec_update 把 status 回退到 in-progress（completed→in-progress 合法）。',
+      );
+    }
+
     return appendHookWarnings({
       ok: true,
       data: task,
       ai_followup: {
-        instructions: [
-          `Task "${task.id}" 已创建，状态为 pending`,
-          '开始工作前调 task_update 把状态改为 in_progress',
-          '完成后调 task_update 改为 completed，注意状态机限制',
-        ],
+        instructions: createInstructions,
         suggested_tools: [
           {
             name: 'task_update',

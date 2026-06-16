@@ -130,6 +130,14 @@ describe('SpecManager', () => {
       expect(r.ai_followup!.suggested_tools?.length).toBeGreaterThan(0);
     });
 
+    it('F-01/F-04: spec_create followup 含四路分流提醒（落位 / 00-default / context_search）', async () => {
+      const r = await specs.create({ scene: 'user-management', name: 'another-feature' });
+      const text = r.ai_followup!.instructions.join('\n');
+      expect(text).toContain('落位到对应 spec');
+      expect(text).toContain('00-default');
+      expect(text).toContain('context_search');
+    });
+
     it('F-11: spec_create followup 应包含 EARS 验收示范', async () => {
       const r = await specs.create({ scene: 'user-management', name: 'user-login' });
       const followup = r.ai_followup!.instructions.join('\n');

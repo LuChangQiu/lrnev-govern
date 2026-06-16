@@ -416,6 +416,14 @@ describe('TaskManager 集成', () => {
       expect(list[0]?.id).toBe('T-001');
     });
 
+    it('F-01: 在 completed spec 上 task_create 提示状态回退', async () => {
+      await specs.updateStatus('user-management', 'user-login', 'ready');
+      await specs.updateStatus('user-management', 'user-login', 'in-progress');
+      await specs.updateStatus('user-management', 'user-login', 'completed');
+      const r = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '维护态加参数' });
+      expect(r.ai_followup?.instructions.join('\n')).toContain('completed→in-progress 合法');
+    });
+
     it('应递增序号', async () => {
       const a = await tasks.create({
         scene: 'user-management',

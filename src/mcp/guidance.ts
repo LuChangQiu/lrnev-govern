@@ -3,7 +3,7 @@ export const WORKFLOW_OVERVIEW = [
   '概念：Scene > Spec > Task；Gate 只查结构契约；ADR/Errorbook/Memory 是轻产物。',
   '新建特性：首次先 lrnev_init，再 spec_create；填 requirements 后跑 spec_gate_check(ready)，再 task_create、task_update，最后 spec_gate_check(completion)。',
   '接手项目：先调 project_status 拿全貌，从 in_progress task 继续。',
-  '分流：先自问"这事能写出有意义的 WHEN…THEN 验收、且可独立交付吗"——是才 spec_create；踩坑→error_record，技术决策→adr_create，约定→memory_save；写不出独立验收的小改动(改文档/小重构/调参数/答问题等，只是举例不限于此)直接做、不要开 spec；拿不准先问用户。',
+  '分流：先自问"能写出有意义的 WHEN…THEN 验收、且可独立交付吗"。是→有业务域在对应 scene、无业务域在 00-default 用 spec_create；只是给已完成特性加参数/改边角→不开新 spec，落位到对应 spec 用 task_create（completed spec 可 spec_update 回退到 in-progress）；写不出独立验收的小改动(改文档/小重构/调参数/答问题等，举例不限于此)→直接做、不开 spec。踩坑→error_record，技术决策→adr_create，约定→memory_save；拿不准先用 context_search 查有无可落位的 spec、或问用户。',
   '不确定下一步时调 lrnev_guide。',
 ].join('\n');
 

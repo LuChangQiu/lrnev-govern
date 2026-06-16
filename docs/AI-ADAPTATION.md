@@ -99,7 +99,7 @@ CLI 与 MCP 共用 core 逻辑；差异只在入口层。
 本项目用 lrnev 治理。规则：
 1. 先分清"只读"还是"要改"：纯查代码、定位、解释、回答问题这类不改任何文件的事，直接做——不用先 project_status，也不用开 spec。下面的流程只在"要动手改代码或推进治理(建/改 spec、task)"时才走。
 2. 要改且不确定进度时，先调 project_status 接手现状，别凭记忆直接改代码。
-3. 该不该开 spec 自己判断、别对着清单匹配：这事(a)能写出一条有意义的"WHEN…THEN"验收吗？(b)是可独立交付的特性吗？两个都"是"才 spec_create。否则——改文档/排版/注释、小重构、调参数、回答问题等(只是举例，不止这些)——直接做，不要开 spec。拿不准就问我，别默认开。
+3. 该不该开 spec 自己判断、别对着清单匹配：(a)能写出一条有意义的"WHEN…THEN"验收吗？(b)是可独立交付的特性吗？两个都"是"才开 spec——有业务域归对应 scene、无业务域归 00-default。只是给已完成特性加参数/改边角→不开新 spec，落位到对应 spec 用 task_create 加任务（completed spec 可 spec_update 回退到 in-progress）。改文档/排版/注释、小重构、调参数、回答问题等写不出独立验收的——直接做，不开 spec。拿不准就问我，别默认开。
 4. 踩坑→error_record，技术决策→adr_create，约定→memory_save；都不沾的小事直接做。
 5. 多特性需求先按拆分标尺判断单/多 Spec（可用 assess_goal 辅助），别把多个特性塞进一个 Spec。
 6. 改代码前确认对应 task 已 task_update(in_progress)，完成后 task_update(completed)；纯只读/答问题不涉及 task。
