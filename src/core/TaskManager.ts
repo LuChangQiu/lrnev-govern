@@ -46,7 +46,7 @@ import type {
 } from '../types/task.js';
 import { VALID_TASK_TRANSITIONS, isValidTransition } from '../types/task.js';
 import type { SpecStatus } from '../types/spec.js';
-import type { AiFollowupResponse } from '../types/response.js';
+import type { AiFollowupResponse, AnchorContext } from '../types/response.js';
 import type {
   ClaimTaskInput,
   ReleaseTaskClaimInput,
@@ -318,9 +318,14 @@ export class TaskManager {
       reason: input.reason,
     });
 
+    const anchorContext = input.status === 'in_progress'
+      ? await this.buildAnchorContext(updatedTask.validates ?? [], sceneId, specId)
+      : undefined;
+
     return appendHookWarnings({
       ok: true,
       data: updatedTask,
+      ...(anchorContext && { anchor_context: anchorContext }),
       ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult, incompleteDeps, incompleteChildren, suggestParallel, badAnchors),
     }, hookResult.warnings);
   }
@@ -447,6 +452,49 @@ export class TaskManager {
     }
   }
 
+  /**
+   * F-03：按 task 的 validates 锚点回填 requirements/design 段落，作为 anchor_context 送达 AI。
+   * 按 F-/D- 前缀裁剪读取（只有 F-xx 就不读 design）；D-xx 默认只回首行 + 标题；
+   * 单段 / 总量超限截断；无 validates 或无可解析段落返回 undefined（不回空数组误导）。
+   * 失败静默降级（不影响状态推进）。task_update(in_progress) 与 task_claim 共用，堵 claim 旁路。
+   */
+  async buildAnchorContext(
+    validates: string[],
+    sceneId: string,
+    specId: string,
+  ): Promise<AnchorContext[] | undefined> {
+    if (validates.length === 0) return undefined;
+    const specDir = `.lrnev/scenes/${sceneId}/specs/${specId}`;
+    const out: AnchorContext[] = [];
+    let total = 0;
+    try {
+      const collect = async (
+        refs: string[],
+        prefix: 'F' | 'D',
+        relPath: string,
+        source: 'requirements' | 'design',
+      ): Promise<void> => {
+        if (refs.length === 0 || !this.fs.exists(relPath)) return;
+        const sections = extractAnchorSections(await this.fs.read(relPath), prefix);
+        for (const ref of refs) {
+          if (total >= ANCHOR_CONTEXT_TOTAL_CAP) break;
+          const raw = sections.get(ref);
+          if (raw === undefined) continue;
+          const body = source === 'design' ? designFirstLine(raw) : raw;
+          const cap = Math.min(ANCHOR_CONTEXT_SECTION_CAP, ANCHOR_CONTEXT_TOTAL_CAP - total);
+          const { text, truncated } = clampText(body, cap);
+          out.push({ anchor: ref, source, text, truncated });
+          total += text.length;
+        }
+      };
+      await collect(validates.filter((v) => /^F-\d+$/.test(v)), 'F', `${specDir}/requirements.md`, 'requirements');
+      await collect(validates.filter((v) => /^D-\d+$/.test(v)), 'D', `${specDir}/design.md`, 'design');
+    } catch {
+      return out.length > 0 ? out : undefined;
+    }
+    return out.length > 0 ? out : undefined;
+  }
+
   /** 构造带"属主死活"感知的 ClaimStore;属主已死的 claim 视为可接手。 */
   private newClaimStore(): ClaimStore {
     const registry = new AgentRegistry(this.fs);
@@ -566,6 +614,25 @@ export function extractAnchorSections(content: string, prefix: 'F' | 'D'): Map<s
   }
   flush();
   return result;
+}
+
+/** F-03 锚点回填截断上限（保守起始值，真机用后再调）：单段字符数 / 总量字符数。 */
+export const ANCHOR_CONTEXT_SECTION_CAP = 400;
+export const ANCHOR_CONTEXT_TOTAL_CAP = 1200;
+
+/** 按上限截断文本，超出标记 truncated。 */
+export function clampText(text: string, cap: number): { text: string; truncated: boolean } {
+  if (cap <= 0) return { text: '', truncated: text.length > 0 };
+  if (text.length <= cap) return { text, truncated: false };
+  return { text: text.slice(0, cap), truncated: true };
+}
+
+/** D-xx 段默认只回首行（标题行 + 首个非空正文行），控制设计段体积。 */
+export function designFirstLine(section: string): string {
+  const lines = section.split('\n');
+  const heading = lines[0] ?? '';
+  const firstBody = lines.slice(1).find((line) => line.trim().length > 0);
+  return firstBody ? `${heading}\n${firstBody}` : heading;
 }
 
 export function formatTaskId(n: number): string {

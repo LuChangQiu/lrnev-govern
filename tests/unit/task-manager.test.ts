@@ -26,6 +26,8 @@ import {
   toReadableTask,
   extractAnchorPool,
   extractAnchorSections,
+  clampText,
+  designFirstLine,
 } from '../../src/core/TaskManager.js';
 import { isLrnevError } from '../../src/shared/errors.js';
 import type { Task } from '../../src/types/task.js';
@@ -312,6 +314,23 @@ describe('TaskManager 纯函数', () => {
       expect(new Set(extractAnchorSections(doc, 'F').keys())).toEqual(extractAnchorPool(doc, 'F'));
     });
   });
+
+  describe('clampText / designFirstLine', () => {
+    it('clampText 未超限不截断', () => {
+      expect(clampText('abc', 10)).toEqual({ text: 'abc', truncated: false });
+    });
+    it('clampText 超限截断并标记', () => {
+      const r = clampText('abcdef', 3);
+      expect(r.text).toBe('abc');
+      expect(r.truncated).toBe(true);
+    });
+    it('designFirstLine 取标题 + 首个非空正文行', () => {
+      expect(designFirstLine('#### D-01 标题\n\n首行正文\n第二行')).toBe('#### D-01 标题\n首行正文');
+    });
+    it('designFirstLine 无正文只回标题', () => {
+      expect(designFirstLine('#### D-02 仅标题')).toBe('#### D-02 仅标题');
+    });
+  });
 });
 
 describe('TaskManager 集成', () => {
@@ -337,6 +356,40 @@ describe('TaskManager 集成', () => {
 
   afterEach(async () => {
     await workspace.cleanup();
+  });
+
+  describe('anchor_context (F-03)', () => {
+    it('in_progress 回填 validates 锚点（requirements）', async () => {
+      const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '实现', validates: ['F-01'] });
+      const r = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'in_progress' });
+      expect(r.anchor_context).toHaveLength(1);
+      expect(r.anchor_context?.[0]?.anchor).toBe('F-01');
+      expect(r.anchor_context?.[0]?.source).toBe('requirements');
+      expect(r.anchor_context?.[0]?.text).toContain('#### F-01');
+      expect(r.anchor_context?.[0]?.truncated).toBe(false);
+    });
+
+    it('无 validates 不回 anchor_context（不回空数组），保留现有回看文案', async () => {
+      const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '无锚点' });
+      const r = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'in_progress' });
+      expect(r.anchor_context).toBeUndefined();
+      expect(r.ai_followup?.instructions.join('\n')).toContain('先回看本 Spec 的 requirements');
+    });
+
+    it('D-xx 默认只回首行 + 标题', async () => {
+      const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '设计相关', validates: ['D-01'] });
+      const r = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'in_progress' });
+      const d = r.anchor_context?.find((a) => a.anchor === 'D-01');
+      expect(d?.source).toBe('design');
+      expect(d!.text.split('\n').length).toBeLessThanOrEqual(2);
+    });
+
+    it('completed 不回填 anchor_context', async () => {
+      const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: 'x', validates: ['F-01'] });
+      await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'in_progress' });
+      const r = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'completed' });
+      expect(r.anchor_context).toBeUndefined();
+    });
   });
 
   describe('create', () => {
