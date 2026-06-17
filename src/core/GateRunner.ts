@@ -43,6 +43,11 @@ export class GateRunner {
         return this.checkReady(input);
       case 'completion':
         return this.checkCompletion(input);
+      default:
+        throw new LrnevError(ErrorCode.INVALID_INPUT, `未知 gate 类型："${String(gate)}"`, {
+          field: 'gate',
+          hint: 'gate 只接受 creation / ready / completion。',
+        });
     }
   }
 

@@ -27,6 +27,7 @@ import { Doctor } from '../core/Doctor.js';
 import { HookManager } from '../core/HookManager.js';
 import { ProjectStatus } from '../core/ProjectStatus.js';
 import { GovernanceMap } from '../core/GovernanceMap.js';
+import { buildGateFollowup } from '../core/GateGuidance.js';
 import { AgentRegistry } from '../core/AgentRegistry.js';
 import { MemoryCategory, type MemoryCandidate, type SessionCommitInput } from '../types/memory.js';
 import { ErrorCode, LrnevError, isLrnevError } from '../shared/errors.js';
@@ -89,6 +90,7 @@ interface CliActionOptions extends CliGlobals {
   summary: string;
   supersedes?: string[];
   symptom: string;
+  tags?: string[];
   title: string;
   touchesFiles?: string[];
   ttlSeconds?: number;
@@ -411,12 +413,14 @@ function buildErrorCommand(program: Command, options: BuildCliOptions): Command 
     .requiredOption('--fix-action <text>', '修复动作')
     .option('--scope <scope>', 'global 或 scene:{id}', 'global')
     .option('--verification <text>', '验证证据')
+    .option('--tags <tags...>', '可选：标签（与 MCP error_record 对等）')
     .action(run(program, options, async (opts) => managers(opts).errors.record({
       symptom: opts.symptom,
       root_cause: opts.rootCause,
       fix_action: opts.fixAction,
       scope: normalizeScope(opts.scope),
       verification: opts.verification,
+      tags: opts.tags,
     })));
   error.command('search')
     .argument('<query>', '关键词')
@@ -470,10 +474,11 @@ function buildGateCommand(program: Command, options: BuildCliOptions): Command {
     .requiredOption('--scene <scene>', 'Scene 标识')
     .requiredOption('--spec <spec>', 'Spec 标识')
     .requiredOption('--gate <gate>', 'creation|ready|completion')
-    .action(run(program, options, async (opts) => managers(opts).gates.check(opts.gate, {
-      scene: opts.scene,
-      spec: opts.spec,
-    })));
+    .action(run(program, options, async (opts) => {
+      const result = await managers(opts).gates.check(opts.gate, { scene: opts.scene, spec: opts.spec });
+      // CLI/MCP 对等：gate followup（含 ready 的需求审核门）走共享 GateGuidance，CLI 也显示。
+      return { ok: true, data: result, ai_followup: buildGateFollowup(result, opts.gate, opts.scene, opts.spec) };
+    }));
   return gate;
 }
 

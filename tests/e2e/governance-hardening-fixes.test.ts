@@ -29,8 +29,8 @@ describe('governance hardening fixes e2e', () => {
         withPriority.data.spec,
         '--gate',
         'creation',
-      ]) as GateResult;
-      expect(creation.checks.find((check) => check.name === 'frontmatter_created')?.passed).toBe(true);
+      ]);
+      expect(creation.data.checks.find((check: GateResult['checks'][number]) => check.name === 'frontmatter_created')?.passed).toBe(true);
 
       const noPriority = await runCli(workspace.path, ['spec', 'create', 'no-priority']);
       const noPrioritySpec = await runCli(workspace.path, [
@@ -57,9 +57,11 @@ describe('governance hardening fixes e2e', () => {
         noPriority.data.spec,
         '--gate',
         'ready',
-      ]) as GateResult;
-      const acceptanceCheck = ready.checks.find((check) => check.name === 'requirements_acceptance_checked');
-      expect(ready.passed).toBe(true);
+      ]);
+      const acceptanceCheck = ready.data.checks.find((check: GateResult['checks'][number]) => check.name === 'requirements_acceptance_checked');
+      expect(ready.data.passed).toBe(true);
+      // CLI/MCP 对等：ready gate passed 时 CLI 也显示需求审核门 followup
+      expect(ready.ai_followup.instructions.join('\n')).toContain('请暂停');
       expect(acceptanceCheck?.passed).toBe(false);
       expect(acceptanceCheck?.hard_fail).toBe(false);
 
@@ -154,8 +156,8 @@ describe('governance hardening fixes e2e', () => {
         noPriority.data.spec,
         '--gate',
         'completion',
-      ]) as GateResult;
-      expect(completion.passed).toBe(true);
+      ]);
+      expect(completion.data.passed).toBe(true);
 
       const scanHelp = helpFor(['init']);
       expect(scanHelp).toContain('占位');

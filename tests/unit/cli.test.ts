@@ -307,7 +307,8 @@ describe('CLI', () => {
     expect(memorySearch[0].id).toBe(memory.data.id);
 
     const gate = await run(['gate', 'check', '--scene', 'user-management', '--spec', 'user-login', '--gate', 'creation']);
-    expect(gate.gate).toBe('creation');
+    expect(gate.data.gate).toBe('creation');
+    expect(gate.ai_followup).toBeDefined(); // CLI/MCP 对等：gate followup 现在 CLI 也带
 
     const search = await run(['search', '登录']);
     expect(search.ok).toBe(true);

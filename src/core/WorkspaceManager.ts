@@ -101,6 +101,9 @@ export class WorkspaceManager {
       );
     }
 
+    // hooks 配置开箱即用：scaffold 一个空数组（缺该文件时 hook 操作不可用；对象形会 HOOK_CONFIG_INVALID）。
+    await this.writeIfMissing(fs, '.lrnev/config/hooks.json', '[]\n', filesCreated, filesExisting);
+
     const defaultScenePath = `.lrnev/scenes/${DEFAULT_SCENE_ID}/scene.md`;
     const defaultSceneExisted = fs.exists(defaultScenePath);
     await new SceneManager(fs).ensureExists(DEFAULT_SCENE_ID);

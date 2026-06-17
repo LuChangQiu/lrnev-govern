@@ -27,6 +27,7 @@ import { Doctor } from '../../core/Doctor.js';
 import { HookManager } from '../../core/HookManager.js';
 import { ProjectStatus } from '../../core/ProjectStatus.js';
 import { GovernanceMap } from '../../core/GovernanceMap.js';
+import { buildGateFollowup } from '../../core/GateGuidance.js';
 import { AgentRegistry } from '../../core/AgentRegistry.js';
 import { MemoryCategory } from '../../types/memory.js';
 import { ErrorCode, LrnevError, isLrnevError } from '../../shared/errors.js';
@@ -242,16 +243,7 @@ function registerGateTools(server: McpServer): void {
         managers.gates.check(gate, { scene, spec }).then((result) => ({
           ok: true,
           data: result,
-          ai_followup: result.passed
-            ? buildPassedGateFollowup(gate, scene, spec)
-            : {
-              instructions: [
-                `${gate} gate 未通过，请按下面失败项修复文档或任务状态，然后用相同 scene/spec/gate 重新调用 spec_gate_check。`,
-                ...result.checks
-                  .filter((check) => !check.passed)
-                  .map((check) => `${check.name}: ${check.message ?? '检查未通过'}${check.hint ? `；建议：${check.hint}` : ''}`),
-              ],
-            },
+          ai_followup: buildGateFollowup(result, gate, scene, spec),
         })),
       );
     },
@@ -893,56 +885,3 @@ function withBrokenFollowup<T extends { broken?: { error: string; path: string }
   };
 }
 
-function buildPassedGateFollowup(gate: string, scene: string, spec: string): {
-  instructions: string[];
-  suggested_tools?: Array<{ name: string; args_template: Record<string, unknown>; reason: string }>;
-} {
-  if (gate === 'ready') {
-    return {
-      instructions: [
-        'ready gate 已通过：requirements 结构契约完整。',
-        '请暂停：把 requirements.md 展示给用户确认「做什么」后再继续——这是用户审核需求方向的唯一人工门，确认后再建 task 与设计；如用户明确说「直接做」则可跳过。',
-        '请 AI 自查需求质量和验收标准是否可验证。',
-        '建议把 Spec 状态回填为 ready；gate 检查不依赖 status。',
-        '若涉及跨模块/跨 Spec 改动，请在 design.md 说明影响面，也可在 Scene 的 architecture.md 用自然语言记录关键实体与依赖；若涉及框架/存储/协议/安全等关键技术决策，建议询问用户是否调用 adr_create 沉淀“为什么”（不强制，不新建本体文件，无决策则不阻塞进入 tasks）。',
-        '这个执行项要不要拆成子任务(--parent)？自查三条：1. 大到能拆成可分别认领/可并行的步骤吗？能就拆。2. 子步骤要各自独立验收吗？是就拆。3. 否则保持单个 Task，别为拆而拆。',
-      ],
-      suggested_tools: [
-        {
-          name: 'adr_create',
-          args_template: {
-            title: '<decision-title>',
-            scope: `scene:${scene}`,
-            context: '<decision context from this Spec>',
-            decision: '<confirmed decision>',
-          },
-          reason: '进入设计/任务前记录关键技术决策',
-        },
-      ],
-    };
-  }
-  if (gate === 'completion') {
-    return {
-      instructions: [
-        'completion gate 已通过：所有结构化 Task 均已 completed。',
-        '建议把 Spec 状态回填为 completed；gate 检查不依赖 status。',
-        '请回看本 Spec 的 L0 摘要与验收标准，逐条确认验收标准是否真达成（不只是代码写完）。有未达成项请不要标 spec.status=completed，回去补齐。',
-        '如摘要已过期，请总结本次完成内容，方便后续接手。',
-      ],
-      suggested_tools: [
-        {
-          name: 'summarize_save',
-          args_template: {
-            uri: `context://spec/${scene}/${spec}/tasks`,
-            l0: '<completion summary>',
-            l1: '<completed tasks, verification, residual risks>',
-          },
-          reason: '完成后保持任务摘要最新',
-        },
-      ],
-    };
-  }
-  return {
-    instructions: [`${gate} gate 已通过，继续下一步流程。`],
-  };
-}
