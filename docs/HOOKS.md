@@ -23,7 +23,7 @@ Hooks 是 lrnev 的本地自动化扩展点。你可以在项目根目录的 `.l
 .lrnev/config/hooks.json
 ```
 
-顶层必须是数组。没有这个文件时，lrnev 行为和旧版本一致，不会触发任何 hook。
+顶层必须是数组。`lrnev init`（v2.1 起）会 scaffold 一个空数组 `[]`，直接编辑它加 hook 即可；该文件被删或为空数组时不会触发任何 hook，行为和旧版本一致。
 
 最小配置：
 
