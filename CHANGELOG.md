@@ -30,10 +30,18 @@
 
 - 全量 **626 条全绿**（v2.0 为 593）。新增覆盖：`extractAnchorSections` 边界、`anchor_context` 两入口回填/截断/D-xx 首行/漂移告警、`summary_context` sidecar-优先/内联兜底/截断、需求审核门 followup、四路分流文案、BM25 短精准胜长高频且召回不缩、`context_search` 锚点抽段、治理地图、`clampText` 边界截断，以及 `anchor_context`/`summary_context`/`governance_map`/`context_search` 的 CLI↔MCP 对等集成用例。
 
+### 发布前修复（codex + opencode 双模型真机 E2E + Claude 独立复核）
+
+- **gate followup CLI/MCP 对等**：`gate followup` 下沉 `core/GateGuidance`，CLI `gate check` 也显示（含 ready 的需求审核门）——此前只在 MCP 通道。CLI `gate check` 返回改为统一 `ok/data/ai_followup` 包装（与其它 CLI 命令一致）。
+- **未知 gate 名**：`gate check --gate <非法>` 现返结构化 `INVALID_INPUT`（此前返 `undefined`）。
+- **init 开箱**：`lrnev init` 现 scaffold 空 `.lrnev/config/hooks.json`（`[]`），hooks 开箱即用。
+- **CLI error record 对等**：新增 `--tags`（与 MCP `error_record` 对齐）。
+
 ### 升级指南
 
 - 无需迁移、无破坏性。接入方若消费 `task_update`/`task_claim`/`context_search` 返回，可选用新增的 `anchor_context`/`summary_context`/`anchor` 字段（不用则行为不变）。
 - 想用治理地图：MCP 调 `governance_map`，或 CLI `lrnev map`。
+- **注意**：CLI `gate check` 的 JSON 输出从裸 `GateResult` 改为 `{ok, data, ai_followup}` 包装（与其它命令一致）；若你脚本解析过 `gate check --json`，请改读 `.data`。
 
 ## [2.0.0] - 2026-06-12
 
