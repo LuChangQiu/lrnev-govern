@@ -11,3 +11,7 @@ coverage/
 Thumbs.db
 .vscode/
 .idea/
+
+# AI 代码理解工具的本地产物（派生物，不进主干；知识图谱站点发布在 gh-pages 分支）
+.understand-anything/
+.codegraph/
