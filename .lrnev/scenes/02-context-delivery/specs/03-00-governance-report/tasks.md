@@ -52,7 +52,7 @@ unclosed 判定用全平铺 every-completed，与 `GateRunner` 的 all_tasks_com
 
 **依赖**：T-002, T-003
 
-### T-005 CLI report 命令 + text/markdown 渲染 + 输出形态（无退出码） <!-- lrnev-task: status=pending, created=2026-06-17T11:00:04.000Z, validates=F-04|D-06 -->
+### T-005 CLI report 命令 + text/markdown 渲染 + 输出形态（无退出码） <!-- lrnev-task: status=completed, created=2026-06-17T11:00:04.000Z, updated=2026-06-17T14:32:00.000Z, validates=F-04|D-06 -->
 
 `buildReportCommand`：绕过强制 JSON 的 `run()`，专用 action 按形态渲染（默认 text、`--md`、`--json`）；`--scene`/`--out`/`--release-notes` 选项；`--md`/`--json` 互斥报错；`--out` 才落盘、无 --out 不写文件、绝不写 .lrnev；不提供退出码/`--fail-on`（exit 0 即使有债）。新增纯字符串 text/markdown 渲染器（把 hint+定位排版进每条债，零新依赖）。`GovernanceReport` 进 createManagers。
 

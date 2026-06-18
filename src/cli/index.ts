@@ -5,7 +5,7 @@
  */
 
 import { Command } from 'commander';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 
 import { VERSION } from '../shared/version.js';
 import { FileStorage } from '../storage/FileStorage.js';
@@ -27,6 +27,8 @@ import { Doctor } from '../core/Doctor.js';
 import { HookManager } from '../core/HookManager.js';
 import { ProjectStatus } from '../core/ProjectStatus.js';
 import { GovernanceMap } from '../core/GovernanceMap.js';
+import { GovernanceReport } from '../core/GovernanceReport.js';
+import type { GovernanceReportResult } from '../types/governance-report.js';
 import { buildGateFollowup } from '../core/GateGuidance.js';
 import { AgentRegistry } from '../core/AgentRegistry.js';
 import { MemoryCategory, type MemoryCandidate, type SessionCommitInput } from '../types/memory.js';
@@ -72,8 +74,11 @@ interface CliActionOptions extends CliGlobals {
   l1?: string;
   lines?: number;
   maxDepth?: number;
+  md?: boolean;
   migrateSummaries?: boolean;
   migrateTodos?: boolean;
+  out?: string;
+  releaseNotes?: boolean;
   parent?: string;
   payload?: string;
   priority?: SpecPriority;
@@ -129,6 +134,7 @@ export function buildCli(options: BuildCliOptions = {}): Command {
   program.addCommand(buildSearchCommand(program, options));
   program.addCommand(buildStatusCommand(program, options));
   program.addCommand(buildMapCommand(program, options));
+  program.addCommand(buildReportCommand(program, options));
 
   return program;
 }
@@ -531,6 +537,212 @@ function buildMapCommand(program: Command, options: BuildCliOptions): Command {
     .action(run(program, options, async (opts) => managers(opts).governanceMap.build()));
 }
 
+function buildReportCommand(program: Command, options: BuildCliOptions): Command {
+  return new Command('report')
+    .description('治理体检：链路完整度 + validates 覆盖率 + 可执行下一步（默认 text，给人看）')
+    .option('--scene <scene>', '只体检指定 scene')
+    .option('--release-notes', '输出已完成工作的 release notes 草稿')
+    .option('--md', '以 markdown 输出到 stdout')
+    .option('--out <path>', '把当前格式落盘到指定路径（不给则打印到 stdout）')
+    .action(async (...args: unknown[]) => {
+      const tail = args.at(-1);
+      const localOpts = isCommandActionTail(tail) ? tail.opts() : tail;
+      const opts = { ...program.opts<CliGlobals>(), ...(isRecord(localOpts) ? localOpts : {}) } as CliActionOptions;
+      try {
+        if (opts.md && opts.json) {
+          throw new LrnevError(ErrorCode.INVALID_INPUT, '--md 与 --json 互斥，只能选一种输出格式', {
+            field: 'md',
+            hint: '去掉 --md 或 --json 其中之一。',
+          });
+        }
+        const res = await managers(opts).governanceReport.build({
+          scene: opts.scene,
+          releaseNotes: opts.releaseNotes,
+        });
+        const rendered = opts.json
+          ? format(res)
+          : opts.md
+            ? renderReportMarkdown(res.data)
+            : renderReportText(res.data);
+        if (opts.out) {
+          await writeFile(opts.out, rendered, 'utf-8');
+          write(options, `已写入 ${opts.out}\n`);
+        } else {
+          write(options, rendered.endsWith('\n') ? rendered : `${rendered}\n`);
+        }
+        // report 是"给人看的分红"，不是 gate：有债也 exit 0，只有真错误（如 --out 写入失败）才非零。
+      } catch (err) {
+        writeErr(options, formatError(err));
+        process.exitCode = 1;
+      }
+    });
+}
+
+/** 人类可读的 text 体检单（CLI 首个非 JSON 输出）。 */
+export function renderReportText(data: GovernanceReportResult): string {
+  const L: string[] = [];
+  const sub = (title: string): string => `━━ ${title} ${'━'.repeat(Math.max(4, 46 - title.length))}`;
+  const date = data.generated_at.slice(0, 10);
+  const scope = data.scope === 'all' ? '全部 scene' : data.scope;
+  L.push(`lrnev 治理体检 · ${scope}    ${date}`);
+  L.push('');
+
+  // ① 链路完整度
+  L.push(sub('① 链路完整度'));
+  L.push(`  Scene ${data.chain.scene_count}   Spec ${data.chain.spec_count}   Task ${data.chain.task_count}`);
+  if (data.chain.scenes.length > 0) {
+    L.push('');
+    for (const s of data.chain.scenes) {
+      L.push(`  ${s.name}    spec ${s.spec_count}  task ${s.task_count}${s.empty ? '  (空)' : ''}`);
+    }
+  }
+  if (data.chain.unclosed.length > 0) {
+    L.push('');
+    L.push(`  做完没收口 (${data.chain.unclosed.length}):`);
+    for (const u of data.chain.unclosed) {
+      L.push(`      · ${u.scene}/${u.spec}  (${u.done}/${u.total} done, status=${u.status})`);
+      if (u.next_action) L.push(`        → ${u.next_action}`);
+    }
+  }
+  if (data.chain.failed_tasks.length > 0) {
+    L.push('');
+    L.push(`  失败任务 (${data.chain.failed_tasks.length}):`);
+    for (const t of data.chain.failed_tasks) {
+      L.push(`      · ${t.scene}/${t.spec} ${t.id} ${t.title}`);
+      if (t.next_action) L.push(`        → ${t.next_action}`);
+    }
+  }
+  if (data.chain.blocked_tasks.length > 0) {
+    L.push('');
+    L.push(`  阻塞任务 (${data.chain.blocked_tasks.length}):`);
+    for (const t of data.chain.blocked_tasks) {
+      L.push(`      · ${t.scene}/${t.spec} ${t.id} ${t.title}`);
+      if (t.next_action) L.push(`        → ${t.next_action}`);
+    }
+  }
+  L.push('');
+
+  // ② validates 覆盖率
+  L.push(sub('② validates 覆盖率'));
+  const pct = (data.coverage.coverage_ratio * 100).toFixed(1);
+  L.push(`  锚点 ${data.coverage.anchor_total}   已验证 ${data.coverage.anchor_covered}   覆盖率 ${pct}%`);
+  if (data.coverage.debt_orphans.length > 0) {
+    L.push('');
+    L.push(`  孤儿锚点·真欠债 (${data.coverage.debt_orphans.length}，已收口 spec 却没人验证):`);
+    for (const g of data.coverage.debt_orphans) {
+      L.push(`      · ${g.scene}/${g.spec}  ${g.anchors.join('、')}`);
+      if (g.next_action) L.push(`        → ${g.next_action}`);
+    }
+  }
+  if (data.coverage.in_flight_orphans.length > 0) {
+    const n = data.coverage.in_flight_orphans.reduce((sum, g) => sum + g.anchors.length, 0);
+    L.push('');
+    L.push(`  孤儿锚点·在途 (${n}，正常，待拆 task)`);
+  }
+  if (data.coverage.broken_validates.length > 0) {
+    L.push('');
+    L.push(`  坏 validates (${data.coverage.broken_validates.length})：指向不存在/废弃锚点，不计覆盖率`);
+    for (const b of data.coverage.broken_validates) {
+      L.push(`      · ${b.scene}/${b.spec} ${b.task}  ${b.anchors.join('、')}`);
+    }
+  }
+  if (data.coverage.archived_excluded > 0) {
+    L.push('');
+    L.push(`  (已排除 ${data.coverage.archived_excluded} 个 archived spec)`);
+  }
+
+  // release notes（可选段）
+  if (data.release_notes) {
+    L.push('');
+    L.push(sub('③ release notes 草稿'));
+    for (const scene of data.release_notes.scenes) {
+      for (const spec of scene.specs) {
+        L.push(`  ${scene.name} / ${spec.name}`);
+        for (const t of spec.tasks) L.push(`      - ${t}`);
+      }
+    }
+  }
+
+  // 收口
+  L.push('');
+  L.push('━'.repeat(50));
+  L.push(`  ${data.headline}`);
+  for (const w of data.warnings ?? []) L.push(`  注意：${w}`);
+  return L.join('\n');
+}
+
+/** markdown 体检单（供 --md，贴 PR / release notes 用）。 */
+export function renderReportMarkdown(data: GovernanceReportResult): string {
+  const L: string[] = [];
+  const scope = data.scope === 'all' ? '全部 scene' : data.scope;
+  L.push(`# lrnev 治理体检 · ${scope}`);
+  L.push('');
+  L.push(`> ${data.generated_at.slice(0, 10)} · ${data.headline}`);
+  for (const w of data.warnings ?? []) L.push(`>`, `> 注意：${w}`);
+  L.push('');
+
+  L.push('## ① 链路完整度');
+  L.push('');
+  L.push(`- Scene ${data.chain.scene_count} · Spec ${data.chain.spec_count} · Task ${data.chain.task_count}`);
+  if (data.chain.unclosed.length > 0) {
+    L.push('');
+    L.push(`### 做完没收口 (${data.chain.unclosed.length})`);
+    for (const u of data.chain.unclosed) {
+      L.push(`- **${u.scene}/${u.spec}** (${u.done}/${u.total} done, status=${u.status})`);
+      if (u.next_action) L.push(`  - → ${u.next_action}`);
+    }
+  }
+  if (data.chain.failed_tasks.length > 0) {
+    L.push('');
+    L.push(`### 失败任务 (${data.chain.failed_tasks.length})`);
+    for (const t of data.chain.failed_tasks) {
+      L.push(`- ${t.scene}/${t.spec} \`${t.id}\` ${t.title}`);
+      if (t.next_action) L.push(`  - → ${t.next_action}`);
+    }
+  }
+  if (data.chain.blocked_tasks.length > 0) {
+    L.push('');
+    L.push(`### 阻塞任务 (${data.chain.blocked_tasks.length})`);
+    for (const t of data.chain.blocked_tasks) {
+      L.push(`- ${t.scene}/${t.spec} \`${t.id}\` ${t.title}`);
+    }
+  }
+  L.push('');
+
+  L.push('## ② validates 覆盖率');
+  L.push('');
+  const pct = (data.coverage.coverage_ratio * 100).toFixed(1);
+  L.push(`- 锚点 ${data.coverage.anchor_total} · 已验证 ${data.coverage.anchor_covered} · 覆盖率 **${pct}%**`);
+  if (data.coverage.debt_orphans.length > 0) {
+    L.push('');
+    L.push(`### 孤儿锚点·真欠债 (${data.coverage.debt_orphans.length})`);
+    for (const g of data.coverage.debt_orphans) {
+      L.push(`- ${g.scene}/${g.spec}: ${g.anchors.join('、')}`);
+      if (g.next_action) L.push(`  - → ${g.next_action}`);
+    }
+  }
+  if (data.coverage.broken_validates.length > 0) {
+    L.push('');
+    L.push(`### 坏 validates (${data.coverage.broken_validates.length})`);
+    for (const b of data.coverage.broken_validates) {
+      L.push(`- ${b.scene}/${b.spec} \`${b.task}\`: ${b.anchors.join('、')}`);
+    }
+  }
+
+  if (data.release_notes) {
+    L.push('');
+    L.push('## ③ release notes 草稿');
+    for (const scene of data.release_notes.scenes) {
+      for (const spec of scene.specs) {
+        L.push('');
+        L.push(`### ${scene.name} / ${spec.name}`);
+        for (const t of spec.tasks) L.push(`- ${t}`);
+      }
+    }
+  }
+  return L.join('\n');
+}
+
 function run<Args extends unknown[]>(
   program: Command,
   options: BuildCliOptions,
@@ -573,7 +785,8 @@ function createManagers(root: string) {
   const agents = new AgentRegistry(fs);
   const projectStatus = new ProjectStatus(fs, scenes);
   const governanceMap = new GovernanceMap(fs, scenes);
-  return { scenes, specs, tasks, gates, adrs, summaries, searcher, errors, memories, sessionCommit, doctor, hooks, agents, projectStatus, governanceMap };
+  const governanceReport = new GovernanceReport(fs, scenes);
+  return { scenes, specs, tasks, gates, adrs, summaries, searcher, errors, memories, sessionCommit, doctor, hooks, agents, projectStatus, governanceMap, governanceReport };
 }
 
 function withTaskListFollowup<T>(tasks: T[]): { ok: true; data: T[]; ai_followup: { instructions: string[] } } {
