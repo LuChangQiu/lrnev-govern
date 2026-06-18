@@ -1,6 +1,6 @@
 {
   "name": "lrnev",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "lrnev-govern project governance service for AI-collaborative development. MCP server + CLI dual-form.",
   "type": "module",
   "engines": {

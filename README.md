@@ -2,7 +2,7 @@
 
 > AI 协作开发的项目治理引擎 —— MCP 服务 + CLI 双形态，文件即真相，零模型依赖。
 
-npm 包名 `lrnev`，当前版本 `2.1.0`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。一行命令装好 👇
+npm 包名 `lrnev`，当前版本 `2.2.0`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。一行命令装好 👇
 
 ```bash
 npm install -g lrnev
@@ -277,8 +277,10 @@ flowchart TD
 flowchart LR
   Resume([新 AI 会话]) --> Status[project_status\n一次拿全部状态]
   Resume -.可选.-> Map[governance_map / lrnev map\nscene→spec→锚点标题 全景导航]
+  Resume -.可选.-> Report[lrnev report\n治理欠债体检 + 下一步]
   Status --> Read[active_tasks / active_agents / specs]
   Map -.看图按 URI 跳.-> Read
+  Report -.人看完决定是否收口.-> Read
   Read -->|in_progress task| Continue[继续推进那个 task]
   Read -->|全部空闲| New[从 free_tasks_count > 0 的 Spec 领活]
 ```
@@ -314,7 +316,7 @@ step 4: 搞砸了 → 错误 hint 告诉它怎么修（不用回头问用户）
 
 ```bash
 npm install && npm run build
-npm test            # 626 条测试 ✅
+npm test            # 654 条测试 ✅
 npm run dev:mcp     # tsx watch 跑 MCP
 npm run dev:inspect # MCP Inspector 调试
 npm run lrnev -- init   # 本地跑 CLI

@@ -1,9 +1,10 @@
 ---
-spec: '01-00-maintenance-flow-and-review-gate'
-scene: '02-context-delivery'
-status: draft
+spec: 01-00-maintenance-flow-and-review-gate
+scene: 02-context-delivery
+status: completed
 priority: P0
 created: '2026-06-15'
+updated: '2026-06-18'
 ---
 
 # 01-00 维护态流程 + 需求审核门 + 任务启动上下文 - 需求

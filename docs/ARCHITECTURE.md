@@ -86,6 +86,7 @@ lrnev-govern/
 │   │   ├── errorbook.ts
 │   │   ├── gate.ts
 │   │   ├── goal.ts
+│   │   ├── governance-report.ts
 │   │   ├── hooks.ts
 │   │   ├── legacy-todo.ts
 │   │   ├── memory.ts

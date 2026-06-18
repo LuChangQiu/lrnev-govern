@@ -1,9 +1,10 @@
 ---
-spec: '02-00-locator-upgrade'
-scene: '02-context-delivery'
-status: draft
+spec: 02-00-locator-upgrade
+scene: 02-context-delivery
+status: completed
 priority: P1
 created: '2026-06-15'
+updated: '2026-06-18'
 ---
 
 # 02-00 定位升级：治理地图 + 锚点抽段 + BM25 - 需求

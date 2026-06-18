@@ -2,6 +2,30 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [SemVer 2.0](https://semver.org/lang/zh-CN/)。
 
+## [2.2.0] - 2026-06-18
+
+把 lrnev 自身的治理进度从"AI 自己读状态"升级为一张给人看的零模型体检单：新增 `lrnev report` / MCP `lrnev_report`，用于发现做完没收口、失败/阻塞任务、validates 覆盖缺口和坏引用。用 lrnev 自身治理实现（scene `02-context-delivery`，spec `03-00-governance-report`），经两轮 GPT 复审收敛。**无破坏性改动**：新增命令与工具均为只读快照，有治理欠债也 exit 0。
+
+### Added
+
+- **治理体检 `lrnev report` / `lrnev_report`**：CLI 与 MCP 共用 `GovernanceReport` core，零模型遍历 `.lrnev`，输出链路完整度与 validates 覆盖率。
+- **链路完整度**：统计 scene/spec/task，列出"做完没收口" spec（所有 task completed 但 spec status 未 completed）、failed/blocked 任务明细。
+- **validates 覆盖率**：计算真锚点覆盖率；孤儿锚点按"在途"与"已收口真欠债"分类；坏 validates 单独列出、不计入 covered，并指向 `doctor`。
+- **欠债下一步与定位**：`unclosed` / `failed` / `blocked` / `debt_orphans` / `broken_validates` 都带确定性 `next_action` 与 `context://spec/<scene>/<spec>` 定位；text、Markdown、JSON 输出均消费。
+- **多输出形态**：默认 text 人读体检单，支持 `--md`、`--json`、`--out <path>`（不给不写文件）、`--scene` 过滤、`--release-notes` 附已完成清单草稿。
+- **单坏 spec 容错**：单个 spec 读取/解析失败时跳过并写入 warnings，不让整份 report 崩溃。
+
+### Changed
+
+- **report 与 doctor 边界文档化**：`doctor` 管工作区结构健康、坏引用详细修复和 stale；`report` 管治理进度呈现和下一步。`report` 是给人看的快照，不做 CI gate，不提供 `--fail-on`。
+- **"做完没收口"口径锁定**：只镜像 completion gate 的 `all_tasks_completed`（全平铺、含子任务），不复刻 FILL/design 子检查；测试直接对照 `GateRunner` 锁定一致性。
+- **文档同步**：README、架构说明、治理流程、AI 适配指南同步 `report` 命令、MCP 工具与 report/doctor 分工。
+- **治理收口**：收口 `02-context-delivery` 下已实现但 status 滞留的 `01-00-maintenance-flow-and-review-gate` 与 `02-00-locator-upgrade`。
+
+### Tests
+
+- 全量 **654 条全绿**（v2.1 为 626）。新增覆盖：治理体检核心计算、CLI text/Markdown/JSON/`--out`/`--scene` 输出、CLI↔MCP 对等、gate 口径对齐、坏 validates 不虚增覆盖率、archived 排除、空 `00-default` 显式 scene、单坏 spec 容错与 headline 口径。
+
 ## [2.1.0] - 2026-06-16
 
 把治理数据「在正确时刻送进 AI 上下文」：v2.0 解决了写入时的确定性硬校验（挡坏引用），本版补上**使用时的送达**与**定位升级**。用 lrnev 自身治理实现（scene `02-context-delivery`，两个 spec：`01-00 维护态流程+需求审核门+任务启动上下文`、`02-00 定位升级`），每个 spec 经 codex(GPT-5.5) 两轮只读复核，意见逐条落地。**无破坏性改动**：响应契约只新增可选字段，新增能力均为加法。

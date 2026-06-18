@@ -80,6 +80,7 @@ node /path/to/lrnev-govern/bin/lrnev-mcp.mjs
 lrnev guide
 lrnev guide workflow
 lrnev status
+lrnev report
 lrnev spec create user-login --priority P0
 ```
 
@@ -104,6 +105,7 @@ CLI 与 MCP 共用 core 逻辑；差异只在入口层。
 5. 多特性需求先按拆分标尺判断单/多 Spec（可用 assess_goal 辅助），别把多个特性塞进一个 Spec。
 6. 改代码前确认对应 task 已 task_update(in_progress)，完成后 task_update(completed)；纯只读/答问题不涉及 task。
 7. 不清楚怎么用就调 lrnev_guide。
+想看治理欠债、收口缺口或 validates 覆盖率，可让我跑 lrnev report；它是给人看的只读体检，不是必走 gate。
 ```
 
 ### 好 Prompt
@@ -208,6 +210,6 @@ CLI 与 MCP 共用 core 逻辑；差异只在入口层。
 | 模型 | 档位 | 客户端 | 分数 | 走通情况 | 卡点 | 后续改进项 |
 |------|------|--------|------|----------|------|------------|
 | Claude Opus 4.7 | 强 | Claude Code (CLI) | — | ✅ 全面通过（开发全程使用 CLI 创建/更新/gate/claim） | 无 | — |
-| GPT-5 coding agent | 强 | Codex CLI 0.136.0 | 8/8 | ✅ 34 个 MCP 工具全调通，全生命周期自主走完 | 无（自主修复 ready gate 章节标题） | — |
+| GPT-5 coding agent | 强 | Codex CLI 0.136.0 | 8/8 | ✅ 41 个 MCP 工具全调通，全生命周期自主走完 | 无（自主修复 ready gate 章节标题） | — |
 | DeepSeek V4 Flash Free | 中 | OpenCode 1.15.13 | 8/8 | ✅ 黄金路径 + 能力域全覆盖，真实 Java 项目探测验证通过 | 首次未设 LRNEV_WORKSPACE 时向上误命中父级 .lrnev，设环境变量后通过 | 向上命中护栏（v1.0.0 已修复：init 时命中祖先 .lrnev 会提示设 LRNEV_WORKSPACE） |
 | 本地 Qwen 7B 级模型 | 小 | 待填 | 待测 | 待测 | 待测 | 待测 |
