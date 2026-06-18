@@ -46,6 +46,7 @@ lrnev-govern/
 │   │   ├── MemoryManager.ts
 │   │   ├── ProjectStatus.ts
 │   │   ├── GovernanceMap.ts         # 治理地图：scene→spec(状态/L0)→锚点标题 全景（v2.1）
+│   │   ├── GovernanceReport.ts      # 治理体检：收口缺口/覆盖率/欠债+下一步，给人看（v2.2）
 │   │   ├── SceneManager.ts
 │   │   ├── Searcher.ts              # 目录优先检索：BM25 排序 + 锚点段抽取（v2.1）
 │   │   ├── SessionCommit.ts

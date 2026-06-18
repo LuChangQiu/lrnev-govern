@@ -83,7 +83,7 @@ unclosed 判定用全平铺 every-completed，与 `GateRunner` 的 all_tasks_com
 
 **依赖**：T-001
 
-### T-008 测试 + 文档同步 + 全量回归 <!-- lrnev-task: status=pending, created=2026-06-17T11:00:07.000Z, validates=F-01|F-02|F-03|F-04|F-05 -->
+### T-008 测试 + 文档同步 + 全量回归 <!-- lrnev-task: status=completed, created=2026-06-17T11:00:07.000Z, updated=2026-06-17T15:00:00.000Z, validates=F-01|F-02|F-03|F-04|F-05 -->
 
 补单元（core 各分支：unclosed 镜像 gate / failed-blocked / 孤儿分类 / 坏 validates 不计 covered / FILL 过滤 / archived / --scene / next_action / 空工作区 / release_notes）+ 渲染快照 + 互斥报错 + 无退出码；e2e（CLI 四形态+scene、MCP/CLI 对等深相等）。同步 README（命令清单 + report 段 + report vs doctor 边界）、docs/ARCHITECTURE（GovernanceReport 模块）、docs/GOVERNANCE-FLOW（report 位置）、MCP 工具清单；`npm test` 全绿，零新依赖。
 
