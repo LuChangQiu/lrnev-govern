@@ -169,6 +169,26 @@ describe('GovernanceReport', () => {
     expect(res.data.chain.spec_count).toBe(1);
   });
 
+  it('每条欠债带定位 paths（context:// URI + requirements/tasks 路径）', async () => {
+    const scene = await scenes.create({ name: 'demo-scene' });
+    // unclosed spec：所有 task 完成但 status=draft。
+    const closed = await specs.create({ scene: scene.data.id, name: 'all-done' });
+    await writeReq(scene.data.id, closed.data.spec, 'draft', '#### F-01 a\nx');
+    await writeTasks(scene.data.id, closed.data.spec, [{ id: 'T-001', status: 'completed' }]);
+    // 另一个 spec 带 failed task。
+    const buggy = await specs.create({ scene: scene.data.id, name: 'buggy' });
+    await writeReq(scene.data.id, buggy.data.spec, 'in-progress', '#### F-01 b\ny');
+    await writeTasks(scene.data.id, buggy.data.spec, [{ id: 'T-001', status: 'failed' }]);
+
+    const res = await report.build();
+    const unclosed = res.data.chain.unclosed.find((u) => u.spec === closed.data.spec);
+    expect(unclosed?.paths?.uri).toBe(`context://spec/${scene.data.id}/${closed.data.spec}`);
+    expect(unclosed?.paths?.requirements_path).toContain('requirements.md');
+    expect(unclosed?.paths?.tasks_path).toContain('tasks.md');
+    const failed = res.data.chain.failed_tasks.find((t) => t.spec === buggy.data.spec);
+    expect(failed?.paths?.uri).toBe(`context://spec/${scene.data.id}/${buggy.data.spec}`);
+  });
+
   it('collectAnchorIds：去重 + 排除 FILL', () => {
     const content = '#### F-01 a\n#### F-01 dup\n#### F-02 <!-- FILL: x -->\n#### F-03 c';
     expect(collectAnchorIds(content, 'F')).toEqual(['F-01', 'F-03']);

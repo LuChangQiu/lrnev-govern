@@ -21,7 +21,7 @@ created: '2026-06-15'
 - `--scene` 只遍历该 scene；不给则全量。
 - 无 .lrnev / 空工作区返回合法空 result + 健康 headline，不抛。
 
-### T-002 收口判定镜像 completion gate + failed/blocked 明细 + 定位 <!-- lrnev-task: status=pending, created=2026-06-17T11:00:01.000Z, validates=F-01|D-03 -->
+### T-002 收口判定镜像 completion gate + failed/blocked 明细 + 定位 <!-- lrnev-task: status=completed, created=2026-06-17T11:00:01.000Z, updated=2026-06-17T13:55:00.000Z, validates=F-01|D-03 -->
 
 unclosed 判定用全平铺 every-completed，与 `GateRunner` 的 all_tasks_completed 同口径（含子任务、不特殊处理 parent/children）；收集 failed/blocked task 明细；每 spec/task 项带 paths（context:// URI + requirements_path + tasks_path，用 fs.abs()）。
 

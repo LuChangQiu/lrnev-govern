@@ -27,6 +27,7 @@ import type {
   GovernanceReportInput,
   GovernanceReportResult,
   OrphanGroup,
+  ReportPaths,
   ReportSceneStat,
   ReportTaskBrief,
   UnclosedSpec,
@@ -91,10 +92,12 @@ export class GovernanceReport {
           continue;
         }
 
-        // failed / blocked 明细。
+        const paths = this.buildPaths(scene.id, specId);
+
+        // failed / blocked 明细（带定位）。
         for (const task of tasks) {
-          if (task.status === 'failed') failedTasks.push(toBrief(task));
-          else if (task.status === 'blocked') blockedTasks.push(toBrief(task));
+          if (task.status === 'failed') failedTasks.push(toBrief(task, paths));
+          else if (task.status === 'blocked') blockedTasks.push(toBrief(task, paths));
         }
 
         // validates 覆盖率：FILL-aware 锚点池 vs task validates 并集。
@@ -123,6 +126,7 @@ export class GovernanceReport {
             done: tasks.length,
             total: tasks.length,
             status,
+            paths,
           });
         }
       }
@@ -172,11 +176,21 @@ export class GovernanceReport {
       },
     };
   }
+
+  /** 一个 spec 的定位：context:// URI + requirements/tasks 绝对路径，供人和 AI 跳转。 */
+  private buildPaths(sceneId: string, specId: string): ReportPaths {
+    const dir = `.lrnev/scenes/${sceneId}/specs/${specId}`;
+    return {
+      uri: `context://spec/${sceneId}/${specId}`,
+      requirements_path: this.fs.abs(`${dir}/requirements.md`),
+      tasks_path: this.fs.abs(`${dir}/tasks.md`),
+    };
+  }
 }
 
-/** failed/blocked 任务投影（T-002 再补 paths/next_action）。 */
-function toBrief(task: Task): ReportTaskBrief {
-  return { scene: task.scene, spec: task.spec, id: task.id, title: task.title, status: task.status };
+/** failed/blocked 任务投影（带所属 spec 定位；next_action 由 T-004 补）。 */
+function toBrief(task: Task, paths: ReportPaths): ReportTaskBrief {
+  return { scene: task.scene, spec: task.spec, id: task.id, title: task.title, status: task.status, paths };
 }
 
 /**
