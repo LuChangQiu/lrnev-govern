@@ -220,6 +220,33 @@ describe('GovernanceReport', () => {
     expect(res.data.warnings).toBeUndefined();
   });
 
+  it('每条欠债带可执行下一步 next_action（unclosed / failed / debt 孤儿）', async () => {
+    const scene = await scenes.create({ name: 'demo-scene' });
+    // unclosed
+    const closed = await specs.create({ scene: scene.data.id, name: 'all-done' });
+    await writeReq(scene.data.id, closed.data.spec, 'draft', '#### F-01 a\nx');
+    await writeTasks(scene.data.id, closed.data.spec, [{ id: 'T-001', status: 'completed', validates: ['F-01'] }]);
+    // failed
+    const buggy = await specs.create({ scene: scene.data.id, name: 'buggy' });
+    await writeReq(scene.data.id, buggy.data.spec, 'in-progress', '#### F-01 b\ny');
+    await writeTasks(scene.data.id, buggy.data.spec, [{ id: 'T-001', status: 'failed' }]);
+    // debt 孤儿（已收口 spec 有孤儿锚点）
+    const done = await specs.create({ scene: scene.data.id, name: 'done' });
+    await writeReq(scene.data.id, done.data.spec, 'completed', '#### F-01 c\nz\n\n#### F-02 d\nw');
+    await writeTasks(scene.data.id, done.data.spec, [{ id: 'T-001', status: 'completed', validates: ['F-01'] }]);
+
+    const res = await report.build();
+    expect(res.data.chain.unclosed.find((u) => u.spec === closed.data.spec)?.next_action).toContain('spec_gate_check');
+    expect(res.data.chain.failed_tasks.find((t) => t.spec === buggy.data.spec)?.next_action).toContain('error_record');
+    expect(res.data.coverage.debt_orphans.find((g) => g.spec === done.data.spec)?.next_action).toContain('validates');
+    // in_flight 孤儿（正常态）不带 next_action
+    const draft = await specs.create({ scene: scene.data.id, name: 'wip' });
+    await writeReq(scene.data.id, draft.data.spec, 'draft', '#### F-01 e\nq');
+    await writeTasks(scene.data.id, draft.data.spec, [{ id: 'T-001', status: 'pending' }]);
+    const res2 = await report.build();
+    expect(res2.data.coverage.in_flight_orphans.find((g) => g.spec === draft.data.spec)?.next_action).toBeUndefined();
+  });
+
   it('collectAnchorIds：去重 + 排除 FILL', () => {
     const content = '#### F-01 a\n#### F-01 dup\n#### F-02 <!-- FILL: x -->\n#### F-03 c';
     expect(collectAnchorIds(content, 'F')).toEqual(['F-01', 'F-03']);

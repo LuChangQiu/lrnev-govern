@@ -42,7 +42,7 @@ unclosed 判定用全平铺 every-completed，与 `GateRunner` 的 all_tasks_com
 
 **依赖**：T-001
 
-### T-004 每条欠债的可执行下一步 hint <!-- lrnev-task: status=pending, created=2026-06-17T11:00:03.000Z, validates=F-05|D-04 -->
+### T-004 每条欠债的可执行下一步 hint <!-- lrnev-task: status=completed, created=2026-06-17T11:00:03.000Z, updated=2026-06-17T14:12:00.000Z, validates=F-05|D-04 -->
 
 为 unclosed / debt_orphans / failed / broken_validates 各生成确定性 next_action（completion gate→spec_update / 补 validates / error_record 重试 / 指向 doctor），纯映射不执行。
 

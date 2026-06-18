@@ -96,10 +96,10 @@ export class GovernanceReport {
 
         const paths = this.buildPaths(scene.id, specId);
 
-        // failed / blocked 明细（带定位）。
+        // failed / blocked 明细（带定位 + 可执行下一步）。
         for (const task of tasks) {
-          if (task.status === 'failed') failedTasks.push(toBrief(task, paths));
-          else if (task.status === 'blocked') blockedTasks.push(toBrief(task, paths));
+          if (task.status === 'failed') failedTasks.push(toBrief(task, paths, failedNextAction(task.id)));
+          else if (task.status === 'blocked') blockedTasks.push(toBrief(task, paths, blockedNextAction(task.id)));
         }
 
         // validates 覆盖率：FILL-aware 锚点池 vs task validates 并集。
@@ -115,8 +115,11 @@ export class GovernanceReport {
         anchorTotal += anchors.length;
         anchorCovered += anchors.length - orphans.length;
         if (orphans.length > 0) {
-          const group: OrphanGroup = { scene: scene.id, spec: specId, status, anchors: orphans };
-          (status === 'completed' ? debtOrphans : inFlightOrphans).push(group);
+          if (status === 'completed') {
+            debtOrphans.push({ scene: scene.id, spec: specId, status, anchors: orphans, next_action: orphanDebtNextAction(orphans) });
+          } else {
+            inFlightOrphans.push({ scene: scene.id, spec: specId, status, anchors: orphans });
+          }
         }
 
         // 坏 validates：task 的 validates 指向不存在锚点/废弃格式（口径同 TaskManager 存在性校验，
@@ -146,6 +149,7 @@ export class GovernanceReport {
             total: tasks.length,
             status,
             paths,
+            next_action: unclosedNextAction(scene.id, specId),
           });
         }
       }
@@ -213,9 +217,34 @@ export class GovernanceReport {
   }
 }
 
-/** failed/blocked 任务投影（带所属 spec 定位；next_action 由 T-004 补）。 */
-function toBrief(task: Task, paths: ReportPaths): ReportTaskBrief {
-  return { scene: task.scene, spec: task.spec, id: task.id, title: task.title, status: task.status, paths };
+/** failed/blocked 任务投影（带所属 spec 定位与可执行下一步）。 */
+function toBrief(task: Task, paths: ReportPaths, nextAction?: string): ReportTaskBrief {
+  return {
+    scene: task.scene,
+    spec: task.spec,
+    id: task.id,
+    title: task.title,
+    status: task.status,
+    paths,
+    ...(nextAction && { next_action: nextAction }),
+  };
+}
+
+/** F-05 可执行下一步：确定性文案映射，不自动执行。 */
+function unclosedNextAction(scene: string, spec: string): string {
+  return `跑 spec_gate_check(scene=${scene}, spec=${spec}, gate=completion)；通过后 spec_update 把 status 改成 completed 收口（gate 还会查 FILL/design，未过按提示补）。`;
+}
+
+function failedNextAction(taskId: string): string {
+  return `用 error_record 记录失败根因，修复后 task_update(${taskId}, status=pending) 重试。`;
+}
+
+function blockedNextAction(taskId: string): string {
+  return `解除阻塞后 task_update(${taskId}) 切回 pending 或 in_progress。`;
+}
+
+function orphanDebtNextAction(anchors: string[]): string {
+  return `给锚点 ${anchors.join('、')} 补一个 task 的 validates，或确认该需求/设计是否仍需要。`;
 }
 
 /**
