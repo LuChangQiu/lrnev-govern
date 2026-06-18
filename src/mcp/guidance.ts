@@ -18,6 +18,7 @@ export const TOOL_DESCRIPTIONS = {
   lrnev_init: '初始化 .lrnev 工作区。何时用：新项目首次接入。前置：项目根目录已确定。例子：lrnev_init{project_name:"demo"} → 创建默认治理骨架。',
   project_status: '返回接手快照。何时用：继续已有项目或新会话开头。前置：已 init。例子：project_status{} → 查看 active tasks、ADR 和 open errors。',
   governance_map: '返回治理地图：scene→spec(状态/L0)→锚点标题 的压缩全景（只读、只含标题级，不含正文）。何时用：接手项目或需要一次性了解全貌、按 URI 直接跳转时，替代反复 context_search + 读全文。',
+  lrnev_report: '零模型治理体检：做完没收口/failed/blocked + validates 覆盖率（孤儿/坏 validates）+ 每条欠债的可执行下一步，等价 CLI report --json。何时用：想知道工作区欠了哪些治理债、给人看或让用户拍板收口时。参数 scene? 只看某域、release_notes? 附已完成清单。',
   scene_create: '创建业务 Scene，并生成 scene.md、architecture.md、roadmap.md。何时用：需要按业务域隔离一组 Specs 时；传 intent 可在 followup 获得单/多 Spec 拆分信号。',
   scene_list: '列出当前工作区中的所有 Scene。何时用：接手项目、选择工作场景或排查 broken Scene 时。',
   scene_get: '读取一个 Scene 的元信息和统计信息。何时用：需要确认某个 Scene 的文档与统计概况时。',

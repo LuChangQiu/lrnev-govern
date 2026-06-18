@@ -63,7 +63,7 @@ unclosed 判定用全平铺 every-completed，与 `GateRunner` 的 all_tasks_com
 
 **依赖**：T-001
 
-### T-006 MCP lrnev_report 工具（CLI/MCP 对等） <!-- lrnev-task: status=pending, created=2026-06-17T11:00:05.000Z, validates=F-04|D-07 -->
+### T-006 MCP lrnev_report 工具（CLI/MCP 对等） <!-- lrnev-task: status=completed, created=2026-06-17T11:00:05.000Z, updated=2026-06-17T14:40:00.000Z, validates=F-04|D-07 -->
 
 `registerReportTools` 注册 `lrnev_report({scene?, release_notes?})`，readOnlyHint；`GovernanceReport` 进 MCP managers；加 `TOOL_DESCRIPTIONS.lrnev_report`。返回与 CLI `--json` 同源。
 

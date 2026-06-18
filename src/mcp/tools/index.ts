@@ -27,6 +27,7 @@ import { Doctor } from '../../core/Doctor.js';
 import { HookManager } from '../../core/HookManager.js';
 import { ProjectStatus } from '../../core/ProjectStatus.js';
 import { GovernanceMap } from '../../core/GovernanceMap.js';
+import { GovernanceReport } from '../../core/GovernanceReport.js';
 import { buildGateFollowup } from '../../core/GateGuidance.js';
 import { AgentRegistry } from '../../core/AgentRegistry.js';
 import { MemoryCategory } from '../../types/memory.js';
@@ -44,6 +45,7 @@ export function registerTools(server: McpServer): void {
   registerGuideTools(server);
   registerProjectStatusTools(server);
   registerGovernanceMapTools(server);
+  registerReportTools(server);
   registerSceneTools(server);
   registerSpecTools(server);
   registerTaskTools(server);
@@ -116,6 +118,23 @@ function registerGovernanceMapTools(server: McpServer): void {
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async () => toToolResult(getManagers().governanceMap.build()),
+  );
+}
+
+function registerReportTools(server: McpServer): void {
+  server.registerTool(
+    'lrnev_report',
+    {
+      title: 'Governance Report',
+      description: TOOL_DESCRIPTIONS.lrnev_report,
+      inputSchema: {
+        scene: z.string().optional().describe('只体检指定 scene；不给则全量'),
+        release_notes: z.boolean().optional().describe('附已完成工作的 release notes 草稿'),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    },
+    async ({ scene, release_notes }) =>
+      toToolResult(getManagers().governanceReport.build({ scene, releaseNotes: release_notes })),
   );
 }
 
@@ -770,6 +789,7 @@ function getManagers(): {
   agents: AgentRegistry;
   projectStatus: ProjectStatus;
   governanceMap: GovernanceMap;
+  governanceReport: GovernanceReport;
 } {
   const root = resolveWorkspaceRoot().root;
   const fs = new FileStorage(root);
@@ -788,7 +808,8 @@ function getManagers(): {
   const agents = new AgentRegistry(fs);
   const projectStatus = new ProjectStatus(fs, scenes);
   const governanceMap = new GovernanceMap(fs, scenes);
-  return { scenes, specs, tasks, gates, adrs, summaries, searcher, errors, memories, sessionCommit, doctor, hooks, agents, projectStatus, governanceMap };
+  const governanceReport = new GovernanceReport(fs, scenes);
+  return { scenes, specs, tasks, gates, adrs, summaries, searcher, errors, memories, sessionCommit, doctor, hooks, agents, projectStatus, governanceMap, governanceReport };
 }
 
 async function toToolResult(value: Promise<unknown>): Promise<ToolResult> {

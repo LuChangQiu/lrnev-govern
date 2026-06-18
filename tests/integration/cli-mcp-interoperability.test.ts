@@ -181,6 +181,48 @@ describe('CLI / MCP interoperability', () => {
       restoreEnv();
     }
   });
+
+  it('lrnev_report：CLI report --json 与 MCP lrnev_report 数据口径一致', async () => {
+    workspace = await tmpDir({ unsafeCleanup: true });
+    const { server, client, restoreEnv } = await connect(workspace.path);
+    try {
+      await runCli(workspace.path, ['init', '--project-name', 'demo']);
+      await runCli(workspace.path, ['spec', 'create', 'login']);
+      // 造一个"做完没收口"的 spec（task 全完、status=draft）
+      const fs = new FileStorage(workspace.path);
+      const dir = '.lrnev/scenes/00-default/specs/01-00-login';
+      await fs.write(`${dir}/requirements.md`, [
+        '---', "spec: '01-00-login'", "scene: '00-default'", 'status: draft', "created: '2026-06-01'", '---',
+        '', '# 需求', '', '## L2 详情', '', '#### F-01 登录', '校验。', '',
+      ].join('\n'));
+      await fs.write(`${dir}/tasks.md`, [
+        '---', "spec: '01-00-login'", "scene: '00-default'", '---', '', '# 任务', '', '## 阶段 1', '',
+        '### T-001 做登录 <!-- lrnev-task: status=completed, created=2026-06-01T00:00:00.000Z, validates=F-01 -->',
+        '',
+      ].join('\n'));
+
+      const cli = await runCli(workspace.path, ['report']);
+      const mcpRaw = await client.callTool({ name: 'lrnev_report', arguments: {} });
+      const mcp = JSON.parse(mcpRaw.content[0]?.type === 'text' ? mcpRaw.content[0].text : '{}');
+
+      // 不比 generated_at；链路与覆盖率数据应深相等
+      expect(cli.data.chain).toEqual(mcp.data.chain);
+      expect(cli.data.coverage).toEqual(mcp.data.coverage);
+      expect(cli.data.headline).toBe(mcp.data.headline);
+      expect(cli.data.chain.unclosed[0]?.spec).toBe('01-00-login');
+
+      // scene 参数对等
+      const cliScene = await runCli(workspace.path, ['report', '--scene', '00-default']);
+      const mcpSceneRaw = await client.callTool({ name: 'lrnev_report', arguments: { scene: '00-default' } });
+      const mcpScene = JSON.parse(mcpSceneRaw.content[0]?.type === 'text' ? mcpSceneRaw.content[0].text : '{}');
+      expect(cliScene.data.scope).toBe('00-default');
+      expect(cliScene.data.chain).toEqual(mcpScene.data.chain);
+    } finally {
+      await client.close();
+      await server.close();
+      restoreEnv();
+    }
+  });
 });
 
 async function connect(workspacePath: string): Promise<{
