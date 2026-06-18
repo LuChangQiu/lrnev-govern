@@ -1,6 +1,6 @@
 # sample-project — lrnev 上手 demo
 
-跟着这份 README 敲，30 秒内你能从"一个空目录"走到"一个完整的需求 + 任务清单 + Gate 通过"。
+跟着这份 README 敲，你能从"一个空目录"走到"一个完整的需求 + 设计 + 任务清单 + Gate 通过"，最后再用 `lrnev report` 看治理体检。
 
 > 假设你已经全局装好 lrnev：`npm install -g lrnev`。本地开发用 `npm link` 后 `lrnev` 命令同样可用。
 
@@ -94,18 +94,76 @@ lrnev gate check --scene 00-default --spec 01-00-user-login --gate ready
 
 如果哨兵没填完，gate 会精确指出哪几行；填完后 `passed: true`，`ai_followup` 还会建议你"把 spec.status 改成 ready"并询问"是否需要 ADR"。
 
+```bash
+lrnev spec update 01-00-user-login --scene 00-default --status ready --reason "demo ready gate 通过"
+```
+
 ---
 
-## 6. 建任务 + 推进 + 完结
+## 6. 填设计
+
+`completion` gate 会硬拦 `requirements.md` 和 `design.md` 里残留的 `<!-- FILL: ... -->` 哨兵，所以继续前也要把 `design.md` 填掉。下面是 demo 用的最小填法：
+
+```markdown
+## L0 摘要
+
+登录 API 校验邮箱密码，成功后写入 session cookie，登出时清理会话。
+
+## L1 概览
+
+### 架构思路
+
+登录逻辑放在 auth service，HTTP 层只负责参数校验和响应封装。
+
+### 主要模块
+
+- `POST /login`：校验邮箱密码并创建 session。
+- `POST /logout`：删除 session。
+- session store：保存 30 天登录态。
+
+### 关键决策
+
+无重大架构分歧；demo 使用服务端 session cookie。
+
+## L2 详情
+
+### 模块详细设计
+
+#### D-01 登录会话流程
+
+请求进入 auth service 后按邮箱查用户、校验密码 hash，成功则创建 session id 并写入 httpOnly cookie。
+
+### 数据模型
+
+session: `{ id, user_id, expires_at }`。
+
+### 接口契约
+
+- `POST /login` 成功返回 200 和 session cookie。
+- 密码错误返回 401。
+
+### 错误处理
+
+错误密码不暴露用户是否存在；session store 不可用时返回 503。
+
+### 测试策略
+
+覆盖登录成功、错误密码、登出和 session 过期。
+```
+
+---
+
+## 7. 建任务 + 推进 + 完结
 
 ```bash
-# 建任务，validates 关联到 F-01
+# 建任务，validates 同时关联需求 F-01 和设计 D-01
 lrnev task create "实现登录 API" \
   --scene 00-default --spec 01-00-user-login \
-  --validates F-01 \
+  --validates F-01 D-01 \
   --acceptance "POST /login 200 含 session cookie" "错误密码 401"
 
 # 开始干活：状态机会校验 pending → in_progress；ai_followup 回填 anchor_context（F-01 验收口径段落），无 validates 则回填 spec 级 summary_context
+lrnev spec update 01-00-user-login --scene 00-default --status in-progress --reason "demo 开始实现"
 lrnev task update T-001 --scene 00-default --spec 01-00-user-login --status in_progress
 
 # ... 写代码、写测试 ...
@@ -115,17 +173,32 @@ lrnev task update T-001 --scene 00-default --spec 01-00-user-login --status comp
 
 ---
 
-## 7. completion gate
+## 8. completion gate
 
 ```bash
 lrnev gate check --scene 00-default --spec 01-00-user-login --gate completion
 ```
 
-所有 task 都 completed → `passed: true`。`ai_followup` 建议你把 `spec.status` 改成 `completed`。
+所有 task 都 completed，且 requirements / design 没有 FILL 哨兵 → `passed: true`。`ai_followup` 建议你把 `spec.status` 改成 `completed`。
+
+```bash
+lrnev spec update 01-00-user-login --scene 00-default --status completed --reason "demo 完成，completion gate 通过"
+```
 
 ---
 
-## 8. 接手时（多 AI / 跨会话）
+## 9. 治理体检 report
+
+```bash
+lrnev report
+lrnev report --json
+```
+
+`report` 是给人看的"分红"快照：它会列出做完没收口的 spec、failed/blocked 任务、validates 覆盖率和孤儿锚点，并给每条欠债下一步。它不是 CI gate，有欠债也 exit 0。
+
+---
+
+## 10. 接手时（多 AI / 跨会话）
 
 ```bash
 lrnev status
@@ -135,7 +208,7 @@ lrnev status
 
 ---
 
-## 9. 想试试踩坑沉淀？
+## 11. 想试试踩坑沉淀？
 
 ```bash
 lrnev error record \
@@ -161,7 +234,7 @@ lrnev error record \
 │   ├── scene.md
 │   └── specs/01-00-user-login/
 │       ├── requirements.md  # 已填完
-│       ├── design.md        # 还没填，但 gate 不强制
+│       ├── design.md        # 已填完，completion gate 会检查无 FILL
 │       └── tasks.md         # 含 T-001 completed + meta 注释
 ├── errorbook/incidents/...  # 步骤 9 的记录
 └── auto/codebase.json
