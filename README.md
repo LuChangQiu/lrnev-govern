@@ -232,6 +232,7 @@ lrnev gate check --scene 00-default --spec 01-00-user-login --gate completion
 # 治理体检（给人看的"分红"）：做完没收口 / failed-blocked / validates 覆盖率，每条债带可执行下一步
 lrnev report                      # 默认 text 体检单
 lrnev report --scene 00-default   # 只看某业务域
+lrnev report --json               # 结构化输出，供脚本/AI 消费
 lrnev report --md --out NOTES.md  # markdown 落盘（--out 才写文件）
 lrnev report --release-notes      # 顺带草拟已完成清单
 
