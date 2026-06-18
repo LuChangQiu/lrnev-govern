@@ -189,6 +189,37 @@ describe('GovernanceReport', () => {
     expect(failed?.paths?.uri).toBe(`context://spec/${scene.data.id}/${buggy.data.spec}`);
   });
 
+  it('坏 validates：列入 broken_validates、不虚增覆盖率、warnings 指向 doctor', async () => {
+    const scene = await scenes.create({ name: 'demo-scene' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'login' });
+    await writeReq(scene.data.id, spec.data.spec, 'in-progress', '#### F-01 真实\nx');
+    // T-001 validates 指向真实 F-01，T-002 validates 指向不存在 F-99 + 废弃 design#3.2
+    await writeTasks(scene.data.id, spec.data.spec, [
+      { id: 'T-001', status: 'completed', validates: ['F-01'] },
+      { id: 'T-002', status: 'pending', validates: ['F-99', 'design#3.2'] },
+    ]);
+
+    const res = await report.build();
+    // 覆盖率只认真锚点 F-01，且已覆盖 → 100%，坏 ref 不虚增
+    expect(res.data.coverage.anchor_total).toBe(1);
+    expect(res.data.coverage.anchor_covered).toBe(1);
+    // 坏 ref 列入 broken_validates
+    const broken = res.data.coverage.broken_validates.find((b) => b.task === 'T-002');
+    expect(broken?.anchors.sort()).toEqual(['F-99', 'design#3.2'].sort());
+    // warnings 指向 doctor
+    expect((res.data.warnings ?? []).join('\n')).toContain('doctor');
+  });
+
+  it('无坏 validates 时不产生 warnings 字段', async () => {
+    const scene = await scenes.create({ name: 'demo-scene' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'login' });
+    await writeReq(scene.data.id, spec.data.spec, 'draft', '#### F-01 a\nx');
+    await writeTasks(scene.data.id, spec.data.spec, [{ id: 'T-001', status: 'completed', validates: ['F-01'] }]);
+    const res = await report.build();
+    expect(res.data.coverage.broken_validates).toEqual([]);
+    expect(res.data.warnings).toBeUndefined();
+  });
+
   it('collectAnchorIds：去重 + 排除 FILL', () => {
     const content = '#### F-01 a\n#### F-01 dup\n#### F-02 <!-- FILL: x -->\n#### F-03 c';
     expect(collectAnchorIds(content, 'F')).toEqual(['F-01', 'F-03']);

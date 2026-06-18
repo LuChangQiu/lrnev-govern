@@ -32,7 +32,7 @@ unclosed 判定用全平铺 every-completed，与 `GateRunner` 的 all_tasks_com
 
 **依赖**：T-001
 
-### T-003 坏 validates 不计 covered + archived 口径 <!-- lrnev-task: status=pending, created=2026-06-17T11:00:02.000Z, validates=F-02|D-02 -->
+### T-003 坏 validates 不计 covered + archived 口径 <!-- lrnev-task: status=completed, created=2026-06-17T11:00:02.000Z, updated=2026-06-17T14:05:00.000Z, validates=F-02|D-02 -->
 
 坏 validates（指向不存在/废弃锚点，口径同 TaskManager 存在性校验）不计入 covered、收进 broken_validates、warnings 指向 doctor；archived spec 不计入欠债统计（JSON 可计数、text 弱化）。
 

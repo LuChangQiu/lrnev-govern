@@ -17,7 +17,7 @@ import { FileStorage } from '../storage/FileStorage.js';
 import { parseFrontmatter } from '../storage/FrontmatterCodec.js';
 import { DEFAULT_SCENE_ID, SceneManager } from './SceneManager.js';
 import { tryParseSpecParts } from './SpecManager.js';
-import { attachTaskChildren, parseTasksFromMarkdown } from './TaskManager.js';
+import { attachTaskChildren, extractAnchorPool, parseTasksFromMarkdown } from './TaskManager.js';
 import type { AiFollowupResponse } from '../types/response.js';
 import type { SpecFrontmatter, SpecStatus } from '../types/spec.js';
 import type { Task } from '../types/task.js';
@@ -26,6 +26,7 @@ import type {
   GovernanceReportCoverage,
   GovernanceReportInput,
   GovernanceReportResult,
+  BrokenValidatesItem,
   OrphanGroup,
   ReportPaths,
   ReportSceneStat,
@@ -51,6 +52,7 @@ export class GovernanceReport {
     const blockedTasks: ReportTaskBrief[] = [];
     const inFlightOrphans: OrphanGroup[] = [];
     const debtOrphans: OrphanGroup[] = [];
+    const brokenValidates: BrokenValidatesItem[] = [];
     let anchorTotal = 0;
     let anchorCovered = 0;
     let archivedExcluded = 0;
@@ -117,6 +119,23 @@ export class GovernanceReport {
           (status === 'completed' ? debtOrphans : inFlightOrphans).push(group);
         }
 
+        // 坏 validates：task 的 validates 指向不存在锚点/废弃格式（口径同 TaskManager 存在性校验，
+        // 用 extractAnchorPool 不滤 FILL）。这类引用本就不在真锚点池、不会虚增 covered；此处只做诊断列出。
+        const fPool = extractAnchorPool(reqContent, 'F');
+        const dPool = extractAnchorPool(designContent, 'D');
+        for (const task of tasks) {
+          const refs = task.validates ?? [];
+          if (refs.length === 0) continue;
+          const bad = refs.filter((ref) => {
+            if (/^F-\d+$/.test(ref)) return !fPool.has(ref);
+            if (/^D-\d+$/.test(ref)) return !dPool.has(ref);
+            return true; // 废弃格式（如 design#3.2）或非法写法
+          });
+          if (bad.length > 0) {
+            brokenValidates.push({ scene: scene.id, spec: specId, task: task.id, anchors: bad });
+          }
+        }
+
         // 做完没收口：只镜像 completion gate 的 all_tasks_completed（全平铺 every-completed）。
         if (status !== 'completed' && tasks.length > 0 && tasks.every((task) => task.status === 'completed')) {
           unclosed.push({
@@ -155,9 +174,14 @@ export class GovernanceReport {
       coverage_ratio: anchorTotal > 0 ? anchorCovered / anchorTotal : 1,
       in_flight_orphans: inFlightOrphans,
       debt_orphans: debtOrphans,
-      broken_validates: [],
+      broken_validates: brokenValidates,
       archived_excluded: archivedExcluded,
     };
+    const warnings: string[] = [];
+    if (brokenValidates.length > 0) {
+      const count = brokenValidates.reduce((sum, item) => sum + item.anchors.length, 0);
+      warnings.push(`发现 ${count} 处坏 validates（指向不存在/废弃锚点），不计入覆盖率；详细修复请运行 lrnev doctor。`);
+    }
 
     return {
       ok: true,
@@ -167,6 +191,7 @@ export class GovernanceReport {
         headline: buildHeadline(unclosed.length, failedTasks.length, blockedTasks.length, debtOrphans.length),
         chain,
         coverage,
+        ...(warnings.length > 0 && { warnings }),
       },
       ai_followup: {
         instructions: [
