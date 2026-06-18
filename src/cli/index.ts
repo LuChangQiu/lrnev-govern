@@ -655,10 +655,14 @@ export function renderReportText(data: GovernanceReportResult): string {
   if (data.release_notes) {
     L.push('');
     L.push(sub('③ release notes 草稿'));
-    for (const scene of data.release_notes.scenes) {
-      for (const spec of scene.specs) {
-        L.push(`  ${scene.name} / ${spec.name}`);
-        for (const t of spec.tasks) L.push(`      - ${t}`);
+    if (data.release_notes.scenes.length === 0) {
+      L.push('  （暂无已完成的 spec/task）');
+    } else {
+      for (const scene of data.release_notes.scenes) {
+        for (const spec of scene.specs) {
+          L.push(`  ${scene.name} / ${spec.name}`);
+          for (const t of spec.tasks) L.push(`      - ${t}`);
+        }
       }
     }
   }
@@ -732,11 +736,16 @@ export function renderReportMarkdown(data: GovernanceReportResult): string {
   if (data.release_notes) {
     L.push('');
     L.push('## ③ release notes 草稿');
-    for (const scene of data.release_notes.scenes) {
-      for (const spec of scene.specs) {
-        L.push('');
-        L.push(`### ${scene.name} / ${spec.name}`);
-        for (const t of spec.tasks) L.push(`- ${t}`);
+    if (data.release_notes.scenes.length === 0) {
+      L.push('');
+      L.push('_（暂无已完成的 spec/task）_');
+    } else {
+      for (const scene of data.release_notes.scenes) {
+        for (const spec of scene.specs) {
+          L.push('');
+          L.push(`### ${scene.name} / ${spec.name}`);
+          for (const t of spec.tasks) L.push(`- ${t}`);
+        }
       }
     }
   }

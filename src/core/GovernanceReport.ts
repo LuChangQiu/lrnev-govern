@@ -53,6 +53,7 @@ export class GovernanceReport {
     const inFlightOrphans: OrphanGroup[] = [];
     const debtOrphans: OrphanGroup[] = [];
     const brokenValidates: BrokenValidatesItem[] = [];
+    const releaseNotesScenes = new Map<string, { scene: string; name: string; specs: { spec: string; name: string; tasks: string[] }[] }>();
     let anchorTotal = 0;
     let anchorCovered = 0;
     let archivedExcluded = 0;
@@ -139,6 +140,17 @@ export class GovernanceReport {
           }
         }
 
+        // release notes（低优先，仅 releaseNotes=true）：已收口 spec 的已完成 task 标题，按 scene/spec 分组。
+        if (input.releaseNotes && status === 'completed') {
+          const titles = tasks.filter((task) => task.status === 'completed').map((task) => task.title);
+          let entry = releaseNotesScenes.get(scene.id);
+          if (!entry) {
+            entry = { scene: scene.id, name: scene.name, specs: [] };
+            releaseNotesScenes.set(scene.id, entry);
+          }
+          entry.specs.push({ spec: specId, name: parts.name, tasks: titles });
+        }
+
         // 做完没收口：只镜像 completion gate 的 all_tasks_completed（全平铺 every-completed）。
         if (status !== 'completed' && tasks.length > 0 && tasks.every((task) => task.status === 'completed')) {
           unclosed.push({
@@ -195,6 +207,7 @@ export class GovernanceReport {
         headline: buildHeadline(unclosed.length, failedTasks.length, blockedTasks.length, debtOrphans.length),
         chain,
         coverage,
+        ...(input.releaseNotes && { release_notes: { scenes: [...releaseNotesScenes.values()] } }),
         ...(warnings.length > 0 && { warnings }),
       },
       ai_followup: {

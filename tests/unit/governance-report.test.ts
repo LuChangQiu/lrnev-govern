@@ -247,6 +247,33 @@ describe('GovernanceReport', () => {
     expect(res2.data.coverage.in_flight_orphans.find((g) => g.spec === draft.data.spec)?.next_action).toBeUndefined();
   });
 
+  it('release notes：仅 releaseNotes=true 时附段，含 completed spec 的 completed task；无则不附', async () => {
+    const scene = await scenes.create({ name: 'demo-scene' });
+    const done = await specs.create({ scene: scene.data.id, name: 'shipped' });
+    await writeReq(scene.data.id, done.data.spec, 'completed', '#### F-01 a\nx');
+    await writeTasks(scene.data.id, done.data.spec, [
+      { id: 'T-001', status: 'completed', validates: ['F-01'] },
+      { id: 'T-002', status: 'completed' },
+    ]);
+
+    const without = await report.build();
+    expect(without.data.release_notes).toBeUndefined();
+
+    const withRn = await report.build({ releaseNotes: true });
+    const sc = withRn.data.release_notes?.scenes.find((s) => s.scene === scene.data.id);
+    const sp = sc?.specs.find((x) => x.spec === done.data.spec);
+    expect(sp?.tasks).toEqual(['任务 T-001', '任务 T-002']);
+  });
+
+  it('release notes：无已完成项时 scenes 为空（友好提示交渲染层）', async () => {
+    const scene = await scenes.create({ name: 'demo-scene' });
+    const draft = await specs.create({ scene: scene.data.id, name: 'wip' });
+    await writeReq(scene.data.id, draft.data.spec, 'draft', '#### F-01 a\nx');
+    await writeTasks(scene.data.id, draft.data.spec, [{ id: 'T-001', status: 'pending' }]);
+    const res = await report.build({ releaseNotes: true });
+    expect(res.data.release_notes?.scenes).toEqual([]);
+  });
+
   it('collectAnchorIds：去重 + 排除 FILL', () => {
     const content = '#### F-01 a\n#### F-01 dup\n#### F-02 <!-- FILL: x -->\n#### F-03 c';
     expect(collectAnchorIds(content, 'F')).toEqual(['F-01', 'F-03']);

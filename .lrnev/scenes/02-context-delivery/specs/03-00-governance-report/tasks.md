@@ -73,7 +73,7 @@ unclosed 判定用全平铺 every-completed，与 `GateRunner` 的 all_tasks_com
 
 **依赖**：T-001
 
-### T-007 release notes 视图（低优先，工期紧可后置） <!-- lrnev-task: status=pending, created=2026-06-17T11:00:06.000Z, validates=F-03|D-05 -->
+### T-007 release notes 视图（低优先，工期紧可后置） <!-- lrnev-task: status=completed, created=2026-06-17T11:00:06.000Z, updated=2026-06-17T14:55:00.000Z, validates=F-03|D-05 -->
 
 `build({releaseNotes:true})` 复用 T-001 遍历产物附 release_notes 段：按 scene/spec 分组、仅 completed spec 的 completed task 标题、不依赖 git、空时友好提示。仅加聚合+渲染分支，不二次扫描。优先级低于 T-001~T-006。
 
