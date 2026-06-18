@@ -9,8 +9,9 @@
  * 口径对齐：unclosed 判定只镜像 GateRunner 的 all_tasks_completed（全平铺 every-completed）；
  * completion gate 的 FILL/design 子检查不在此复刻，report 不承诺 gate 必过、只引导去跑 gate。
  *
- * 本文件 T-001 范围：遍历 + 锚点 + 覆盖率 + 计数 + unclosed + failed/blocked + headline + scene。
- * paths（T-002）、broken_validates（T-003）、next_action（T-004）、release_notes（T-007）后续补。
+ * 内容：遍历 scene/spec/task，算链路完整度（unclosed 镜像 gate、failed/blocked 明细）、
+ * validates 覆盖率（FILL-aware 锚点、孤儿分类、坏 validates 不计 covered）、每条欠债的 paths
+ * 定位与 next_action、可选 release notes；--scene 过滤；per-spec 容错。
  */
 
 import { FileStorage } from '../storage/FileStorage.js';
@@ -42,8 +43,9 @@ export class GovernanceReport {
 
   async build(input: GovernanceReportInput = {}): Promise<AiFollowupResponse<GovernanceReportResult>> {
     const targetScene = input.scene ? await this.scenes.resolveId(input.scene) : undefined;
+    // 空 00-default 仅在全量时隐藏；显式 --scene 00-default 时要显示它（哪怕空）。
     const sceneList = (await this.scenes.list())
-      .filter((scene) => !(scene.id === DEFAULT_SCENE_ID && scene.spec_count === 0 && !scene.broken))
+      .filter((scene) => Boolean(targetScene) || !(scene.id === DEFAULT_SCENE_ID && scene.spec_count === 0 && !scene.broken))
       .filter((scene) => !targetScene || scene.id === targetScene);
 
     const sceneStats: ReportSceneStat[] = [];
@@ -53,6 +55,7 @@ export class GovernanceReport {
     const inFlightOrphans: OrphanGroup[] = [];
     const debtOrphans: OrphanGroup[] = [];
     const brokenValidates: BrokenValidatesItem[] = [];
+    const badSpecs: string[] = [];
     const releaseNotesScenes = new Map<string, { scene: string; name: string; specs: { spec: string; name: string; tasks: string[] }[] }>();
     let anchorTotal = 0;
     let anchorCovered = 0;
@@ -76,6 +79,7 @@ export class GovernanceReport {
         sceneSpecCount += 1;
         specCount += 1;
 
+        try {
         const reqContent = await this.fs.read(file);
         const { frontmatter } = parseFrontmatter<Partial<SpecFrontmatter>>(reqContent);
         const status: SpecStatus = frontmatter.status ?? 'draft';
@@ -117,9 +121,9 @@ export class GovernanceReport {
         anchorCovered += anchors.length - orphans.length;
         if (orphans.length > 0) {
           if (status === 'completed') {
-            debtOrphans.push({ scene: scene.id, spec: specId, status, anchors: orphans, next_action: orphanDebtNextAction(orphans) });
+            debtOrphans.push({ scene: scene.id, spec: specId, status, anchors: orphans, paths, next_action: orphanDebtNextAction(orphans) });
           } else {
-            inFlightOrphans.push({ scene: scene.id, spec: specId, status, anchors: orphans });
+            inFlightOrphans.push({ scene: scene.id, spec: specId, status, anchors: orphans, paths });
           }
         }
 
@@ -136,7 +140,7 @@ export class GovernanceReport {
             return true; // 废弃格式（如 design#3.2）或非法写法
           });
           if (bad.length > 0) {
-            brokenValidates.push({ scene: scene.id, spec: specId, task: task.id, anchors: bad });
+            brokenValidates.push({ scene: scene.id, spec: specId, task: task.id, anchors: bad, paths, next_action: brokenValidatesNextAction() });
           }
         }
 
@@ -163,6 +167,10 @@ export class GovernanceReport {
             paths,
             next_action: unclosedNextAction(scene.id, specId),
           });
+        }
+        } catch (err) {
+          // 单个坏 spec（读/解析异常）跳过、带原始错误计入 warnings，不让整份报告崩、也不自动修复。
+          badSpecs.push(`${scene.id}/${specId}: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
 
@@ -197,6 +205,9 @@ export class GovernanceReport {
     if (brokenValidates.length > 0) {
       const count = brokenValidates.reduce((sum, item) => sum + item.anchors.length, 0);
       warnings.push(`发现 ${count} 处坏 validates（指向不存在/废弃锚点），不计入覆盖率；详细修复请运行 lrnev doctor。`);
+    }
+    if (badSpecs.length > 0) {
+      warnings.push(`${badSpecs.length} 个 spec 读取/解析失败已跳过 —— ${badSpecs.join('；')}；请检查对应文件或运行 lrnev doctor。`);
     }
 
     return {
@@ -260,6 +271,10 @@ function orphanDebtNextAction(anchors: string[]): string {
   return `给锚点 ${anchors.join('、')} 补一个 task 的 validates，或确认该需求/设计是否仍需要。`;
 }
 
+function brokenValidatesNextAction(): string {
+  return '运行 lrnev doctor 查看全量坏锚点，并手改 tasks.md 把 validates 指向真实 F-xx/D-xx。';
+}
+
 /**
  * FILL-aware 锚点 ID 提取：取 `#### F-xx` / `#### D-xx` 行的 ID，排除 `<!-- FILL:` 占位标题。
  * 与 TaskManager.extractAnchorPool 同正则家族，差异只在多一条 FILL 过滤（不改 extractAnchorPool，
@@ -276,15 +291,21 @@ export function collectAnchorIds(content: string, prefix: 'F' | 'D'): string[] {
   return [...ids];
 }
 
-/** 确定性 headline：有硬欠债（unclosed / failed）报欠债概述，否则报健康。 */
+/**
+ * 确定性 headline。硬欠债 = unclosed / failed / debt-orphan 任一 >0 → 报欠债概述；
+ * 无硬欠债但有 blocked → 软提示；全无 → 整体健康。blocked 不算硬债（临时态），单列软提示。
+ */
 export function buildHeadline(unclosed: number, failed: number, blocked: number, debtOrphans: number): string {
-  if (unclosed === 0 && failed === 0) {
-    return '整体健康：无做完未收口的 spec，无失败任务。';
+  const hasDebt = unclosed > 0 || failed > 0 || debtOrphans > 0;
+  if (!hasDebt) {
+    return blocked > 0
+      ? `无硬欠债（${blocked} 个任务阻塞待处理）。`
+      : '整体健康：无做完未收口的 spec、无失败任务、无已收口 spec 的孤儿锚点。';
   }
   const parts: string[] = [];
   if (unclosed > 0) parts.push(`${unclosed} 个 spec 做完未收口`);
   if (failed > 0) parts.push(`${failed} 个任务失败`);
-  if (blocked > 0) parts.push(`${blocked} 个任务阻塞`);
   if (debtOrphans > 0) parts.push(`${debtOrphans} 处已收口 spec 仍有孤儿锚点`);
+  if (blocked > 0) parts.push(`${blocked} 个任务阻塞`);
   return `发现治理欠债：${parts.join('、')}。`;
 }

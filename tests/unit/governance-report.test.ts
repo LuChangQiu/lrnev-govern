@@ -274,6 +274,78 @@ describe('GovernanceReport', () => {
     expect(res.data.release_notes?.scenes).toEqual([]);
   });
 
+  it('坏 validates only：真锚点未被覆盖时 anchor_covered=0、覆盖率 0%（不虚增）', async () => {
+    const scene = await scenes.create({ name: 'demo-scene' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'login' });
+    await writeReq(scene.data.id, spec.data.spec, 'in-progress', '#### F-01 真实\nx');
+    // 唯一 task 的 validates 全指向不存在锚点 → 真锚点 F-01 无人覆盖
+    await writeTasks(scene.data.id, spec.data.spec, [{ id: 'T-001', status: 'pending', validates: ['F-99'] }]);
+    const res = await report.build();
+    expect(res.data.coverage.anchor_total).toBe(1);
+    expect(res.data.coverage.anchor_covered).toBe(0);
+    expect(res.data.coverage.coverage_ratio).toBe(0);
+    expect(res.data.coverage.broken_validates[0]?.anchors).toEqual(['F-99']);
+  });
+
+  it('--scene 指定空 00-default 时显示它（不被空 default 过滤吞掉）', async () => {
+    // 物化一个空的 00-default（存在但无 spec）
+    await scenes.ensureExists();
+    const res = await report.build({ scene: '00-default' });
+    expect(res.data.scope).toBe('00-default');
+    expect(res.data.chain.scenes.map((s) => s.scene)).toEqual(['00-default']);
+    expect(res.data.chain.scenes[0]?.empty).toBe(true);
+  });
+
+  it('单个坏 spec 读取异常不让整份报告崩（跳过 + warnings）', async () => {
+    const scene = await scenes.create({ name: 'demo-scene' });
+    const good = await specs.create({ scene: scene.data.id, name: 'good' });
+    await writeReq(scene.data.id, good.data.spec, 'draft', '#### F-01 a\nx');
+    await writeTasks(scene.data.id, good.data.spec, [{ id: 'T-001', status: 'completed', validates: ['F-01'] }]);
+    const bad = await specs.create({ scene: scene.data.id, name: 'bad' });
+    await writeReq(scene.data.id, bad.data.spec, 'draft', '#### F-01 a\nx');
+
+    // monkeypatch：读 bad spec 的 requirements 时抛错，触发 per-spec try/catch。
+    const realRead = fs.read.bind(fs);
+    fs.read = (async (p: string) => {
+      if (p.includes(bad.data.spec) && p.endsWith('requirements.md')) throw new Error('boom');
+      return realRead(p);
+    }) as typeof fs.read;
+
+    const res = await report.build();
+    fs.read = realRead;
+
+    expect(res.ok).toBe(true); // 没崩
+    expect(res.data.chain.unclosed.find((u) => u.spec === good.data.spec)).toBeDefined(); // good 仍处理
+    expect((res.data.warnings ?? []).join('\n')).toContain(bad.data.spec); // bad 计入 warnings
+  });
+
+  it('零 task 的 spec 不被判 unclosed（与 gate 同口径）', async () => {
+    const tasksMgr = new TaskManager(fs, scenes, specs);
+    const gates = new GateRunner(fs, scenes, specs, tasksMgr);
+    const scene = await scenes.create({ name: 'demo-scene' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'empty' });
+    await writeReq(scene.data.id, spec.data.spec, 'draft', '#### F-01 a\nx');
+    await writeTasks(scene.data.id, spec.data.spec, []); // 零 task
+
+    const res = await report.build();
+    expect(res.data.chain.unclosed.find((u) => u.spec === spec.data.spec)).toBeUndefined();
+    // gate 的 all_tasks_completed 在零 task 时也不通过（tasks.length>0 条件）
+    const gr = await gates.check('completion', { scene: scene.data.id, spec: spec.data.spec });
+    expect(gr.checks.find((c) => c.name === 'all_tasks_completed')?.passed).toBe(false);
+  });
+
+  it('headline：只有 debt orphan 算硬债；只有 blocked 报软提示而非"整体健康"', async () => {
+    const scene = await scenes.create({ name: 'demo-scene' });
+    // 只有 blocked
+    const b = await specs.create({ scene: scene.data.id, name: 'blocked-only' });
+    await writeReq(scene.data.id, b.data.spec, 'in-progress', '#### F-01 a\nx');
+    await writeTasks(scene.data.id, b.data.spec, [{ id: 'T-001', status: 'blocked', validates: ['F-01'] }]);
+    const res = await report.build();
+    expect(res.data.headline).toContain('无硬欠债');
+    expect(res.data.headline).toContain('阻塞');
+    expect(res.data.headline).not.toContain('整体健康');
+  });
+
   it('collectAnchorIds：去重 + 排除 FILL', () => {
     const content = '#### F-01 a\n#### F-01 dup\n#### F-02 <!-- FILL: x -->\n#### F-03 c';
     expect(collectAnchorIds(content, 'F')).toEqual(['F-01', 'F-03']);

@@ -49,6 +49,9 @@ export interface OrphanGroup {
   status: SpecStatus;
   /** 无任何 task validates 的 F-xx/D-xx。 */
   anchors: string[];
+  /** 定位（在途/真欠债都带，便于跳转）。 */
+  paths: ReportPaths;
+  /** 真欠债（debt）带可执行下一步；在途孤儿正常态不带。 */
   next_action?: string;
 }
 
@@ -58,6 +61,9 @@ export interface BrokenValidatesItem {
   spec: string;
   task: string;
   anchors: string[];
+  paths: ReportPaths;
+  /** 指向 doctor 的修复下一步。 */
+  next_action: string;
 }
 
 /** 每个 scene 的链路汇总。 */

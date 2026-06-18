@@ -45,12 +45,12 @@ created: '2026-06-15'
 `class GovernanceReport { constructor(fs, scenes) }`，`async build(input?: { scene?: string; releaseNotes?: boolean }): Promise<AiFollowupResponse<GovernanceReportResult>>`。
 
 一次遍历（纯确定性）：
-1. scene 范围：`input.scene` → `SceneManager.resolveId` 后只遍历该 scene；否则 `SceneManager.list()` 沿用空 00-default 过滤口径。
+1. scene 范围：`input.scene` → `SceneManager.resolveId` 后只遍历该 scene（**显式指定时不应用"空 00-default 排除"，用户要看就显示，哪怕空**）；否则 `SceneManager.list()` 全量时才排除空 00-default。
 2. 每 spec：`parseFrontmatter` 读 status（缺省 draft）；读 tasks.md → `attachTaskChildren(parseTasksFromMarkdown(...))` 得全平铺 task；FILL-aware 提取锚点 ID（D-02）；收集各 task `validates` 汇成 validatedSet。
 3. 调 D-03（链路：unclosed/failed/blocked）、D-02（覆盖率）、D-04（下一步/定位）、D-05（release notes 仅 releaseNotes=true）组装结果。
-4. headline（确定性）：`unclosed>0 || failed>0` → 欠债概述，否则"整体健康"；headline 提到的债类型在明细段必有对应数据。
+4. headline（确定性）：硬欠债 = `unclosed>0 || failed>0 || debt_orphans>0` → 欠债概述；无硬欠债但 `blocked>0` → "无硬欠债（N 个任务阻塞待处理）"；全无 → "整体健康"。headline 提到的债类型在明细段必有对应数据。
 
-边界：无 `.lrnev`/零 scene → 合法空 result + 友好 followup，不抛；单 spec 解析异常跳过并在 followup 提示（同 ProjectStatus 容错）。
+边界：无 `.lrnev`/零 scene → 合法空 result + 友好 followup，不抛；**单 spec 读取/解析异常用 per-spec try/catch 包住，跳过该 spec 并把 `scene/spec` 计入 warnings，不让一个坏 spec 崩掉整份报告**。
 
 #### D-02 覆盖率口径：FILL-aware 锚点 + 坏 validates 不计 covered + archived（对应 F-02）
 
@@ -99,8 +99,8 @@ created: '2026-06-15'
 interface ReportPaths { uri: string; requirements_path: string; tasks_path: string }
 interface UnclosedSpec { scene; spec; name; done: number; total: number; status: SpecStatus; next_action: string; paths: ReportPaths }
 interface TaskBrief { scene; spec; id; title; paths: ReportPaths; next_action?: string }
-interface OrphanGroup { scene; spec; status: SpecStatus; anchors: string[]; next_action?: string }
-interface BrokenValidates { scene; spec; task: string; anchors: string[] } // 不计 covered
+interface OrphanGroup { scene; spec; status: SpecStatus; anchors: string[]; paths: ReportPaths; next_action?: string } // debt 带 next_action；两类都带 paths
+interface BrokenValidates { scene; spec; task: string; anchors: string[]; paths: ReportPaths; next_action: string } // 不计 covered，next_action 指向 doctor
 interface GovernanceReportChain {
   scene_count; spec_count; task_count: number;
   scenes: { scene; name; spec_count; task_count; empty: boolean }[];

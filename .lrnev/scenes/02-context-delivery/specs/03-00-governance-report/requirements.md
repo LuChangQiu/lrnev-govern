@@ -1,9 +1,10 @@
 ---
-spec: '03-00-governance-report'
-scene: '02-context-delivery'
-status: draft
+spec: 03-00-governance-report
+scene: 02-context-delivery
+status: completed
 priority: P2
 created: '2026-06-15'
+updated: '2026-06-18'
 ---
 
 # 03-00 Governance Report - 需求
@@ -91,7 +92,7 @@ created: '2026-06-15'
 - 默认 text 打终端；`--md` markdown 到 stdout；`--json` 结构化对象；三者互斥，json 面向机器/CI（仅数据，无退出码语义）。
 - `--out <path>` 把当前格式落盘到指定路径；不给 `--out` 一律不写文件；绝不向 `.lrnev` 或默认路径写。
 - `--scene <id>`：只体检指定 scene（解析同 `SceneManager.resolveId`）；不给则全量。
-- 顶部一句话总结：有硬欠债（做完没收口 spec >0 或 failed task >0）→ 报欠债概述；否则 → "整体健康"。headline 所提债类型在明细段都能找到。
+- 顶部一句话总结（确定性）：**硬欠债** = 做完没收口 spec >0、failed task >0、或已收口 spec 的孤儿锚点（debt orphan）>0 —— 任一为真则报欠债概述。无硬欠债时：若有 blocked 任务则报"无硬欠债（N 个任务阻塞待处理）"软提示，否则报"整体健康"。headline 所提债类型在明细段都能找到。
 - MCP `lrnev_report` 返回结构化数据（等价 `--json`），参数含 `scene?` / `release_notes?`，口径与 CLI `--json` 一致。
 - 验收：
   - WHEN `lrnev report --json`，THEN 输出可 JSON.parse，含链路+覆盖率两段数据。

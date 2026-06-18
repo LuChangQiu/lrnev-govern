@@ -602,6 +602,7 @@ export function renderReportText(data: GovernanceReportResult): string {
     for (const u of data.chain.unclosed) {
       L.push(`      · ${u.scene}/${u.spec}  (${u.done}/${u.total} done, status=${u.status})`);
       if (u.next_action) L.push(`        → ${u.next_action}`);
+      if (u.paths) L.push(`        位置: ${u.paths.uri}`);
     }
   }
   if (data.chain.failed_tasks.length > 0) {
@@ -610,6 +611,7 @@ export function renderReportText(data: GovernanceReportResult): string {
     for (const t of data.chain.failed_tasks) {
       L.push(`      · ${t.scene}/${t.spec} ${t.id} ${t.title}`);
       if (t.next_action) L.push(`        → ${t.next_action}`);
+      if (t.paths) L.push(`        位置: ${t.paths.uri}`);
     }
   }
   if (data.chain.blocked_tasks.length > 0) {
@@ -618,6 +620,7 @@ export function renderReportText(data: GovernanceReportResult): string {
     for (const t of data.chain.blocked_tasks) {
       L.push(`      · ${t.scene}/${t.spec} ${t.id} ${t.title}`);
       if (t.next_action) L.push(`        → ${t.next_action}`);
+      if (t.paths) L.push(`        位置: ${t.paths.uri}`);
     }
   }
   L.push('');
@@ -632,6 +635,7 @@ export function renderReportText(data: GovernanceReportResult): string {
     for (const g of data.coverage.debt_orphans) {
       L.push(`      · ${g.scene}/${g.spec}  ${g.anchors.join('、')}`);
       if (g.next_action) L.push(`        → ${g.next_action}`);
+      if (g.paths) L.push(`        位置: ${g.paths.uri}`);
     }
   }
   if (data.coverage.in_flight_orphans.length > 0) {
@@ -644,6 +648,8 @@ export function renderReportText(data: GovernanceReportResult): string {
     L.push(`  坏 validates (${data.coverage.broken_validates.length})：指向不存在/废弃锚点，不计覆盖率`);
     for (const b of data.coverage.broken_validates) {
       L.push(`      · ${b.scene}/${b.spec} ${b.task}  ${b.anchors.join('、')}`);
+      if (b.next_action) L.push(`        → ${b.next_action}`);
+      if (b.paths) L.push(`        位置: ${b.paths.uri}`);
     }
   }
   if (data.coverage.archived_excluded > 0) {
@@ -694,6 +700,7 @@ export function renderReportMarkdown(data: GovernanceReportResult): string {
     for (const u of data.chain.unclosed) {
       L.push(`- **${u.scene}/${u.spec}** (${u.done}/${u.total} done, status=${u.status})`);
       if (u.next_action) L.push(`  - → ${u.next_action}`);
+      if (u.paths) L.push(`  - 位置: ${u.paths.uri}`);
     }
   }
   if (data.chain.failed_tasks.length > 0) {
@@ -702,6 +709,7 @@ export function renderReportMarkdown(data: GovernanceReportResult): string {
     for (const t of data.chain.failed_tasks) {
       L.push(`- ${t.scene}/${t.spec} \`${t.id}\` ${t.title}`);
       if (t.next_action) L.push(`  - → ${t.next_action}`);
+      if (t.paths) L.push(`  - 位置: ${t.paths.uri}`);
     }
   }
   if (data.chain.blocked_tasks.length > 0) {
@@ -709,6 +717,8 @@ export function renderReportMarkdown(data: GovernanceReportResult): string {
     L.push(`### 阻塞任务 (${data.chain.blocked_tasks.length})`);
     for (const t of data.chain.blocked_tasks) {
       L.push(`- ${t.scene}/${t.spec} \`${t.id}\` ${t.title}`);
+      if (t.next_action) L.push(`  - → ${t.next_action}`);
+      if (t.paths) L.push(`  - 位置: ${t.paths.uri}`);
     }
   }
   L.push('');
@@ -723,6 +733,7 @@ export function renderReportMarkdown(data: GovernanceReportResult): string {
     for (const g of data.coverage.debt_orphans) {
       L.push(`- ${g.scene}/${g.spec}: ${g.anchors.join('、')}`);
       if (g.next_action) L.push(`  - → ${g.next_action}`);
+      if (g.paths) L.push(`  - 位置: ${g.paths.uri}`);
     }
   }
   if (data.coverage.broken_validates.length > 0) {
@@ -730,6 +741,8 @@ export function renderReportMarkdown(data: GovernanceReportResult): string {
     L.push(`### 坏 validates (${data.coverage.broken_validates.length})`);
     for (const b of data.coverage.broken_validates) {
       L.push(`- ${b.scene}/${b.spec} \`${b.task}\`: ${b.anchors.join('、')}`);
+      if (b.next_action) L.push(`  - → ${b.next_action}`);
+      if (b.paths) L.push(`  - 位置: ${b.paths.uri}`);
     }
   }
 
