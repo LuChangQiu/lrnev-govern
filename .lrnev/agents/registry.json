@@ -7,5 +7,14 @@
     "started_at": "2026-06-12T08:53:36.811Z",
     "last_heartbeat": "2026-06-12T08:53:36.811Z",
     "status": "active"
+  },
+  "DESKTOP-2E4TITN-52640-d2b7": {
+    "agent_id": "DESKTOP-2E4TITN-52640-d2b7",
+    "pid": 52640,
+    "host": "DESKTOP-2E4TITN",
+    "client": "codex-mcp-client",
+    "started_at": "2026-06-17T09:44:44.201Z",
+    "last_heartbeat": "2026-06-17T09:44:44.201Z",
+    "status": "active"
   }
 }
