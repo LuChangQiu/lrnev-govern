@@ -97,6 +97,8 @@ CLI 与 MCP 共用 core 逻辑；差异只在入口层。
 - Codex：自定义 instructions
 
 ```text
+本项目用 lrnev 治理。规则：
+
   1. **先分清"只读"还是"要改"**：纯查代码、定位、解释、回答问题这类不改任何文件的事，直接做——不用先
   project_status，也不用开 spec。下面的流程只在"要动手改代码或推进治理(建/改 spec、task)"时才走。
 
