@@ -7,6 +7,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { dir as tmpDir, type DirectoryResult } from 'tmp-promise';
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
 
 import { FileStorage } from '../../src/storage/FileStorage.js';
 import { WorkspaceManager } from '../../src/core/WorkspaceManager.js';
@@ -74,6 +76,17 @@ describe('WorkspaceManager', () => {
     const project = await fs.read('.lrnev/PROJECT.md');
     expect(project).toContain('# demo-project');
     expect(project).toContain("title: 'demo-project'");
+  });
+
+  it('仅有自动注册预建的 .lrnev/agents/ 时 init 仍应视为首次（was_new=true）', async () => {
+    // 模拟 MCP 连接自动注册先于 init 创建了 .lrnev/agents/（无 PROJECT.md）
+    await mkdir(join(workspace.path, '.lrnev', 'agents'), { recursive: true });
+
+    const res = await manager.init({ root: workspace.path, project_name: 'demo-project' });
+
+    expect(res.ok).toBe(true);
+    expect(res.data.was_new).toBe(true);
+    expect(fs.exists('.lrnev/PROJECT.md')).toBe(true);
   });
 
   it('重复初始化不应覆盖用户已有文档', async () => {

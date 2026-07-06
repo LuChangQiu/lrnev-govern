@@ -67,6 +67,11 @@ export interface LrnevConfig {
     create_max_attempts: number;
   };
 
+  task: {
+    /** task_create_many 单批最多创建多少条任务。 */
+    max_batch_create: number;
+  };
+
   scene: {
     /** Scene 创建时遇到并发冲突后的最大重试次数。 */
     create_max_attempts: number;
@@ -92,6 +97,16 @@ export interface LrnevConfig {
      * 同主机存活以 pid 探活为准,不看心跳年龄;仅在无法探 pid(跨 host / pid 缺失)时回退到本阈值。
      */
     heartbeat_dead_ms: number;
+    /**
+     * register 时是否顺手清理死 agent 记录与过期 claim（机会式 GC）。
+     * false 时 register 不做任何清扫与 status 回写；doctor --gc-agents 不受影响。
+     */
+    auto_gc: boolean;
+    /**
+     * 机会式 GC 的保留期(天)：跨主机心跳判死的记录、孤儿过期 claim 需超过该时长才清。
+     * 本机 pid 判死是确定性死亡，不受保留期约束。非正数/非有限数在实现处按默认值防御回退。
+     */
+    gc_retention_days: number;
   };
 
   hooks: {
@@ -153,6 +168,9 @@ export const DEFAULT_CONFIG: LrnevConfig = {
     file_size_warning_kb: 200,
     create_max_attempts: 10,
   },
+  task: {
+    max_batch_create: 50,
+  },
   scene: {
     create_max_attempts: 10,
   },
@@ -166,6 +184,8 @@ export const DEFAULT_CONFIG: LrnevConfig = {
   },
   agent: {
     heartbeat_dead_ms: 90_000,
+    auto_gc: true,
+    gc_retention_days: 7,
   },
   hooks: {
     default_timeout_ms: 30_000,

@@ -30,6 +30,11 @@ describe('lrnev guide', () => {
     expect(guide.data.content).toContain('可分别认领/并行');
     expect(guide.data.content).toContain('各自独立验收');
     expect(guide.data.content).toContain('别为拆而拆');
+    expect(guide.data.content).toContain('task_create_many');
+    expect(guide.data.content).toContain('governance_map');
+    expect(guide.data.content).toContain('lrnev_report');
+    expect(guide.data.content).toContain('spec_update');
+    expect(guide.data.content).toContain('assess_goal');
     expect(guide.ai_followup.instructions[0]).toContain('完整手册');
   });
 

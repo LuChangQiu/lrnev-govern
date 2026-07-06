@@ -1,14 +1,17 @@
 import { randomBytes } from 'node:crypto';
 import { hostname } from 'node:os';
 
-import { loadConfig } from '../shared/config.js';
+import { loadConfig, DEFAULT_CONFIG } from '../shared/config.js';
 import { LrnevError, ErrorCode } from '../shared/errors.js';
 import { FileStorage } from '../storage/FileStorage.js';
 import { ClaimStore } from './ClaimStore.js';
 import type { AiFollowupResponse } from '../types/response.js';
+import type { TaskClaim } from '../types/claim.js';
 import type {
+  AgentGcSummary,
   AgentInfo,
   AgentListResult,
+  AgentRegisterResult,
   AgentRegistryIssue,
   AgentStatus,
   RegisterAgentInput,
@@ -28,8 +31,9 @@ type AgentRegistryFile = Record<string, AgentInfo>;
 export class AgentRegistry {
   constructor(private readonly fs: FileStorage) {}
 
-  async register(input: RegisterAgentInput = {}): Promise<AiFollowupResponse<AgentInfo>> {
-    const agent = await this.withRegistryLock(async () => {
+  async register(input: RegisterAgentInput = {}): Promise<AiFollowupResponse<AgentRegisterResult>> {
+    const agentConfig = loadConfig(this.fs.root).agent;
+    const { agent, gc } = await this.withRegistryLock(async () => {
       const { registry } = await this.loadRegistry();
       const now = new Date().toISOString();
       const agentId = input.agent_id?.trim() || makeAgentId();
@@ -44,13 +48,28 @@ export class AgentRegistry {
         status: 'active',
       };
       registry[agentId] = info;
+
+      // 机会式 GC:best-effort,任何异常不影响注册主流程;与注册写合并为同一次 saveRegistry。
+      let gcSummary: AgentGcSummary | undefined;
+      if (agentConfig.auto_gc) {
+        try {
+          gcSummary = await this.sweepRegistry(registry, agentId, agentConfig);
+        } catch {
+          gcSummary = undefined;
+        }
+      }
+
       await this.saveRegistry(registry);
-      return info;
+      return { agent: info, gc: gcSummary };
     });
 
+    const hasGcActivity = gc !== undefined && (gc.removed_agents > 0 || gc.removed_claims > 0);
     return {
       ok: true,
-      data: agent,
+      data: {
+        ...agent,
+        ...(hasGcActivity && { gc }),
+      },
       ai_followup: {
         instructions: [
           `Agent "${agent.agent_id}" 已注册并标记 active。`,
@@ -60,6 +79,92 @@ export class AgentRegistry {
         ],
       },
     };
+  }
+
+  /**
+   * 机会式 GC 清扫:register 锁内对 registry 与 claims 做一次卫生整理。
+   *
+   * 判据与死亡确定性对齐(见 scene 03 ADR-0001):
+   * - 本机 pid 判死 = 确定性死亡(重连拿新 agent_id,不会复活),立即可清;
+   * - 跨主机心跳判死 = 推断性死亡,超过 gc_retention_days 保留期才清;
+   * - 两类都要求名下无未过期 claim(dead 但持未过期 claim 的保留为接手线索);
+   * - 过期 claim 按属主状态独立清扫,删除经 removeStale 按 claim 锁重读判据。
+   *
+   * 顺手把幸存条目的落盘 status 回写为计算真值(文件语义:最近一次写路径触达时的快照)。
+   * 注意:不可复用 unregisterAndReleaseClaims——它内部再取 withRegistryLock,目录锁不可重入。
+   */
+  private async sweepRegistry(
+    registry: AgentRegistryFile,
+    selfId: string,
+    agentConfig: { heartbeat_dead_ms: number; gc_retention_days: number },
+  ): Promise<AgentGcSummary> {
+    const now = Date.now();
+    const deadMs = agentConfig.heartbeat_dead_ms;
+    const retentionMs = normalizeRetentionDays(agentConfig.gc_retention_days) * 24 * 60 * 60 * 1000;
+    const claimStore = new ClaimStore(this.fs);
+    const allClaims = await claimStore.listAll();
+    const unexpiredOwners = new Set(
+      allClaims
+        .filter((claim) => new Date(claim.expires_at).getTime() > now)
+        .map((claim) => claim.claimed_by),
+    );
+
+    // 属主状态快照:claim 清扫要看"清理前"的注册信息,与条目删除顺序解耦。
+    const ownerSnapshot = new Map(Object.entries(registry).map(([id, info]) => [id, info]));
+
+    let removedAgents = 0;
+    for (const [agentId, info] of Object.entries(registry)) {
+      if (agentId === selfId) continue;
+      const status = computeAgentStatus(info, deadMs, { now });
+      if (status !== 'dead') {
+        if (info.status !== status) registry[agentId] = { ...info, status };
+        continue;
+      }
+      if (unexpiredOwners.has(agentId)) {
+        if (info.status !== 'dead') registry[agentId] = { ...info, status: 'dead' };
+        continue;
+      }
+      if (!isLocalRecord(info) && !isPastRetention(info.last_heartbeat, now, retentionMs)) {
+        if (info.status !== 'dead') registry[agentId] = { ...info, status: 'dead' };
+        continue;
+      }
+      delete registry[agentId];
+      removedAgents += 1;
+    }
+
+    let removedClaims = 0;
+    for (const claim of allClaims) {
+      if (!(await this.isClaimSweepable(claim, ownerSnapshot, now, deadMs, retentionMs))) continue;
+      try {
+        if (await claimStore.removeStale(claim)) removedClaims += 1;
+      } catch {
+        // 单个 claim 删除失败(损坏/占用)跳过,留待下次;doctor 负责报告。
+      }
+    }
+
+    return { removed_agents: removedAgents, removed_claims: removedClaims };
+  }
+
+  /**
+   * 过期 claim 是否可清(F-02):属主 active 不清;本机死属主立即清;
+   * 跨主机死属主/未注册属主须过期超保留期才清。
+   */
+  private async isClaimSweepable(
+    claim: TaskClaim,
+    ownerSnapshot: Map<string, AgentInfo>,
+    now: number,
+    deadMs: number,
+    retentionMs: number,
+  ): Promise<boolean> {
+    const expiresMs = new Date(claim.expires_at).getTime();
+    if (!Number.isFinite(expiresMs) || expiresMs > now) return false;
+    const owner = ownerSnapshot.get(claim.claimed_by);
+    if (!owner) {
+      return now - expiresMs > retentionMs;
+    }
+    if (computeAgentStatus(owner, deadMs, { now }) !== 'dead') return false;
+    if (isLocalRecord(owner)) return true;
+    return now - expiresMs > retentionMs;
   }
 
   async list(): Promise<AiFollowupResponse<AgentListResult>> {
@@ -267,6 +372,23 @@ export function defaultIsPidAlive(pid: number): boolean {
   } catch (err) {
     return (err as NodeJS.ErrnoException).code === 'EPERM';
   }
+}
+
+/** 记录是否为本机记录:host 相同且 pid 合法——此时 computeAgentStatus 走 pid 探活,判死为确定性死亡。 */
+function isLocalRecord(agent: AgentInfo): boolean {
+  return agent.host === hostname() && Number.isInteger(agent.pid) && agent.pid > 0;
+}
+
+/** last_heartbeat 是否已超过保留期;时间戳非法视为超期(无法证明其新鲜)。 */
+function isPastRetention(lastHeartbeat: string, nowMs: number, retentionMs: number): boolean {
+  const heartbeatMs = new Date(lastHeartbeat).getTime();
+  if (!Number.isFinite(heartbeatMs)) return true;
+  return nowMs - heartbeatMs > retentionMs;
+}
+
+/** gc_retention_days 防御回退:config 的 deepMerge 只挡类型不符,同类型非法值(负数/0/NaN)在此按默认值处理。 */
+function normalizeRetentionDays(value: number): number {
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_CONFIG.agent.gc_retention_days;
 }
 
 function normalizeAgentInfo(agentId: string, value: unknown): AgentInfo | null {

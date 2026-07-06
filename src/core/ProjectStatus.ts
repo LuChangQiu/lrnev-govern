@@ -66,6 +66,9 @@ export class ProjectStatus {
           activeTasks.length > 0
             ? '从 active_tasks 里的 in_progress / blocked Task 接手；需要细节时再调用 spec_get。'
             : '当前没有 in_progress / blocked Task；如要继续规划，先查看 specs 中的 draft/ready 项。',
+          ...(specs.some((spec) => spec.free_tasks_count > spec.claimable_next.length)
+            ? [`claimable_next 每个 Spec 最多预览 ${this.claimablePreview()} 条（config project_status.claimable_preview），可领任务全量数量看各 Spec 的 free_tasks_count。`]
+            : []),
           '需要某个 Scene 的上下文时调用 scene_get；需要某个 Spec 的文档状态时调用 spec_get。',
           'project_status 只做接手概览，不废弃 scene_list/spec_list 这类按需深入工具。',
         ],
@@ -294,6 +297,7 @@ function toProjectStatusTaskBrief(task: Task): ProjectStatusTaskBrief {
   return {
     id: task.id,
     title: task.title,
+    ...(task.depends_on && task.depends_on.length > 0 && { depends_on: task.depends_on }),
   };
 }
 

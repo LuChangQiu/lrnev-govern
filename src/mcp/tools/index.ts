@@ -291,6 +291,29 @@ function registerTaskTools(server: McpServer): void {
   );
 
   server.registerTool(
+    'task_create_many',
+    {
+      title: 'Create Many Tasks',
+      description: TOOL_DESCRIPTIONS.task_create_many,
+      inputSchema: {
+        scene: z.string().describe('Scene 标识'),
+        spec: z.string().describe('Spec 标识'),
+        tasks: z.array(z.object({
+          title: z.string().describe('任务标题'),
+          description: z.string().optional().describe('可选：任务描述'),
+          acceptance: z.array(z.string()).optional().describe('可选：验收标准列表'),
+          depends_on: z.array(z.string()).optional().describe('可选：依赖列表；每项可为批内其它条目的 key 或已存在的真实 Task ID'),
+          parent: z.string().optional().describe('可选：父 Task ID；只接受已存在的真实 Task ID，不支持批内 key'),
+          validates: z.array(z.string()).optional().describe('可选：需求/设计锚点，例如 F-01 或 D-02'),
+          key: z.string().optional().describe('可选：批内临时键，供同批 depends_on 引用；不得使用 T-xxx 格式，不落盘'),
+        })).describe('要创建的任务列表；按数组顺序分配 T-xxx，任一条校验失败整批不写'),
+      },
+      annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    },
+    async (args) => toToolResult(getManagers().tasks.createMany(args)),
+  );
+
+  server.registerTool(
     'task_update',
     {
       title: 'Update Task',

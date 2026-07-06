@@ -114,11 +114,13 @@ function isInitializedWorkspace(root: string): boolean {
  *   在 T-204 阶段调用本函数后单独写入（避免本层依赖模板）。
  *
  * @param root 工作区根（包含 .lrnev/ 的父目录）
- * @returns 是否是首次初始化（true=新建，false=已存在）
+ * @returns 是否是首次初始化（true=尚无治理档案，false=已初始化）。
+ *   判据是 PROJECT.md（"已初始化"标记）是否存在，而非 .lrnev/ 目录——
+ *   MCP 连接自动注册会先创建 .lrnev/agents/，目录存在不代表初始化过。
  */
 export async function ensureWorkspace(root: string): Promise<boolean> {
   const paths = workspacePaths(root);
-  const wasNew = !existsSync(paths.root);
+  const wasNew = !isInitializedWorkspace(root);
 
   // 顺序创建所有标准目录（mkdir recursive 幂等）
   const dirs = [

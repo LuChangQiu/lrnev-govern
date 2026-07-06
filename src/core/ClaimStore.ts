@@ -96,6 +96,23 @@ export class ClaimStore {
     return released;
   }
 
+  /**
+   * GC 辅助：按 claim 锁重读判据后删除过期 claim，消除 TOCTOU 窗口。
+   *
+   * 快照到删除之间若被他人接手（claimed_by 变化）或续租（不再过期），放弃删除。
+   * 只在机会式 GC 路径调用；claim 锁与 registry 锁不同命名空间，无死锁。
+   */
+  async removeStale(claim: TaskClaim): Promise<boolean> {
+    return this.fs.withDirectoryLock(claimLockPath(claim.scene, claim.spec, claim.task), async () => {
+      const current = await this.readClaim(claim.scene, claim.spec, claim.task);
+      if (!current) return false;
+      if (current.claimed_by !== claim.claimed_by) return false;
+      if (!isExpired(current)) return false;
+      await this.fs.rm(claimPath(claim.scene, claim.spec, claim.task));
+      return true;
+    });
+  }
+
   /** claim 是否可被他人接手:TTL 过期,或属主 agent 已死。 */
   private async isReclaimable(claim: TaskClaim, nowMs = Date.now()): Promise<boolean> {
     if (isExpired(claim, nowMs)) return true;

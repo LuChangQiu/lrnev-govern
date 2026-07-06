@@ -1,4 +1,4 @@
-# lrnev 执行顺序总纲（2026-06-12）
+# lrnev 执行顺序总纲（2026-06-12 定稿，2026-07-06 勾进度）
 
 > 汇总 2026-06-12 全部讨论的执行视图：先做什么、每步引用哪份权威文档、彼此什么依赖。
 > 战略依据：`PRODUCT-STRATEGY.md`（为什么）；本文只管「按什么顺序动手」。
@@ -30,38 +30,25 @@
    GitHub Packages 评估结论：不做（公开包下载也要 token=纯摩擦；
    双源=分发层的"两路不对等"；Release tarball 已覆盖直链需求）
 
-3. scene 02-context-delivery：任务启动上下文      ← 下一步，方案已拍板（2026-06-12 GPT 复核 + 用户确认）
-   【scene 边界】业务线=「把治理数据在正确时刻送进 AI 上下文」：
-   S8 任务启动回填是第一个 spec；治理地图、context_search 升级
-   （锚点抽段+BM25）、维护通道铺显后续作为同 scene spec 进来。
-   scene 名不用 02-anchor-payoff（太抽象）也不用 02-task-start-context
-   （拿 spec 名当 scene 名=粒度混淆）。
-   【S8 requirements 必须写入】
-   a. TASK-START-CONTEXT.md 的收敛验收口径（含截断 400/1200、
-      D-xx 默认只回首行+标题、降级链、task_claim 堵旁路）
-   b. 回填走独立结构化字段（如 anchor_context），不塞 instructions
-      ——CLI/MCP 对等的硬要求：独立字段可被 CLI JSON 同构消费，
-      字符串塞 instructions 则 CLI 侧无法程序化处理
-   c. 验收条目（非 design 备注）：「回填不替代原文，followup 保留
-      指向原文的提示」——防弱模型把 400 字截断当全部需求
-   【流程】scene_create 02-context-delivery → S8 spec_create →
-   requirements → ready gate → 停下等用户审。只写 spec 不动代码。
-   【roadmap 必须列入计划中】治理地图、搜索升级、维护通道铺显
-   （PRODUCT-STRATEGY 第一步，纯 followup 文案级、体量极小，
-   可与 S8 平行或紧随——不列入就成孤儿，讽刺的是维护态缺口的
-   解法自己掉进维护态缺口）
-   依据：dev-docs/TASK-START-CONTEXT.md + 本节拍板记录
-   复用 S6 的锚点基础设施（extractAnchorPool → 新增 extractAnchorSections，
-   沉淀为共享工具供治理地图复用）
+3. scene 02-context-delivery：任务启动上下文      ✅ 完成（v2.1.0 发布，2026-06-16）
+   S8 anchor_context/summary_context 回填（独立结构化字段，CLI/MCP 对等）、
+   需求审核门、维护通道铺显（四路分流）全部落地；
+   codex+opencode 双模型真机 E2E + Claude 独立复核后发版。
+   历史拍板细节见 archive/TASK-START-CONTEXT.md 与 archive/E2E-AUDIT-2026-06-16.md。
 
-4. 检索三件套（见第三节结论）
-   ① 治理地图（repo-map 思路，定位的"不搜索"解法）
-   ② context_search 升级：BM25 打分 + 锚点级抽段返回
-   ③ （不做新 spec_locate 工具，升级 context_search 返回结构，工具数不涨）
+4. 检索三件套                                     ✅ 完成（v2.1.0，与第 3 步同版发布）
+   ① 治理地图 governance_map / lrnev map ✅
+   ② context_search：BM25 打分 + 锚点级抽段返回 ✅
+   ③ 未新增 spec_locate 工具（升级 context_search 返回结构，工具数不涨）✅
 
 5. 战略四步继续（PRODUCT-STRATEGY.md）
-   维护通道铺显（followup/steering）→ git pre-commit + doctor 审计
-   （硬依赖维护通道先行）→ AGENTS.md / lrnev integrate 薄垫片 → lrnev report
+   ✅ 维护通道铺显（v2.1，followup/steering 四路分流）
+   ✅ lrnev report（v2.2.0，2026-06-18：治理体检，给人看的"分红"）
+   ✅ 插曲（v2.3.0，2026-07-06）：机会式 GC（registry/claims 自动清扫）+
+      task_create_many 批量建任务 + 发布前三客户端盲测审计整改
+      （guide 同步、was_new 修正、claimable 透明化、CONFIG 成文）
+   ☐ git pre-commit + doctor 审计（硬依赖维护通道先行——已满足）← 下一步
+   ☐ AGENTS.md / lrnev integrate 薄垫片
 ```
 
 **锚点基础设施是贯穿 1/3/4/5 的同一条筋**，一份投入五处变现：
@@ -81,13 +68,14 @@
 
 | 文档 | 角色 | 何时翻 |
 |---|---|---|
-| `FINDINGS-CHECKLIST.md` | scene 01 的最终决定表（用户拍板） | 实现 scene 01 任一 spec 前回查边界 |
+| `archive/FINDINGS-CHECKLIST.md` | scene 01 的最终决定表（用户拍板，已全部消化进 v2.0） | 回溯 v2.0 边界决策时 |
 | `INTEGRATION-TEST.md` | **常备真机验证关卡**——覆盖 CI 测不到的协议握手、ai_followup 真驱动、多模型矩阵、性能基准 | 每批行为变更（gate/followup/工具）合入后；发版前 |
-| `TASK-START-CONTEXT.md` | 已收敛的功能提案（验收口径定稿） | S6 完成后立项开 spec 时 |
+| `archive/TASK-START-CONTEXT.md` | 功能提案定稿（已作为 v2.1 anchor_context 完整落地） | 回溯 v2.1 验收口径时 |
 | `PRODUCT-STRATEGY.md` | 战略层「为什么和往哪走」 | 评估新需求是否该做、排序时 |
+| `E2E-REPORT-*-V23-2026-07-06.md` | v2.3 发布前三客户端盲测报告（codex/opencode/claude） | 回看真机卡点与整改依据时 |
 | 本文 | 执行层「按什么顺序动手」 | 每完成一步勾掉、接下一步 |
 
-注意：INTEGRATION-TEST.md 标注 38 工具 / 520+ 测试，PROJECT.md 写 570 测试——数字有漂移，下次真机走清单时顺手以实跑输出为准修正。
+历史快照（v1.x 两轮集成测试、v2.1 E2E 五件套等）已移入 `archive/`，发现均已消化，仅作回溯。
 
 ---
 
@@ -127,4 +115,4 @@
 
 ## 四、现在就该做的一件事
 
-**scene 01 的 S2（deterministic-hard-checks，P0）**，开工前做完第一节第 0 步整备。其余一切都在它和 S6 的下游。
+**战略第二步：git 执法环**（pre-commit + doctor 审计 + AGENTS.md / `lrnev integrate` 薄垫片）。其硬前置「维护通道铺显」已在 v2.1 满足；v2.3 已发布审计整改，治理债清零，正是开工窗口。战略依据见 `PRODUCT-STRATEGY.md` 第二步。

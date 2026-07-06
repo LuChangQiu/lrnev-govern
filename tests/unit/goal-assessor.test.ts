@@ -21,6 +21,9 @@ describe('GoalAssessor', () => {
     const res = assessor.assess('重构认证系统，同时调整权限、登录、用户资料多个工作流');
     expect(res.data.kind).toBe('multi-spec-program');
     expect(res.data.reasons.join('\n')).toContain('跨模块');
+    // 评估是启发式信号：用户已明确单特性时应给出可继续 single-spec 的 override 指引
+    expect(res.data.suggested_next_step).toContain('启发式信号');
+    expect(res.data.suggested_next_step).toContain('single-spec');
   });
 
   it('调研和选型目标应评估为 research-program', () => {

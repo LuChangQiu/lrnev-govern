@@ -240,6 +240,37 @@ describe('ProjectStatus', () => {
     expect(locked?.claimable_next).toEqual([{ id: 'T-002', title: 'E' }]);
   });
 
+  it('claimable_next 条目应带出非空 depends_on（依赖不阻断领取，仅透明提示）', async () => {
+    const scene = await scenes.create({ name: 'user-management' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'dep-visible' });
+    await tasks.create({ scene: scene.data.id, spec: spec.data.spec, title: 'base' });
+    await tasks.create({ scene: scene.data.id, spec: spec.data.spec, title: 'dependent', depends_on: ['T-001'] });
+
+    const result = await new ProjectStatus(fs, scenes).get();
+    const entry = result.data.specs.find((s) => s.spec === spec.data.spec);
+
+    expect(entry?.claimable_next).toEqual([
+      { id: 'T-001', title: 'base' },
+      { id: 'T-002', title: 'dependent', depends_on: ['T-001'] },
+    ]);
+  });
+
+  it('可领任务超过预览上限时 followup 应给出截断说明', async () => {
+    const scene = await scenes.create({ name: 'user-management' });
+    const spec = await specs.create({ scene: scene.data.id, name: 'many-free' });
+    for (let i = 0; i < 7; i += 1) {
+      await tasks.create({ scene: scene.data.id, spec: spec.data.spec, title: `task-${i}` });
+    }
+
+    const result = await new ProjectStatus(fs, scenes).get();
+    const entry = result.data.specs.find((s) => s.spec === spec.data.spec);
+
+    expect(entry?.free_tasks_count).toBe(7);
+    expect(entry?.claimable_next).toHaveLength(5);
+    expect(result.ai_followup?.instructions.join('\n')).toContain('最多预览 5 条');
+    expect(result.ai_followup?.instructions.join('\n')).toContain('free_tasks_count');
+  });
+
   it('F-14: 无 Agent 时 active_agents 为空且 project_status 不产生新文件', async () => {
     const scene = await scenes.create({ name: 'user-management' });
     const spec = await specs.create({ scene: scene.data.id, name: 'user-login' });

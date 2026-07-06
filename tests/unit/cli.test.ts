@@ -356,6 +356,85 @@ describe('CLI', () => {
     expect(spec.data.spec).toBe('01-00-quick-feature');
   });
 
+  it('F-05(create-many): task create-many --from-file 与 core 同构落盘，key 依赖解析', async () => {
+    await run(['init', '--project-name', 'demo']);
+    await run(['spec', 'create', 'batch-feature']);
+    const tasksJson = join(workspace.path, 'tasks-batch.json');
+    await writeFile(tasksJson, JSON.stringify({
+      tasks: [
+        { key: 'schema', title: '建模', validates: ['F-01'] },
+        { title: '接口', depends_on: ['schema'] },
+      ],
+    }), 'utf-8');
+
+    const res = await run([
+      'task', 'create-many',
+      '--scene', DEFAULT_SCENE_ID,
+      '--spec', '01-00-batch-feature',
+      '--from-file', tasksJson,
+    ]);
+
+    expect(res.ok).toBe(true);
+    expect(res.data.created).toEqual([
+      { id: 'T-001', title: '建模' },
+      { id: 'T-002', title: '接口' },
+    ]);
+    expect(res.data.count).toBe(2);
+
+    const list = await run(['task', 'list', '--scene', DEFAULT_SCENE_ID, '--spec', '01-00-batch-feature']);
+    const api = list.data.find((t: { id: string }) => t.id === 'T-002');
+    expect(api.depends_on).toEqual(['T-001']);
+  });
+
+  it('F-05(create-many): --from-file 非法 JSON 报结构化 INVALID_INPUT', async () => {
+    await run(['init', '--project-name', 'demo']);
+    await run(['spec', 'create', 'batch-feature']);
+    const badJson = join(workspace.path, 'bad.json');
+    await writeFile(badJson, '{ not json', 'utf-8');
+
+    let errOut = '';
+    const program = buildCli({
+      writeOut: () => undefined,
+      writeErr: (text) => { errOut += text; },
+    });
+    const prevExitCode = process.exitCode;
+    await program.parseAsync([
+      'node', 'lrnev', '--workspace', workspace.path, '--json',
+      'task', 'create-many',
+      '--scene', DEFAULT_SCENE_ID,
+      '--spec', '01-00-batch-feature',
+      '--from-file', badJson,
+    ]);
+    process.exitCode = prevExitCode;
+
+    const res = JSON.parse(errOut);
+    expect(res.ok).toBe(false);
+    expect(res.errors[0].code).toBe('INVALID_INPUT');
+  });
+
+  it('F-05(auto-gc): agent register 的 CLI JSON 输出与 MCP 同构透传 gc 字段', async () => {
+    await run(['init', '--project-name', 'demo']);
+    const fs = new FileStorage(workspace.path);
+    await fs.writeJson('.lrnev/agents/registry.json', {
+      'dead-local': {
+        agent_id: 'dead-local',
+        pid: 2 ** 30,
+        host: (await import('node:os')).hostname(),
+        started_at: new Date(Date.now() - 86_400_000).toISOString(),
+        last_heartbeat: new Date(Date.now() - 86_400_000).toISOString(),
+        status: 'active',
+      },
+    });
+
+    const res = await run(['agent', 'register', '--id', 'cli-agent']);
+
+    expect(res.ok).toBe(true);
+    expect(res.data.agent_id).toBe('cli-agent');
+    expect(res.data.gc).toEqual({ removed_agents: 1, removed_claims: 0 });
+    const registry = await fs.readJson<Record<string, unknown>>('.lrnev/agents/registry.json');
+    expect(Object.keys(registry)).toEqual(['cli-agent']);
+  });
+
   async function run(args: string[]): Promise<any> {
     let out = '';
     const program = buildCli({ writeOut: (text) => { out += text; } });

@@ -2,7 +2,7 @@
 
 > AI 协作开发的项目治理引擎 —— MCP 服务 + CLI 双形态，文件即真相，零模型依赖。
 
-npm 包名 `lrnev`，当前版本 `2.2.0`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。一行命令装好 👇
+npm 包名 `lrnev`，当前版本 `2.3.0`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。一行命令装好 👇
 
 ```bash
 npm install -g lrnev
@@ -128,10 +128,10 @@ lrnev 的设计原则是**让 AI 永远只读"当前这一步需要的最小信�
 │   └── hooks.json                  # Hooks 配置
 │
 ├── agents/
-│   └── registry.json               # Agent 注册中心（会话存活,随进程生命周期判定）
+│   └── registry.json               # Agent 注册中心（会话存活,随进程生命周期判定;register 时自动 GC 死记录）
 │
 ├── runtime/
-│   └── claims/                     # Task claim 运行态软占用
+│   └── claims/                     # Task claim 运行态软占用（过期残留由自动 GC 清扫）
 │
 ├── state/
 │   └── hook-log.jsonl              # Hook 执行日志
@@ -248,6 +248,10 @@ lrnev task create "实现登录 API" \
   --validates F-01 \
   --acceptance "POST /login 200" "错误密码 401"
 
+# 批量建任务（v2.3：spec ready 后一次性拆任务；JSON 数组或 {"tasks":[...]}，传 - 读 stdin）
+# 批内依赖用 key 临时键（禁 T-xxx 格式）；任一条校验失败整批不写并一次返回全部错误
+lrnev task create-many --scene 00-default --spec 01-00-user-login --from-file tasks.json
+
 # 推任务状态（in_progress/claim 会回填 anchor_context 验收口径段落；无 validates 则回填 spec 级 summary_context）
 lrnev task update T-001 --scene 00-default --spec 01-00-user-login --status in_progress
 lrnev task update T-001 --scene 00-default --spec 01-00-user-login --status completed
@@ -329,9 +333,10 @@ step 4: 搞砸了 → 错误 hint 告诉它怎么修（不用回头问用户）
 |----------|------|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 源码结构与设计原则 |
 | [`docs/GOVERNANCE-FLOW.md`](docs/GOVERNANCE-FLOW.md) | Gate 语义、哨兵、状态机、resume、adopt、与 OV 边界 |
+| [`docs/CONFIG.md`](docs/CONFIG.md) | `.lrnev/config/lrnev.json` 全部配置键与默认值 |
 | [`docs/HOOKS.md`](docs/HOOKS.md) | Hooks 配置写法与事件列表 |
 | [`docs/MULTI-AGENT.md`](docs/MULTI-AGENT.md) | 多 Agent 注册、心跳与 claim 接管 |
-| [`docs/AI-ADAPTATION.md`](docs/AI-ADAPTATION.md) | 跨客户端适配原则、常驻提示词模板与实测矩阵 |
+| [`docs/AI-ADAPTATION.md`](docs/AI-ADAPTATION.md) | 跨客户端适配、LRNEV_WORKSPACE、42 工具总览与实测矩阵 |
 
 | 示例 | 内容 |
 |------|------|
@@ -343,7 +348,7 @@ step 4: 搞砸了 → 错误 hint 告诉它怎么修（不用回头问用户）
 
 ```bash
 npm install && npm run build
-npm test            # 654 条测试 ✅
+npm test            # 692 条测试 ✅
 npm run dev:mcp     # tsx watch 跑 MCP
 npm run dev:inspect # MCP Inspector 调试
 npm run lrnev -- init   # 本地跑 CLI

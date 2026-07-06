@@ -34,7 +34,7 @@ lrnev --help
 ## 二、协议接入层（最关键，单测测不到）
 
 - [ ] **握手**：client 连上 `lrnev-mcp` stdio，不报错、不超时。
-- [ ] **工具发现**：`listTools` 返回 **38 个**工具。
+- [ ] **工具发现**：`listTools` 返回 **42 个**工具（v2.3；含 `task_create_many`、`governance_map`、`lrnev_report`、`spec_update`）。
 - [ ] **adr_suggest 已删**：列表里**没有** `adr_suggest`、也没有 `lock_acquire/lock_release/lock_list`。
 - [ ] **新工具在**：`lrnev_hook_tail_log` 在列表里。
 - [ ] **描述渲染**：每个工具 description 可见且含"何时用"。
@@ -61,14 +61,16 @@ lrnev --help
 
 ---
 
-## 四、各能力域逐项（38 工具全覆盖）
+> v2.1~v2.3 新增验证面（真机走查时重点）：`anchor_context`/`summary_context` 任务启动回填（task_update/task_claim 两入口）、需求审核门（ready 通过后的"请暂停"+ 无条件填 design 提示）、BM25 排序与锚点抽段、治理地图、`lrnev report` 治理债口径、register 机会式 GC（`data.gc` 字段）、`task_create_many` 原子批量与错误明细、`was_new` 以 PROJECT.md 判定。v2.3 三客户端盲测报告见 `E2E-REPORT-*-V23-2026-07-06.md`。
+
+## 四、各能力域逐项（42 工具全覆盖，v2.3）
 
 | 域 | 工具 | 看什么 |
 |----|------|--------|
-| 接入/引导 | `lrnev_init` `lrnev_guide` `project_status` | guide 四档(workflow/tools/errors/concepts)都能返回；接手快照可读 |
+| 接入/引导 | `lrnev_init` `lrnev_guide` `project_status` `governance_map` `lrnev_report` | guide 四档都能返回；接手快照可读（含 claimable 预览截断说明）；治理地图全景；report 治理债口径 |
 | Scene | `scene_create` `scene_list` `scene_get` | 序号自增、三文档、统计正确 |
-| Spec | `spec_create` `spec_list` `spec_get` `spec_gate_check` | 三档 gate(creation/ready/completion)语义各自正确 |
-| Task | `task_create` `task_update` `task_list` `task_claim` `task_release` | 状态机(pending→in_progress→completed/failed/blocked)、子任务 parent、claim/release |
+| Spec | `spec_create` `spec_list` `spec_get` `spec_update` `spec_gate_check` | 三档 gate(creation/ready/completion)语义各自正确；状态机回填 |
+| Task | `task_create` `task_create_many` `task_update` `task_list` `task_claim` `task_release` | 状态机、子任务 parent、claim/release；批量原子创建（key 依赖、整批拒绝、压缩返回，v2.3） |
 | 目标评估 | `assess_goal` | single-spec / multi-spec-program / research-program 三类 |
 | ADR | `adr_create` `adr_list` `adr_get` | scope(global/scene)、索引更新 |
 | 错误手册 | `error_record` `error_search` `error_promote` | 指纹去重；incident→promoted 需 verification |
@@ -164,7 +166,7 @@ lrnev --help
 ## 十一、CI 可自动化的测试
 
 每次 `npm test` 覆盖：
-- 测试规模：以 `npm test` 实跑输出为准（当前约 39 个测试文件、520+ 条）。
+- 测试规模：以 `npm test` 实跑输出为准（v2.3 审计整改后为 46 个测试文件、692 条）。
 - 覆盖：所有 Manager、MCP 协议、CLI、并发、状态机、gate、agent 心跳、hooks、guide。
 - 执行：`npm test`；构建：`npm run build`(应零警告)。
 

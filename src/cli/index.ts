@@ -37,7 +37,7 @@ import { buildGuide, GUIDE_TOPIC_VALUES, type GuideTopic } from '../mcp/guidance
 import type { Scope } from '../types/response.js';
 import type { GateType } from '../types/gate.js';
 import type { SpecPriority, SpecStatus } from '../types/spec.js';
-import type { TaskStatus } from '../types/task.js';
+import type { CreateManyTaskEntry, TaskStatus } from '../types/task.js';
 
 export interface BuildCliOptions {
   writeOut?: (text: string) => void;
@@ -66,6 +66,7 @@ interface CliActionOptions extends CliGlobals {
   description?: string;
   fix?: boolean;
   fixAction: string;
+  fromFile: string;
   gate: GateType;
   gcAgents?: boolean;
   id: string;
@@ -245,6 +246,15 @@ function buildTaskCommand(program: Command, options: BuildCliOptions): Command {
       parent: opts.parent,
       validates: opts.validates,
       depends_on: opts.dependsOn,
+    })));
+  task.command('create-many')
+    .requiredOption('--scene <scene>', 'Scene 标识')
+    .requiredOption('--spec <spec>', 'Spec 标识')
+    .requiredOption('--from-file <path>', '任务列表 JSON 文件路径；传 - 从 stdin 读取')
+    .action(run(program, options, async (opts) => managers(opts).tasks.createMany({
+      scene: opts.scene,
+      spec: opts.spec,
+      tasks: await readTaskEntries(opts.fromFile),
     })));
   task.command('update')
     .requiredOption('--scene <scene>', 'Scene 标识')
@@ -827,6 +837,40 @@ function withTaskListFollowup<T>(tasks: T[]): { ok: true; data: T[]; ai_followup
 function normalizeTaskTitle(title: string | undefined, parsedArgs: string[]): string {
   const argTitle = parsedArgs.at(0);
   return argTitle ?? title ?? '';
+}
+
+/** 读取批量任务列表：JSON 数组，或形如 {"tasks":[...]} 的包装对象（与 readMemoryCandidates 同款宽进）。 */
+async function readTaskEntries(filePath: string): Promise<CreateManyTaskEntry[]> {
+  let raw: string;
+  try {
+    raw = filePath.trim() === '-'
+      ? await readStdin()
+      : await readFile(filePath, 'utf-8');
+  } catch (err) {
+    throw new LrnevError(ErrorCode.INVALID_INPUT, `无法读取任务列表文件：${filePath}`, {
+      field: 'from_file',
+      hint: '确认文件路径存在且可读；传 - 表示从 stdin 读取。',
+      cause: err,
+    });
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new LrnevError(ErrorCode.INVALID_INPUT, `任务列表不是合法 JSON：${filePath}`, {
+      field: 'from_file',
+      hint: '检查 JSON 语法。',
+      cause: err,
+    });
+  }
+  if (Array.isArray(parsed)) return parsed as CreateManyTaskEntry[];
+  if (parsed !== null && typeof parsed === 'object' && Array.isArray((parsed as { tasks?: unknown }).tasks)) {
+    return (parsed as { tasks: CreateManyTaskEntry[] }).tasks;
+  }
+  throw new LrnevError(ErrorCode.INVALID_INPUT, '任务列表必须是 JSON 数组，或包含 tasks 数组字段的 JSON 对象', {
+    field: 'from_file',
+    hint: '传入 JSON 数组，或形如 {"tasks":[...]} 的 JSON 对象。',
+  });
 }
 
 async function readMemoryCandidates(filePath?: string): Promise<MemoryCandidate[]> {

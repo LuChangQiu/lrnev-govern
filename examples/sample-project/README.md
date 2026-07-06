@@ -162,6 +162,10 @@ lrnev task create "实现登录 API" \
   --validates F-01 D-01 \
   --acceptance "POST /login 200 含 session cookie" "错误密码 401"
 
+# 已经想好完整任务清单？用批量创建一次落盘（v2.3）：JSON 数组，批内依赖用 key 临时键，
+# 任一条校验失败整批不写并一次返回全部错误
+# lrnev task create-many --scene 00-default --spec 01-00-user-login --from-file tasks.json
+
 # 开始干活：状态机会校验 pending → in_progress；ai_followup 回填 anchor_context（F-01 验收口径段落），无 validates 则回填 spec 级 summary_context
 lrnev spec update 01-00-user-login --scene 00-default --status in-progress --reason "demo 开始实现"
 lrnev task update T-001 --scene 00-default --spec 01-00-user-login --status in_progress
@@ -236,7 +240,7 @@ lrnev error record \
 │       ├── requirements.md  # 已填完
 │       ├── design.md        # 已填完，completion gate 会检查无 FILL
 │       └── tasks.md         # 含 T-001 completed + meta 注释
-├── errorbook/incidents/...  # 步骤 9 的记录
+├── errorbook/incidents/...  # 步骤 11 的记录
 └── auto/codebase.json
 ```
 

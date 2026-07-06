@@ -26,7 +26,7 @@ claim 是运行态，不是第二份任务状态索引。删掉 `.lrnev/runtime/
 | `client` | 客户端名称，例如 `codex`、`claude-code`、`cursor` |
 | `started_at` | Agent 首次注册时间 |
 | `last_heartbeat` | 最近一次活动时间；跨主机存活判定的兜底信号 |
-| `status` | 惰性计算后的 `active` 或 `dead` |
+| `status` | 惰性计算后的 `active` 或 `dead`；落盘值是"最近一次写路径（注册/心跳/register 清扫）触达时的快照"，实时状态以读时计算为准 |
 
 ### 存活判定:进程生命周期为主,心跳为兜底
 
@@ -38,6 +38,25 @@ lrnev 是 stdio MCP 服务，每个客户端窗口都会把它当**子进程**�
 判定是惰性的：只在 `agent_list`、`project_status`、`doctor` 等读取动作发生时计算，不起后台轮询。
 
 > 设计背景见 ADR《Agent 存活信号从心跳年龄改为 stdio 进程/连接生命周期》。早期版本要求客户端每 30 秒调一次 `agent_heartbeat`，但 MCP 协议没有定时器、LLM 客户端也不会周期性主动调工具，导致活着的会话被误判为 dead、claim 被误回收。现在改用进程生命周期作为主信号。
+
+### 机会式清理（自动 GC，v2.3 起）
+
+死掉的 agent 记录与过期 claim 文件不会无界堆积：每次 `agent_register`（含 MCP 连接时的自动注册）会在注册锁内顺手做一次清扫，无需任何人记得跑维护命令。
+
+清理判据与死亡确定性对齐：
+
+- **本机 pid 判死**（确定性死亡，重连拿新 `agent_id`、不会复活）→ 立即清理；
+- **跨主机心跳判死**（推断性死亡）→ 超过 `agent.gc_retention_days`（默认 7 天）保留期才清理；
+- 两类都要求名下**无未过期 claim**——dead 但仍持有效 claim 的记录保留，作为接手线索；
+- 过期 claim 文件按属主状态独立清扫：属主 active 不动；本机死属主的立即删；跨主机死属主/未注册属主的过期超保留期才删。未过期 claim 一律不动。
+
+其它行为：
+
+- 幸存条目的落盘 `status` 顺手回写为计算真值（消除"文件里全是 active"的误导）。
+- 实际清理了内容时，register 返回的 `data` 附 `gc: { removed_agents, removed_claims }`；没清理则无该字段。GC 结果不进 followup 文案。
+- 清扫是 best-effort：任何异常（损坏 claim 文件、删除失败）不影响注册本身，留待下次。
+- 配置：`.lrnev/config/lrnev.json` 中 `agent.auto_gc`（默认 `true`，设 `false` 完全关闭）与 `agent.gc_retention_days`（默认 `7`）。
+- `lrnev doctor --gc-agents` 原样保留：显式维护入口，判死即清（无保留期），语义不变；`agent_list` / `project_status` 等只读路径依旧零写副作用。
 
 ## Task Claim
 
@@ -159,7 +178,7 @@ lrnev 不读源码、不锁源码、不裁决源码冲突。`touches_files` 只�
 | `ORPHAN_CLAIM` | 某未过期 claim 的属主 Agent 已退出或不在注册表 | warning |
 | `AGENT_REGISTRY_INVALID` | `registry.json` 损坏或结构无效 | warning |
 
-`STALE_TASK_CLAIM` 不会自动把 Task 状态改回 pending。Task 状态是真相，claim 只是“有没有人正在做”的运行态提示。`STALE_AGENT` / `ORPHAN_CLAIM` 也只是提示，读取时已按 dead 计算，不影响接手；如想保持注册表/claim 目录干净，可按建议清理。
+`STALE_TASK_CLAIM` 不会自动把 Task 状态改回 pending。Task 状态是真相，claim 只是“有没有人正在做”的运行态提示。`STALE_AGENT` / `ORPHAN_CLAIM` 也只是提示，读取时已按 dead 计算，不影响接手；自 v2.3 起 register 时的机会式 GC 会自动清掉可安全删除的残留，这两类提示通常只剩"保留期内"或"持有效 claim"的记录。
 
 ## 会话生命周期(自动)
 

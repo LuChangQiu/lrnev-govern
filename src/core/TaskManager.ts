@@ -30,7 +30,8 @@
  */
 
 import { FileStorage } from '../storage/FileStorage.js';
-import { LrnevError, ErrorCode } from '../shared/errors.js';
+import { LrnevError, ErrorCode, type BatchErrorDetail } from '../shared/errors.js';
+import { loadConfig } from '../shared/config.js';
 import { SceneManager } from './SceneManager.js';
 import { SpecManager } from './SpecManager.js';
 import { appendHookWarnings, getHookManager } from './HookManager.js';
@@ -42,6 +43,9 @@ import type {
   TaskStatus,
   ReadableTask,
   CreateTaskInput,
+  CreateManyTaskEntry,
+  CreateManyTasksInput,
+  CreateManyTasksResult,
   UpdateTaskInput,
   TaskListView,
 } from '../types/task.js';
@@ -238,6 +242,204 @@ export class TaskManager {
   }
 
   /**
+   * 批量创建 Task（task_create_many）。
+   *
+   * 两阶段执行：阶段一全量校验零写入（key 规则、title、parent/depends_on、validates 锚点），
+   * 任一失败整批不落盘并一次性返回全部错误明细；阶段二按数组顺序分配 ID、解析批内 key、
+   * 单次写入 tasks.md。校验判据与单条 create 共用同一份代码（validateAnchorsAgainstPools /
+   * findMissingReferences），两条路径口径一致。
+   */
+  async createMany(input: CreateManyTasksInput): Promise<AiFollowupResponse<CreateManyTasksResult>> {
+    const entries = input.tasks;
+    if (!Array.isArray(entries) || entries.length === 0) {
+      throw new LrnevError(ErrorCode.INVALID_INPUT, 'tasks 不能为空数组', { field: 'tasks' });
+    }
+    const maxBatch = loadConfig(this.fs.root).task.max_batch_create;
+    if (entries.length > maxBatch) {
+      throw new LrnevError(
+        ErrorCode.INVALID_INPUT,
+        `单批最多创建 ${maxBatch} 条任务（收到 ${entries.length} 条）`,
+        { field: 'tasks', hint: '拆成多批提交，或在 .lrnev/config/lrnev.json 调整 task.max_batch_create。' },
+      );
+    }
+
+    const sceneId = await this.sceneManager.resolveId(input.scene);
+    const specId = await this.specManager.resolveId(sceneId, input.spec);
+    const tasksPath = this.tasksPath(sceneId, specId);
+
+    const createdTasks = await this.withTasksFileLock(sceneId, specId, async () => {
+      if (!this.fs.exists(tasksPath)) {
+        throw new LrnevError(
+          ErrorCode.FILE_NOT_FOUND,
+          `tasks.md 不存在：${tasksPath}`,
+          { field: 'spec', hint: '先确认 scene/spec 参数是否正确；若 Spec 骨架缺失，请重新调用 spec_create，若疑似损坏请运行 lrnev_doctor。' },
+        );
+      }
+
+      const content = await this.fs.read(tasksPath);
+      const existing = parseTasksFromMarkdown(content, sceneId, specId);
+      const existingIds = new Set(existing.map((t) => t.id));
+
+      // ---- 阶段一：全量校验，零写入 ----
+      const errors: BatchErrorDetail[] = [];
+
+      const keyToIndex = new Map<string, number>();
+      entries.forEach((entry, index) => {
+        const key = entry.key?.trim();
+        if (!key) return;
+        if (/^T-\d+$/.test(key)) {
+          errors.push({
+            index, field: 'key', code: ErrorCode.INVALID_INPUT,
+            message: `key "${key}" 不得使用 T-xxx 格式（与真实 Task ID 歧义）`,
+          });
+          return;
+        }
+        const firstIndex = keyToIndex.get(key);
+        if (firstIndex !== undefined) {
+          errors.push({
+            index, field: 'key', code: ErrorCode.INVALID_INPUT,
+            message: `key "${key}" 与第 ${firstIndex + 1} 条重复`,
+          });
+          return;
+        }
+        keyToIndex.set(key, index);
+      });
+
+      const allValidates = entries.flatMap((entry) => entry.validates ?? []);
+      const { fPool, dPool } = await this.readAnchorPools(allValidates, sceneId, specId);
+
+      entries.forEach((entry, index) => {
+        if (!entry.title || entry.title.trim().length === 0) {
+          errors.push({ index, field: 'title', code: ErrorCode.INVALID_INPUT, message: 'Task 标题不能为空' });
+        }
+        if (entry.parent && !existingIds.has(entry.parent)) {
+          errors.push({
+            index, field: 'parent', code: ErrorCode.TASK_NOT_FOUND,
+            message: `父 Task "${entry.parent}" 不存在（parent 只接受已存在的真实 Task ID，不支持批内 key）`,
+          });
+        }
+        for (const dep of entry.depends_on ?? []) {
+          const keyIndex = keyToIndex.get(dep);
+          if (keyIndex !== undefined) {
+            if (keyIndex === index) {
+              errors.push({
+                index, field: 'depends_on', code: ErrorCode.INVALID_INPUT,
+                message: `depends_on 不能引用自身 key "${dep}"`,
+              });
+            }
+            continue;
+          }
+          if (!existingIds.has(dep)) {
+            errors.push({
+              index, field: 'depends_on', code: ErrorCode.TASK_NOT_FOUND,
+              message: `depends_on 引用既不是批内 key 也不是已存在的 Task：${dep}`,
+            });
+          }
+        }
+        for (const issue of validateAnchorsAgainstPools(entry.validates ?? [], fPool, dPool)) {
+          errors.push({ index, field: 'validates', code: issue.code, message: issue.message });
+        }
+      });
+
+      if (errors.length > 0) {
+        throw new LrnevError(
+          errors[0]!.code,
+          `批量创建校验失败：${errors.length} 处错误，任务未创建`,
+          {
+            field: 'tasks',
+            hint: '按 errors 明细逐条修正（index 为条目在 tasks 数组中的序号，0 起）后整批重新提交。',
+            errors,
+          },
+        );
+      }
+
+      // ---- 阶段二：分配 ID、解析批内 key、单次写入 ----
+      let nextNum = computeNextTaskNumber(existing);
+      const assignedIds = entries.map(() => formatTaskId(nextNum++));
+      const keyToId = new Map<string, string>();
+      for (const [key, index] of keyToIndex) keyToId.set(key, assignedIds[index]!);
+
+      const now = new Date().toISOString();
+      const newTasks: Task[] = entries.map((entry, index) => ({
+        id: assignedIds[index]!,
+        scene: sceneId,
+        spec: specId,
+        title: entry.title,
+        description: entry.description ?? '',
+        status: 'pending',
+        acceptance: entry.acceptance ?? [],
+        depends_on: (entry.depends_on ?? []).map((dep) => keyToId.get(dep) ?? dep),
+        ...(entry.parent && { parent: entry.parent }),
+        validates: entry.validates ?? [],
+        created: now,
+      }));
+
+      let updated = content;
+      for (const task of newTasks) {
+        updated = task.parent
+          ? insertChildTaskToMarkdown(updated, task.parent, task)
+          : appendTaskToMarkdown(updated, task);
+      }
+      await this.fs.write(tasksPath, updated);
+      return newTasks;
+    });
+
+    // hook 事件逐任务触发（与逐条创建语义等价，消费方无需感知批量概念）。
+    const hookWarnings: string[] = [];
+    const hookManager = getHookManager(this.fs.root);
+    for (const task of createdTasks) {
+      const hookResult = await hookManager.trigger('task.create', {
+        scene: sceneId,
+        spec: specId,
+        task_id: task.id,
+        title: task.title,
+        status: task.status,
+        parent: task.parent,
+        validates: task.validates,
+      });
+      hookWarnings.push(...hookResult.warnings);
+    }
+
+    const specStatus = await this.readSpecStatus(sceneId, specId);
+    const first = createdTasks[0]!;
+    const last = createdTasks[createdTasks.length - 1]!;
+    const firstFree = createdTasks.find((task) => (task.depends_on ?? []).length === 0) ?? first;
+    const instructions = [
+      `${createdTasks.length} 个任务已创建（${first.id}..${last.id}），状态均为 pending`,
+      `建议从无依赖任务 ${firstFree.id} 开始：task_update 置 in_progress`,
+      '完成后逐个 task_update 置 completed，注意状态机限制',
+    ];
+    if (specStatus === 'completed') {
+      instructions.push(
+        '当前 spec.status 是 completed；在已完成 spec 上加 task 表示有维护态新增工作，可调 spec_update 把 status 回退到 in-progress（completed→in-progress 合法）。',
+      );
+    }
+
+    return appendHookWarnings({
+      ok: true,
+      data: {
+        created: createdTasks.map((task) => ({ id: task.id, title: task.title })),
+        count: createdTasks.length,
+      },
+      ai_followup: {
+        instructions,
+        suggested_tools: [
+          {
+            name: 'task_update',
+            args_template: {
+              scene: sceneId,
+              spec: specId,
+              task_id: firstFree.id,
+              status: 'in_progress',
+            },
+            reason: '开始第一个无依赖任务时调用',
+          },
+        ],
+      },
+    }, hookWarnings);
+  }
+
+  /**
    * 更新 Task 状态。
    *
    * 状态机校验：非法转换抛 INVALID_STATUS_TRANSITION，文件不修改。
@@ -393,54 +595,35 @@ export class TaskManager {
   /**
    * S6 validates 锚点体系硬校验：只接受 F-xx / D-xx，且锚点必须真实存在于对应文档。
    * lrnev 不判断需求/设计质量，只判断“这个编号在不在”——确定性结构引用，与 depends_on 同口径。
+   * 校验判据在 validateAnchorsAgainstPools（单条/批量共用同一份代码）；本方法保持单条口径：抛第一类错误。
    */
   private async assertValidatesAnchors(validates: string[], sceneId: string, specId: string): Promise<void> {
     if (validates.length === 0) return;
-    const legacy = validates.filter((v) => /^design#/i.test(v));
-    if (legacy.length > 0) {
-      throw new LrnevError(
-        ErrorCode.INVALID_INPUT,
-        `validates 锚点格式已废弃：${legacy.join('、')}`,
-        {
-          field: 'validates',
-          hint: 'design# 自由写法无稳定真相来源、无法确定性校验；请在 design.md 用 "#### D-xx 标题" 定义设计锚点后改用 D-xx。',
-        },
-      );
+    const { fPool, dPool } = await this.readAnchorPools(validates, sceneId, specId);
+    const issues = validateAnchorsAgainstPools(validates, fPool, dPool);
+    if (issues.length > 0) {
+      const first = issues[0]!;
+      throw new LrnevError(first.code, first.message, {
+        field: 'validates',
+        ...(first.hint !== undefined && { hint: first.hint }),
+      });
     }
-    const invalid = validates.filter((v) => !/^F-\d+$/.test(v) && !/^D-\d+$/.test(v));
-    if (invalid.length > 0) {
-      throw new LrnevError(
-        ErrorCode.INVALID_INPUT,
-        `validates 只接受 F-xx / D-xx 锚点：${invalid.join('、')}`,
-        {
-          field: 'validates',
-          hint: 'F-xx 指 requirements 的 "#### F-xx"，D-xx 指 design 的 "#### D-xx"；请先在对应文档定义锚点。',
-        },
-      );
-    }
+  }
+
+  /** 按 validates 中实际出现的前缀惰性读取 F/D 锚点池（与单条历史行为一致：没有该类引用就不读对应文档）。 */
+  private async readAnchorPools(
+    validates: string[],
+    sceneId: string,
+    specId: string,
+  ): Promise<{ fPool: Set<string>; dPool: Set<string> }> {
     const specDir = `.lrnev/scenes/${sceneId}/specs/${specId}`;
-    const fRefs = validates.filter((v) => v.startsWith('F-'));
-    if (fRefs.length > 0) {
-      const missing = findMissingReferences(fRefs, await this.readAnchorPool(`${specDir}/requirements.md`, 'F'));
-      if (missing.length > 0) {
-        throw new LrnevError(
-          ErrorCode.ANCHOR_NOT_FOUND,
-          `validates 锚点在 requirements.md 中不存在：${missing.join('、')}`,
-          { field: 'validates' },
-        );
-      }
-    }
-    const dRefs = validates.filter((v) => v.startsWith('D-'));
-    if (dRefs.length > 0) {
-      const missing = findMissingReferences(dRefs, await this.readAnchorPool(`${specDir}/design.md`, 'D'));
-      if (missing.length > 0) {
-        throw new LrnevError(
-          ErrorCode.ANCHOR_NOT_FOUND,
-          `validates 锚点在 design.md 中不存在：${missing.join('、')}`,
-          { field: 'validates' },
-        );
-      }
-    }
+    const fPool = validates.some((v) => /^F-\d+$/.test(v))
+      ? await this.readAnchorPool(`${specDir}/requirements.md`, 'F')
+      : new Set<string>();
+    const dPool = validates.some((v) => /^D-\d+$/.test(v))
+      ? await this.readAnchorPool(`${specDir}/design.md`, 'D')
+      : new Set<string>();
+    return { fPool, dPool };
   }
 
   /** 提取文档中 `#### F-xx` / `#### D-xx` 形式的锚点集合；文档不存在时返回空集（随后报 ANCHOR_NOT_FOUND）。 */
@@ -622,6 +805,59 @@ export function extractAnchorPool(content: string, prefix: 'F' | 'D'): Set<strin
   let match: RegExpExecArray | null;
   while ((match = regex.exec(content)) !== null) pool.add(match[1]!);
   return pool;
+}
+
+/** validates 锚点校验的单个问题：code + 可直接抛出的 message（field 由调用方补）。 */
+export interface AnchorValidationIssue {
+  code: ErrorCode;
+  message: string;
+  hint?: string;
+}
+
+/**
+ * validates 锚点校验判据（纯函数）：废弃格式 → 非法格式 → requirements 缺锚点 → design 缺锚点。
+ * 单条 create（抛第一类）与批量 createMany（收集全部）共用本函数，保证两条路径口径一致。
+ */
+export function validateAnchorsAgainstPools(
+  validates: string[],
+  fPool: Set<string>,
+  dPool: Set<string>,
+): AnchorValidationIssue[] {
+  if (validates.length === 0) return [];
+  const issues: AnchorValidationIssue[] = [];
+  const legacy = validates.filter((v) => /^design#/i.test(v));
+  if (legacy.length > 0) {
+    issues.push({
+      code: ErrorCode.INVALID_INPUT,
+      message: `validates 锚点格式已废弃：${legacy.join('、')}`,
+      hint: 'design# 自由写法无稳定真相来源、无法确定性校验；请在 design.md 用 "#### D-xx 标题" 定义设计锚点后改用 D-xx。',
+    });
+  }
+  const invalid = validates.filter(
+    (v) => !/^F-\d+$/.test(v) && !/^D-\d+$/.test(v) && !/^design#/i.test(v),
+  );
+  if (invalid.length > 0) {
+    issues.push({
+      code: ErrorCode.INVALID_INPUT,
+      message: `validates 只接受 F-xx / D-xx 锚点：${invalid.join('、')}`,
+      hint: 'F-xx 指 requirements 的 "#### F-xx"，D-xx 指 design 的 "#### D-xx"；请先在对应文档定义锚点。',
+    });
+  }
+  const missingF = findMissingReferences(validates.filter((v) => /^F-\d+$/.test(v)), fPool);
+  if (missingF.length > 0) {
+    issues.push({
+      code: ErrorCode.ANCHOR_NOT_FOUND,
+      message: `validates 锚点在 requirements.md 中不存在：${missingF.join('、')}`,
+    });
+  }
+  const missingD = findMissingReferences(validates.filter((v) => /^D-\d+$/.test(v)), dPool);
+  if (missingD.length > 0) {
+    issues.push({
+      code: ErrorCode.ANCHOR_NOT_FOUND,
+      message: `validates 锚点在 design.md 中不存在：${missingD.join('、')}`,
+    });
+  }
+  return issues;
 }
 
 /**

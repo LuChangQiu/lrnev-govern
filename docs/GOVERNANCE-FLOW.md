@@ -1,10 +1,10 @@
-# 治理流程加固说明
+# 治理流程说明
 
-本文档记录 `03-00-governance-flow-hardening` 落地后的运行语义，面向使用和维护 lrnev 的 AI / 开发者。重点覆盖 gate 语义、哨兵约定、序号语义、状态机、`project_status`、默认 Scene、adopt，以及与 OpenViking 的关系边界。
+本文档面向使用和维护 lrnev 的 AI / 开发者，是治理运行语义的权威说明。重点覆盖 gate 语义、哨兵约定、序号语义、状态机、`project_status`、治理体检 report、默认 Scene、adopt，以及与 OpenViking 的关系边界。
 
-## 当前完成范围
+## 演进脉络
 
-`03-00-governance-flow-hardening` 已完成的核心范围：
+治理语义的基座由 `03-00-governance-flow-hardening`（v1.0 前）落地，其后各版本演进：v2.0 确定性硬校验（FILL 硬拦、validates 锚点）、v2.1 上下文送达（anchor_context、治理地图）、v2.2 治理体检 report、v2.3 机会式 GC 与批量建任务。基座范围包括：
 
 - Gate 从“扫 TODO 字面量”改为结构契约检查。
 - 模板统一使用 `<!-- FILL: ... -->` 哨兵，并提供 `doctor --migrate-todos`。
@@ -16,14 +16,7 @@
 - Task 支持 `validates` 追溯需求/设计，`in_progress` 时强制提醒回看上下文。
 - Task 支持 `parent` 子任务，同一 `tasks.md` 的写入有 Spec 级短锁保护。
 
-已完成的真机验证（v1.0.0 发布前）：
-
-- OpenCode 1.15.13：初始化、黄金路径、能力域全覆盖 ✅
-- Codex CLI 0.136.0：41 个 MCP 工具全调通、Java 项目探测修复验证 ✅
-
-保留为可选后续优化的项：
-
-- `ResolveCache`：请求级 ID 解析缓存。它只在现有局部 I/O 优化不能满足 NFR-5 时需要做；当前测试已覆盖关键读次数，因此不是阻塞项。
+各版本均经真机验证（多客户端多模型），实测矩阵见 [`docs/AI-ADAPTATION.md`](AI-ADAPTATION.md)。
 
 ## 职责边界
 
@@ -35,15 +28,13 @@ lrnev 是确定性的项目治理引擎，只负责文件读写、ID 分配、�
 
 ## NFR 说明
 
-NFR 是 Non-Functional Requirement，表示非功能需求。
+NFR 是 Non-Functional Requirement，表示非功能需求。以下约束适用于 lrnev 的所有演进：
 
 - **NFR-1 无回归**：新增/重构行为必须有测试覆盖，阶段收尾跑全量测试。
 - **NFR-2 无新运行时依赖**：不引入 LLM、Embedding、向量数据库等强依赖。
 - **NFR-3 向后兼容**：既有 `.lrnev/` 数据继续可读；旧 TODO 占位通过 `doctor --migrate-todos` 一次性迁移。
 - **NFR-4 错误可观测**：坏数据不能静默消失，要返回 broken 条目或明确错误。
 - **NFR-5 性能**：消除冗余 I/O，单次 `scene_get` / `gate_check` 的文件读取次数不增加。
-
-`ResolveCache` 对应 NFR-5 的 P2 兜底方案：如果局部优化还不够，再给一次工具调用生命周期内加解析缓存，缓存 `sceneInput -> sceneId`、`(sceneId, specInput) -> specId` 等结果。不跨请求缓存，避免 create/update 后读到旧数据。
 
 ## Gate 语义
 
@@ -63,6 +54,7 @@ Gate 检查结构，不判断 prose 质量。
 - 存活随 stdio 进程生命周期自动判定：连接初始化即自动注册，连接断开即自动注销并释放该 Agent 的 claim。
 - 同主机以 `process.kill(pid,0)` 探活为准——进程活着就是 `active`，无需任何定时心跳;属主进程退出后其 claim 立即可被接手。
 - 跨主机无法探 pid 时，回退到默认 **90 秒** 的 `last_heartbeat` 年龄阈值（惰性计算），此时可用 `agent_heartbeat` 兜底续活。
+- 硬杀/崩溃残留的死记录与过期 claim 由 register 时的**机会式 GC** 自动清扫（v2.3 起，本机判死即清、跨主机过保留期才清、持有效 claim 的保留；`agent.auto_gc` 可关），只读路径仍零写副作用。
 - 详见 [`docs/MULTI-AGENT.md`](MULTI-AGENT.md) 与 ADR《Agent 存活信号从心跳年龄改为 stdio 进程/连接生命周期》。
 
 
@@ -136,6 +128,11 @@ status 不阻塞 gate。用 `spec_update` 工具按状态机改 Spec 状态(非�
 
 `project_status` 只读取 frontmatter 并解析 `tasks.md`，不读取 requirements / design 正文。需要深入上下文时，再根据返回的 `ai_followup` 调用 `scene_get` 或 `spec_get`。
 
+两个有意为之的口径（v2.3 文档化）：
+
+- **空的 `00-default` 不出现在 scenes 列表**（与治理地图口径一致）——它是惰性兜底 Scene，没有 Spec 时列出只是噪音；`scene_list` 仍会显示它。
+- **`claimable_next` 是预览不是全量**：每个 Spec 最多展示 `project_status.claimable_preview`（默认 5）条，全量数量看 `free_tasks_count`；条目带 `depends_on` 时表示有前置依赖——依赖未完成**不阻断**领取（软提醒哲学），领取与推进时 followup 会点名提醒。
+
 ## 治理体检 report（v2.2）
 
 `lrnev report` / `lrnev_report` 是零模型的治理体检，定位是**给人看的"分红"**（lrnev 第一个主消费者是用户而非 AI 的工具），不是 CI gate：
@@ -152,6 +149,8 @@ status 不阻塞 gate。用 `spec_update` 工具按状态机改 Spec 状态(非�
 `spec_create` 可以不传 Scene。缺省时 Spec 会挂到 `00-default`，必要时 lrnev 会惰性创建这个最小 Scene。
 
 `lrnev init` 对存量项目默认采用被动 adopt：只创建最小 `.lrnev/` 骨架和 `00-default`，不为已经完成的历史代码补建 Scene / Spec。`--scan` 是显式可选能力，用于用户确实希望基于代码库生成候选 Scene 草稿时。
+
+`init` 返回的 `was_new` 以 **PROJECT.md 是否已存在**判定（它是"已初始化"标记）——`.lrnev/` 目录存在不代表初始化过（MCP 连接自动注册会先创建 `.lrnev/agents/`）。
 
 ## 小事分流
 
@@ -195,5 +194,7 @@ Task 也可以记录父子关系：
 ```
 
 `task_create(parent=...)` 会把子任务插到父任务块附近，`task_list` / `project_status` 会体现层级。同一个 `tasks.md` 的并发 create / update 会用 Spec 级锁串行化，避免互相覆盖。
+
+**批量创建（v2.3）**：spec ready 后一次性拆任务清单用 `task_create_many` / CLI `task create-many --from-file`——两阶段原子执行（全量校验通过才单次写入 tasks.md），任一条失败整批不写并一次性返回全部错误明细（index/field/message）；批内依赖用元素级 `key` 临时键（禁 `T-\d+` 格式，落盘时解析为真实 ID），`parent` 仍只接受已存在的真实 Task ID。校验口径与单条 `task_create` 完全一致（同一份代码）；ID 按数组顺序 max+1 连续分配，落盘产物与逐条创建等价，hook `task.create` 逐任务触发。临时补单个任务仍用 `task_create`。
 
 lrnev 不 spawn agent、不调度子任务、不裁决源码文件冲突。它只记录父子状态并保护 `tasks.md`。真正并行执行由客户端负责，而且只有在子任务修改的源码文件不重叠时才值得并行。

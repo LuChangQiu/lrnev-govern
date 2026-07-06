@@ -140,6 +140,13 @@ describe('SpecManager', () => {
       expect(text).toContain('问用户');
     });
 
+    it('spec_create followup 应包含章节标题模板契约警示', async () => {
+      const r = await specs.create({ scene: 'user-management', name: 'title-contract' });
+      const followup = r.ai_followup!.instructions.join('\n');
+      expect(followup).toContain('模板契约');
+      expect(followup).toContain('不要翻译或改名');
+    });
+
     it('F-11: spec_create followup 应包含 EARS 验收示范', async () => {
       const r = await specs.create({ scene: 'user-management', name: 'user-login' });
       const followup = r.ai_followup!.instructions.join('\n');

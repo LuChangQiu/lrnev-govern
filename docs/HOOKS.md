@@ -62,6 +62,7 @@ spec.create
 spec.gate_passed.ready
 spec.gate_passed.completion
 task.create
+task.update.pending
 task.update.in_progress
 task.update.completed
 task.update.failed
@@ -69,6 +70,8 @@ task.update.blocked
 adr.create
 error.record
 ```
+
+> `task.update.*` 按目标状态动态拼接：`task.update.pending` 只在回退路径（如 blocked → pending、failed → pending）触发。`task_create_many` 批量创建时 `task.create` 逐任务触发 N 次。
 
 通配只支持后缀 `*` 的前缀匹配。例如：
 
@@ -80,7 +83,7 @@ error.record
 }
 ```
 
-这会匹配 `task.update.in_progress`、`task.update.completed`、`task.update.failed`、`task.update.blocked`。
+这会匹配 `task.update.pending`、`task.update.in_progress`、`task.update.completed`、`task.update.failed`、`task.update.blocked`。
 
 ## 同步与异步
 

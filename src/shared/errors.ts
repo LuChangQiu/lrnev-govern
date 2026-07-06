@@ -84,11 +84,20 @@ const DEFAULT_ERROR_HINTS: Record<ErrorCode, string> = {
   INTERNAL_ERROR: '保留错误输出和当前操作上下文，运行 doctor；若可复现请记录到 Errorbook。',
 };
 
+/** 批量操作中单条目的错误明细（index 为条目在入参数组中的序号，0 起）。 */
+export interface BatchErrorDetail {
+  index: number;
+  field: string;
+  message: string;
+  code: ErrorCode;
+}
+
 export class LrnevError extends Error {
   public readonly code: ErrorCode;
   public readonly field?: string;
   public readonly hint?: string;
   public readonly candidates?: string[];
+  public readonly errors?: BatchErrorDetail[];
   public override readonly cause?: unknown;
 
   constructor(
@@ -98,6 +107,7 @@ export class LrnevError extends Error {
       field?: string;
       hint?: string;
       candidates?: string[];
+      errors?: BatchErrorDetail[];
       cause?: unknown;
     },
   ) {
@@ -107,6 +117,7 @@ export class LrnevError extends Error {
     this.field = options?.field;
     this.hint = options?.hint ?? DEFAULT_ERROR_HINTS[code];
     this.candidates = options?.candidates;
+    this.errors = options?.errors;
     this.cause = options?.cause;
 
     Object.setPrototypeOf(this, LrnevError.prototype);
@@ -118,6 +129,7 @@ export class LrnevError extends Error {
     field?: string;
     hint?: string;
     candidates?: string[];
+    errors?: BatchErrorDetail[];
   } {
     return {
       code: this.code,
@@ -125,6 +137,7 @@ export class LrnevError extends Error {
       ...(this.field !== undefined && { field: this.field }),
       ...(this.hint !== undefined && { hint: this.hint }),
       ...(this.candidates !== undefined && { candidates: this.candidates }),
+      ...(this.errors !== undefined && { errors: this.errors }),
     };
   }
 }

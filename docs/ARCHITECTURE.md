@@ -37,6 +37,7 @@ lrnev-govern/
 │   │   ├── ClaimStore.ts
 │   │   ├── Doctor.ts
 │   │   ├── ErrorbookManager.ts
+│   │   ├── GateGuidance.ts          # gate 通过/失败的 followup 文案（CLI/MCP 共用，v2.1）
 │   │   ├── GateRunner.ts
 │   │   ├── GoalAssessor.ts
 │   │   ├── HookLog.ts
@@ -50,6 +51,7 @@ lrnev-govern/
 │   │   ├── SceneManager.ts
 │   │   ├── Searcher.ts              # 目录优先检索：BM25 排序 + 锚点段抽取（v2.1）
 │   │   ├── SessionCommit.ts
+│   │   ├── SpecGuidance.ts          # spec_get 的"开新版"引导（CLI/MCP 共用，v2.0）
 │   │   ├── SpecManager.ts
 │   │   ├── Summarizer.ts           # 不调 LLM，只组装 ai_followup
 │   │   ├── TaskManager.ts
@@ -74,8 +76,7 @@ lrnev-govern/
 │   │       └── handlers.ts         # resource handler 实现
 │   │
 │   ├── cli/                        # CLI 层
-│   │   ├── index.ts                # commander 入口和子命令注册
-│   │   └── index.ts                # CLI command 入口
+│   │   └── index.ts                # commander 入口和全部子命令注册
 │   │
 │   ├── types/                      # 共享类型定义
 │   │   ├── adr.ts
@@ -86,8 +87,10 @@ lrnev-govern/
 │   │   ├── errorbook.ts
 │   │   ├── gate.ts
 │   │   ├── goal.ts
+│   │   ├── governance-map.ts
 │   │   ├── governance-report.ts
 │   │   ├── hooks.ts
+│   │   ├── index.ts
 │   │   ├── legacy-todo.ts
 │   │   ├── memory.ts
 │   │   ├── project-status.ts
@@ -104,9 +107,11 @@ lrnev-govern/
 │       ├── config.ts               # 可调阈值、默认限制和契约常量
 │       ├── errors.ts               # 错误码和 LrnevError
 │       ├── paths.ts                # 目录和文件名约定
+│       ├── text.ts                 # 文本工具（BOM 剥离、边界截断等）
 │       └── version.ts              # 版本号读取
 │
 ├── templates/                      # Markdown / JSON 模板
+│   ├── project/
 │   ├── scene/
 │   ├── spec/
 │   ├── adr/

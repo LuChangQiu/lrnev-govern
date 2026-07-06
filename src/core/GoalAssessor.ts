@@ -96,7 +96,7 @@ function nextStep(kind: GoalAssessmentKind): string {
     return '建议在现有 Scene 下创建一个 Spec，并把需求、设计、任务放入该 Spec。';
   }
   if (kind === 'multi-spec-program') {
-    return '建议先确认 Scene 边界，再拆成多个 Spec，避免一个 Spec 承载过多变化。';
+    return '建议先确认 Scene 边界，再拆成多个 Spec，避免一个 Spec 承载过多变化。评估只是启发式信号：若用户已明确本次只做其中一个小特性，可直接按 single-spec 走 spec_create，并在需求里记录取舍。';
   }
   return '建议先做研究型 Scene 或 ADR，明确方案、约束和验证标准后再拆 Spec。';
 }

@@ -2,6 +2,39 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [SemVer 2.0](https://semver.org/lang/zh-CN/)。
 
+## [2.3.0] - 2026-07-06
+
+工作区运行态卫生 + 批量拆任务两件实事，均源于真实项目观察：xpaas 项目 3 周积累 64 条死 agent 记录（文件里全标 active）与 14 个过期 claim（显式 `doctor --gc-agents` 存在但没人会主动跑——与维护态缺口同构的"有门但找不到门"发现性问题）；GPT-5.5 真机反馈"连续 10 次 task_create 逐条建任务成本高"。用 lrnev 自身治理实现（新 scene `03-workspace-hygiene` 的 `01-00-auto-gc` + `00-default` 的 `01-00-task-create-many`），两份 spec 均经独立 AI 只读复核（5 处错误 + 3 处风险逐条修正后实现）。**无破坏性改动**：响应契约只新增可选字段，registry/claim 文件格式不变。
+
+### Added
+
+- **机会式 GC（register 时自动清扫）**：每次 `agent_register`（含 MCP 连接自动注册）在注册锁内顺手清理运行态残留，无需记得任何维护命令。判据与死亡确定性对齐：本机 pid 判死（确定性死亡，重连拿新 id 不会复活）立即清；跨主机心跳判死（推断性）超过 `agent.gc_retention_days`（默认 7 天）才清；两类均要求名下无未过期 claim（dead 但持有效 claim 的保留为接手线索）。过期 claim 文件按属主状态独立清扫，删除前按 claim 锁重读判据（消 TOCTOU）。清扫 best-effort：任何异常不影响注册主流程。
+- **status 真值回写**：GC 扫描顺手把幸存条目的落盘 `status` 回写为计算真值——消除"registry.json 里全是 active"对人的误导。不增删字段（保旧版 `normalizeAgentInfo` 多版本混跑兼容）；文件语义明确为"最近一次写路径触达时的快照"，实时状态仍以读时计算为准。
+- **GC 配置**：`agent.auto_gc`（默认 true，false 完全关闭）与 `agent.gc_retention_days`（默认 7；非正数/NaN 在实现处防御回退默认，不抛错）。`doctor --gc-agents` 原样保留（显式入口、判死即清），只读路径依旧零写副作用（v2.0 S5/I-12 决定不动摇）。
+- **GC 透明返回**：实际清理了内容时 register 返回 `data.gc: { removed_agents, removed_claims }`（没清则无该字段）；不进 followup instructions（不占 AI 注意力）。新建 `AgentRegisterResult` 返回类型，gc 不落盘。CLI `agent register --json` 同构透传。
+- **批量建任务 `task_create_many` / CLI `task create-many --from-file`**：spec ready 后一次性拆任务清单，N 次往返降为 1 次。两阶段原子执行：全量校验（key 规则、title、parent/depends_on、validates 锚点）通过才单次写入 tasks.md，任一条失败整批不写并**一次性返回全部错误明细**（`errors: [{index, field, message, code}]`，LrnevError 加法扩展）。批内依赖用元素级 `key` 临时键（禁 `T-\d+` 格式防歧义；解析优先批内 key、兼容已存在真 ID；不限引用方向）；`parent` 只接受已存在真 ID。ID 按数组顺序 max+1 连续分配，落盘产物与逐条创建等价；hook `task.create` 逐任务触发；返回压缩为 `created: [{id, title}]` + 单次 followup。校验判据与单条 `task_create` 共用同一份代码（`validateAnchorsAgainstPools` 收集式重构，单条外部行为不变）。CLI `--from-file` 接受 JSON 数组或 `{"tasks":[...]}` 包装、`-` 读 stdin。单批上限 `task.max_batch_create`（config，默认 50）。
+- **单条 task_create 完全不动**：有意不做入参扩展——单条 XOR 数组的互斥 schema 是弱模型误用陷阱；也不做 dry_run（原子失败即校验）与 partial 模式（半批状态难恢复，违背"坏引用不落盘"口径）。取舍记录于两条 scene 级 ADR。
+
+### Changed
+
+- **发布前审计整改（三客户端盲测 + 全文档对照源码审核，2026-07-06）**：用 codex(gpt-5.5)、opencode(deepseek-v4-pro)、claude-sonnet-4-6 在干净真实项目上只靠 lrnev 自带引导盲测全流程（报告见 `dev-docs/E2E-REPORT-*-V23-2026-07-06.md`；v2.3 新特性全部真机验证通过，三家均自主发现并选用 `task_create_many`），收敛整改：
+  - **`was_new` 判定改为 PROJECT.md 存在性**（README 既定的"已初始化"标记）——修复 MCP 连接自动注册预建 `.lrnev/agents/` 导致经 MCP 调 init 永远返回 `was_new:false` 的失真（三家模型均困惑）。
+  - **guide 与 server instructions 同步 v2.1~v2.3**：`lrnev_guide` 与连接注入的工作流概览此前停在 v2.0 之前，补齐 `task_create_many` / `governance_map` / `lrnev_report` / `spec_update` / `assess_goal`（instructions 预算护栏 480→600，内容准确性优先于凑字数）。
+  - **引导前置化**：spec_create followup 加"章节标题勿翻译/改名（模板契约）"警示（codex 实撞后才知）；ready gate 通过 followup 加无条件"先把 design.md 的 FILL 填完（completion 会硬拦）"（两家都到 completion 才发现）；assess_goal 判 multi-spec 时给出"用户已明确单特性可按 single-spec 继续"的 override 指引；`agent_register` 描述补 gc 字段语义；`task_create` 描述提示多条请用批量工具。
+  - **report headline 改"治理债"口径**：不再是裸"整体健康"，明示只看治理债、执行进度看 project_status——防接手 AI 把结构健康误读为"全部完成"。
+  - **claimable_next 透明化（加法契约）**：条目附带非空 `depends_on`（依赖未完成仍可领，软提醒哲学不变）；超出预览上限（`project_status.claimable_preview`，默认 5）时 followup 给出截断说明。
+- **文档修复与补全**：新增 `docs/CONFIG.md` + `docs/examples/lrnev.json`（`.lrnev/config/lrnev.json` 全部配置键首次成文）；AI-ADAPTATION 增 `LRNEV_WORKSPACE` 定位说明（修正"MCP 调工具用 --workspace"误导）、42 工具分组总览、实测矩阵回填 v2.3 盲测三行；ARCHITECTURE 目录树对齐实际源码；HOOKS 事件表补 `task.update.pending`；GOVERNANCE-FLOW 重框定为通用语义文档并补"空 00-default 不出现在 project_status / claimable 预览"口径说明；CHANGELOG 补 2.0~2.3 链接定义；sample-project 修步骤注释并补批量创建示例。dev-docs 十份已消化历史快照移入 `archive/`，NEXT-STEPS / PRODUCT-STRATEGY / INTEGRATION-TEST 三份活文档刷新到 v2.3 实况。
+- **文档同步**：MULTI-AGENT 补"机会式清理"一节与 status 落盘语义；README 目录树注释、批量建任务示例；GOVERNANCE-FLOW 补多 Agent 存活的 GC 行为与批量创建段落。
+
+### Tests
+
+- 全量 **692 条全绿**（v2.2 为 654）。新增覆盖：GC 双轨判据/保留期/持 claim 保留/status 回写/auto_gc 开关/非法保留期防御/损坏 claim 容错/gc 不落盘/CLI 对等；createMany 连续编号/逐条等价（含 parent 路径）/key 解析全边界/多错误一次返回/原子零变更/上限 config/维护态提示单次/hook N 次触发/CLI from-file 与坏 JSON；审计整改新增 was_new 判据两分支、claimable depends_on 与截断说明、guide 工具覆盖断言、标题契约警示与填 design 提示断言、headline 新口径。
+
+### 升级指南
+
+- 无需迁移。升级后首次 register 会自动清理历史积累的死 agent 记录与过期 claim——这是新规的本意；若想保留残留现场，先设 `.lrnev/config/lrnev.json` 的 `agent.auto_gc=false` 再升级。
+- 消费 `agent_register` 返回的脚本可选用新增的 `data.gc` 字段（不用则行为不变）。
+
 ## [2.2.0] - 2026-06-18
 
 把 lrnev 自身的治理进度从"AI 自己读状态"升级为一张给人看的零模型体检单：新增 `lrnev report` / MCP `lrnev_report`，用于发现做完没收口、失败/阻塞任务、validates 覆盖缺口和坏引用。用 lrnev 自身治理实现（scene `02-context-delivery`，spec `03-00-governance-report`），经两轮 GPT 复审收敛。**无破坏性改动**：新增命令与工具均为只读快照，有治理欠债也 exit 0。
@@ -188,6 +221,10 @@
 
 ---
 
+[2.3.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v2.3.0
+[2.2.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v2.2.0
+[2.1.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v2.1.0
+[2.0.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v2.0.0
 [1.3.1]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.3.1
 [1.3.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.3.0
 [1.2.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v1.2.0

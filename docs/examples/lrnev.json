@@ -1,0 +1,67 @@
+{
+  "lock": {
+    "directory_lock_retries": 200,
+    "directory_lock_delay_ms": 5
+  },
+  "doctor": {
+    "stale_task_days": 7,
+    "stale_lock_minutes": 60
+  },
+  "search": {
+    "max_depth": 3,
+    "top_k": 10,
+    "snippet_length": 240,
+    "use_l0_ranking": true
+  },
+  "auto_analyzer": {
+    "max_manifest_depth": 3,
+    "max_sample_files": 20,
+    "ignore_dirs": [
+      "node_modules", "dist", "build", ".git", "coverage", ".next", "target",
+      ".idea", ".vscode", "logs", ".gradle", "vendor", "__pycache__", ".venv", "venv", "out", "tmp"
+    ]
+  },
+  "errorbook": {
+    "fingerprint_length": 12
+  },
+  "memory": {
+    "dedup_similarity_threshold": 0.8,
+    "max_candidates_per_commit": 20
+  },
+  "spec": {
+    "file_size_warning_kb": 200,
+    "create_max_attempts": 10
+  },
+  "task": {
+    "max_batch_create": 50
+  },
+  "scene": {
+    "create_max_attempts": 10
+  },
+  "project_status": {
+    "recent_limit": 5,
+    "claimable_preview": 5
+  },
+  "claim": {
+    "default_ttl_seconds": 120,
+    "max_ttl_seconds": 86400
+  },
+  "agent": {
+    "heartbeat_dead_ms": 90000,
+    "auto_gc": true,
+    "gc_retention_days": 7
+  },
+  "hooks": {
+    "default_timeout_ms": 30000,
+    "max_timeout_ms": 600000,
+    "output_tail_bytes": 2048,
+    "log_rotate_bytes": 10485760,
+    "recent_list_limit": 5,
+    "health_scan_limit": 100,
+    "chronic_timeout_threshold": 3,
+    "chronic_failure_threshold": 5
+  },
+  "storage": {
+    "frontmatter_read_bytes": 65536
+  }
+}

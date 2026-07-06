@@ -163,10 +163,15 @@ describe('ensureWorkspace', () => {
     expect(typeof content.created_at).toBe('string');
   });
 
-  it('已存在时再次调用应返回 false（幂等）', async () => {
+  it('wasNew 以 PROJECT.md 为判据：无档案时重复调用仍为 true，有档案后为 false', async () => {
+    // 目录骨架存在但 PROJECT.md 未写（如 MCP 自动注册先建了 .lrnev/agents/）→ 仍视为未初始化
     await ensureWorkspace(workspace.path);
     const second = await ensureWorkspace(workspace.path);
-    expect(second).toBe(false);
+    expect(second).toBe(true);
+
+    await writeFile(join(workspace.path, '.lrnev', 'PROJECT.md'), '# demo');
+    const third = await ensureWorkspace(workspace.path);
+    expect(third).toBe(false);
   });
 
   it('再次调用不应覆盖已有 version.json', async () => {

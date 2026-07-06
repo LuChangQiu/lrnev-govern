@@ -103,7 +103,7 @@ const WRITE_TOOL_SAMPLES: Array<{
 ];
 
 describe('MCP 工具自描述审计', () => {
-  it('server instructions 覆盖关键心智模型且不超过 400 字', () => {
+  it('server instructions 覆盖关键心智模型且不超过 500 字', () => {
     for (const keyword of [
       'lrnev',
       'Scene',
@@ -112,13 +112,17 @@ describe('MCP 工具自描述审计', () => {
       'Gate',
       'lrnev_init',
       'spec_create',
+      'task_create_many',
       'project_status',
+      'governance_map',
+      'lrnev_report',
       '分流',
       'lrnev_guide',
     ]) {
       expect(WORKFLOW_OVERVIEW).toContain(keyword);
     }
-    expect([...WORKFLOW_OVERVIEW].length).toBeLessThanOrEqual(480);
+    // 预算护栏：v2.3 扩容（+批量创建/治理地图/report 心智模型），上限 480→600；内容准确性优先于凑字数
+    expect([...WORKFLOW_OVERVIEW].length).toBeLessThanOrEqual(600);
   });
 
   it('所有注册工具 description 都来自 guidance 且包含何时用', async () => {

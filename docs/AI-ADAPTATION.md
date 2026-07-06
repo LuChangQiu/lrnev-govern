@@ -70,7 +70,22 @@ lrnev-mcp
 node /path/to/lrnev-govern/bin/lrnev-mcp.mjs
 ```
 
-如果客户端支持给 server 传工作目录，设为你的项目根。若客户端不能传工作目录，AI 调工具时应优先使用 `--workspace` 对应的项目路径，或在对话里明确项目根目录。
+### 工作区定位与 LRNEV_WORKSPACE（重要）
+
+lrnev-mcp 启动时按「`LRNEV_WORKSPACE` 环境变量 → 进程工作目录向上查找已初始化的 `.lrnev`」定位工作区。客户端启动 MCP 子进程的 cwd 常常不是你的项目根，向上查找还可能命中祖先目录里别的 `.lrnev`——所以**推荐始终在 MCP 配置里显式钉死**：
+
+```json
+{
+  "mcpServers": {
+    "lrnev": {
+      "command": "lrnev-mcp",
+      "env": { "LRNEV_WORKSPACE": "/absolute/path/to/your-project" }
+    }
+  }
+}
+```
+
+误命中时 lrnev 不会沉默：server instructions 与 `lrnev_init` 返回都会警告"工作区根定位到 X（向上查找命中）"，并提示设 `LRNEV_WORKSPACE` 修正。CLI 侧的等价手段是全局参数 `lrnev --workspace <path>`（MCP 工具没有该参数，只认环境变量）。
 
 ### CLI 兜底
 
@@ -85,6 +100,23 @@ lrnev spec create user-login --priority P0
 ```
 
 CLI 与 MCP 共用 core 逻辑；差异只在入口层。
+
+## 工具总览（42 个，按用途分组）
+
+MCP 工具名与 CLI 子命令一一对应（如 `task_create_many` ↔ `lrnev task create-many`）。每个工具的完整自描述以 listTools 返回为准，这里给分组速览：
+
+| 分组 | 工具 |
+|------|------|
+| 入口与手册 | `lrnev_guide`、`lrnev_init`、`lrnev_doctor` |
+| 接手与全景 | `project_status`（快照）、`governance_map`（scene→spec→锚点全景）、`lrnev_report`（治理债体检）、`context_search`（关键词检索） |
+| Scene / Spec | `scene_create/list/get`、`spec_create/list/get/update`、`spec_gate_check`、`assess_goal`（单/多 Spec 粒度辅助） |
+| Task | `task_create`（单条）、`task_create_many`（批量原子，v2.3）、`task_update`、`task_list`、`task_claim/release` |
+| ADR | `adr_create`、`adr_list`、`adr_get`（读单条 ADR 全文与被取代关系） |
+| Errorbook | `error_record`（记坑）、`error_search`（原文关键词检索）、`error_promote`（已验证的坑提升为手册，需 verification 证据） |
+| Memory | `memory_save`（存一句约定）、`memory_search`（回看约定）、`memory_forget`（删过期记忆）、`session_commit`（会话结束批量沉淀候选记忆） |
+| 摘要 | `summarize_save`（客户端把 L0/L1 摘要写回 sidecar——lrnev 零模型，摘要由 AI 生成、lrnev 只存只递） |
+| 多 Agent | `agent_register/heartbeat/list/unregister` |
+| Hooks | `lrnev_hook_list/trigger/enable/disable/tail_log` |
 
 ## 如何对 AI 开口
 
@@ -200,7 +232,7 @@ CLI 与 MCP 共用 core 逻辑；差异只在入口层。
 2. 调用 `spec_create` 创建 Spec。
 3. 填写 `requirements.md`，清除 `<!-- FILL: ... -->` 哨兵。
 4. 调用 `spec_gate_check` 的 `ready` gate，并能按失败 hint 修正文档。
-5. 基于 design 拆出 `task_create`。
+5. 基于 design 拆任务：完整清单用 `task_create_many` 一次原子创建，临时补单个用 `task_create`。
 6. 执行任务前后使用 `task_update` 推进状态。
 7. 所有任务完成后调用 `spec_gate_check` 的 `completion` gate。
 8. 根据 completion followup 回看 L0 摘要与验收标准，确认问题真闭环。
@@ -237,4 +269,9 @@ CLI 与 MCP 共用 core 逻辑；差异只在入口层。
 | Claude Opus 4.7 | 强 | Claude Code (CLI) | — | ✅ 全面通过（开发全程使用 CLI 创建/更新/gate/claim） | 无 | — |
 | GPT-5 coding agent | 强 | Codex CLI 0.136.0 | 8/8 | ✅ 41 个 MCP 工具全调通，全生命周期自主走完 | 无（自主修复 ready gate 章节标题） | — |
 | DeepSeek V4 Flash Free | 中 | OpenCode 1.15.13 | 8/8 | ✅ 黄金路径 + 能力域全覆盖，真实 Java 项目探测验证通过 | 首次未设 LRNEV_WORKSPACE 时向上误命中父级 .lrnev，设环境变量后通过 | 向上命中护栏（v1.0.0 已修复：init 时命中祖先 .lrnev 会提示设 LRNEV_WORKSPACE） |
+| GPT-5.5 | 强 | Codex CLI 0.142.5（v2.3 盲测） | 8/8 | ✅ 只靠自带引导走通全流程；自主选用 task_create_many，原子拒绝/压缩返回验证通过 | 英文化章节标题被 ready gate 拦（事后 hint 清晰）；assess_goal 保守判 multi-spec | 均已在 v2.3 整改（spec_create 标题警示、assess_goal override 指引） |
+| DeepSeek V4 Pro | 中 | OpenCode 1.17.13（v2.3 盲测） | 8/8 | ✅ 全流程通过；自主发现并选用 task_create_many | init 后引导可更明确"这是接入完成标志"；task_create 连用无批量提示 | 后者已在 v2.3 整改（task_create 描述提示批量工具） |
+| Claude Sonnet 4.6 | 强 | Claude Code（v2.3 盲测） | 7.5/8 | ✅ 主干走通；anchor_context 回填被评"实现前确认验收口径非常有价值" | design.md 填写时机靠 completion gate 才发现；report headline 被误读为"全部完成" | 均已在 v2.3 整改（ready-passed 补 design 提示、headline 改治理债口径） |
 | 本地 Qwen 7B 级模型 | 小 | 待填 | 待测 | 待测 | 待测 | 待测 |
+
+> v2.3 盲测口径：干净真实项目 + 全新会话，只允许依赖工具描述 / ai_followup / lrnev_guide 行动，禁止读 lrnev 源码与文档；完整报告见 `dev-docs/E2E-REPORT-*-V23-2026-07-06.md`。

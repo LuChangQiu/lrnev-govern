@@ -452,6 +452,7 @@ describe('MCP server', () => {
       expect(readyPayload.ai_followup?.instructions.join('\n')).not.toContain('in-progress');
       expect(readyPayload.ai_followup?.instructions.join('\n')).toContain('adr_create');
       expect(readyPayload.ai_followup?.instructions.join('\n')).toContain('design.md 说明影响面');
+      expect(readyPayload.ai_followup?.instructions.join('\n')).toContain('design.md 的 FILL 哨兵填完');
       expect(readyPayload.ai_followup?.instructions.join('\n')).toContain('architecture.md');
       expect(readyPayload.ai_followup?.instructions.join('\n')).toContain('沉淀“为什么”');
       expect(readyPayload.ai_followup?.instructions.join('\n')).toContain('要不要拆成子任务');

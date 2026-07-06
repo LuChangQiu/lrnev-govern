@@ -108,6 +108,33 @@ export interface CreateTaskInput {
   validates?: string[];
 }
 
+/** 批量创建中的单个任务条目：任务字段与 CreateTaskInput 一致，另支持批内临时键 key。 */
+export interface CreateManyTaskEntry {
+  title: string;
+  description?: string;
+  acceptance?: string[];
+  /** 每项可为批内其它条目的 key，或已存在的真实 Task ID。 */
+  depends_on?: string[];
+  /** 仅接受已存在的真实 Task ID，不支持批内 key。 */
+  parent?: string;
+  validates?: string[];
+  /** 批内临时键，供同批 depends_on 引用；不得使用 T-xxx 格式，不落盘。 */
+  key?: string;
+}
+
+/** 批量创建 Task 的输入（task_create_many）。 */
+export interface CreateManyTasksInput {
+  scene: string;
+  spec: string;
+  tasks: CreateManyTaskEntry[];
+}
+
+/** 批量创建的压缩返回：只含创建摘要，不逐条展开完整任务。 */
+export interface CreateManyTasksResult {
+  created: { id: string; title: string }[];
+  count: number;
+}
+
 /** 更新 Task 状态的输入 */
 export interface UpdateTaskInput {
   scene: string;

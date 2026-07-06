@@ -46,6 +46,8 @@ export type ProjectStatusTaskCounts = Record<TaskStatus, number>;
 export interface ProjectStatusTaskBrief {
   id: string;
   title: string;
+  /** 非空才带出：可领任务的前置依赖（依赖未完成不阻断领取，仅提示）。 */
+  depends_on?: string[];
 }
 
 export interface ProjectStatusActiveAgent {

@@ -54,11 +54,14 @@ describe('docs', () => {
   it('发布文档和 CHANGELOG 应反映 lrnev 当前版本', () => {
     const publish = readFileSync(resolve(__dirname, '../../dev-docs/PUBLISH.md'), 'utf-8');
     const changelog = readFileSync(resolve(__dirname, '../../CHANGELOG.md'), 'utf-8');
+    const pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8')) as { version: string };
 
     expect(publish).toContain('package.json name 是 "lrnev"');
-    expect(publish).toContain('"version": "1.3.1"');
-    expect(publish).toContain('lrnev-1.3.1.tgz');
-    expect(changelog).toContain('## [1.3.1]');
+    // 版本号从 package.json 动态取，防止发布文档示例随版本演进漂移
+    expect(publish).toContain(`"version": "${pkg.version}"`);
+    expect(publish).toContain(`lrnev-${pkg.version}.tgz`);
+    expect(changelog).toContain(`## [${pkg.version}]`);
+    expect(changelog).toContain(`[${pkg.version}]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v${pkg.version}`);
     expect(changelog).toContain('spec_update');
     expect(changelog).toContain('archived');
   });

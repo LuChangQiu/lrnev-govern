@@ -293,14 +293,14 @@ export function collectAnchorIds(content: string, prefix: 'F' | 'D'): string[] {
 
 /**
  * 确定性 headline。硬欠债 = unclosed / failed / debt-orphan 任一 >0 → 报欠债概述；
- * 无硬欠债但有 blocked → 软提示；全无 → 整体健康。blocked 不算硬债（临时态），单列软提示。
+ * 无硬欠债但有 blocked → 软提示；全无 → 治理债清零（明示只看治理债、不代表执行进度，防误读为"全部完成"）。
  */
 export function buildHeadline(unclosed: number, failed: number, blocked: number, debtOrphans: number): string {
   const hasDebt = unclosed > 0 || failed > 0 || debtOrphans > 0;
   if (!hasDebt) {
     return blocked > 0
-      ? `无硬欠债（${blocked} 个任务阻塞待处理）。`
-      : '整体健康：无做完未收口的 spec、无失败任务、无已收口 spec 的孤儿锚点。';
+      ? `治理债：无硬欠债（${blocked} 个任务阻塞待处理）。本报告只看治理债，不代表任务都已完成——执行进度看 project_status。`
+      : '治理债：无做完未收口的 spec、无失败任务、无已收口 spec 的孤儿锚点。本报告只看治理债，不代表任务都已完成——执行进度看 project_status。';
   }
   const parts: string[] = [];
   if (unclosed > 0) parts.push(`${unclosed} 个 spec 做完未收口`);

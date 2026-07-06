@@ -62,7 +62,7 @@ describe('GovernanceReport', () => {
 
   it('空工作区：健康 headline、计数为 0', async () => {
     const res = await report.build();
-    expect(res.data.headline).toContain('整体健康');
+    expect(res.data.headline).toContain('治理债：无做完未收口');
     expect(res.data.chain.spec_count).toBe(0);
     expect(res.data.coverage.coverage_ratio).toBe(1);
   });
