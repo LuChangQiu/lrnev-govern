@@ -1,20 +1,20 @@
 {
-  "DESKTOP-2E4TITN-31552-ebdf": {
-    "agent_id": "DESKTOP-2E4TITN-31552-ebdf",
-    "pid": 31552,
+  "DESKTOP-2E4TITN-37356-bbd2": {
+    "agent_id": "DESKTOP-2E4TITN-37356-bbd2",
+    "pid": 37356,
     "host": "DESKTOP-2E4TITN",
-    "client": "codex-mcp-client",
-    "started_at": "2026-06-12T08:53:36.811Z",
-    "last_heartbeat": "2026-06-12T08:53:36.811Z",
+    "client": "claude-code",
+    "started_at": "2026-08-31T01:09:48.816Z",
+    "last_heartbeat": "2026-08-31T01:09:48.816Z",
     "status": "active"
   },
-  "DESKTOP-2E4TITN-52640-d2b7": {
-    "agent_id": "DESKTOP-2E4TITN-52640-d2b7",
-    "pid": 52640,
+  "DESKTOP-2E4TITN-36400-834f": {
+    "agent_id": "DESKTOP-2E4TITN-36400-834f",
+    "pid": 36400,
     "host": "DESKTOP-2E4TITN",
-    "client": "codex-mcp-client",
-    "started_at": "2026-06-17T09:44:44.201Z",
-    "last_heartbeat": "2026-06-17T09:44:44.201Z",
+    "client": "claude-code",
+    "started_at": "2026-08-31T02:04:09.402Z",
+    "last_heartbeat": "2026-08-31T02:04:09.402Z",
     "status": "active"
   }
 }

@@ -24,3 +24,4 @@ export * from './search.js';
 export * from './summary.js';
 export * from './templates.js';
 export * from './workspace.js';
+export * from './evidence-contract.js';

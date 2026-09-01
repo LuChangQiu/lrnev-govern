@@ -34,6 +34,36 @@ import { MemoryCategory } from '../../types/memory.js';
 import { ErrorCode, LrnevError, isLrnevError } from '../../shared/errors.js';
 import type { AiFollowupResponse, Scope } from '../../types/response.js';
 import { GUIDE_TOPIC_VALUES, TOOL_DESCRIPTIONS, buildGuide } from '../guidance.js';
+import { toMcpToolResult, toMcpToolResultFromData } from '../helpers/tool-result-adapter.js';
+import {
+  createToolOutputSchema,
+  SimpleConfirmationDataSchema,
+  AgentDataSchema,
+  AgentRegisterResultSchema,
+  AgentHeartbeatResultSchema,
+  AgentListResultSchema,
+  SceneDataSchema,
+  SpecDataSchema,
+  TaskDataSchema,
+  ReadableTaskSchema,
+  TaskClaimResultSchema,
+  ADRDataSchema,
+  MemoryDataSchema,
+  ErrorEntryDataSchema,
+  HookDataSchema,
+  GoalAssessmentDataSchema,
+  ContextSearchResultSchema,
+  ProjectStatusDataSchema,
+  GovernanceMapDataSchema,
+  GovernanceReportDataSchema,
+  GuideDataSchema,
+  DoctorResultSchema,
+  SessionCommitResultSchema,
+  SummarizeSaveResultSchema,
+  HookTriggerResultSchema,
+  HookLogEntrySchema,
+  ValidationDataSchema,
+} from '../types/output-schemas.js';
 
 type ToolResult = {
   content: Array<{ type: 'text'; text: string }>;
@@ -70,9 +100,10 @@ function registerGuideTools(server: McpServer): void {
       inputSchema: {
         topic: z.enum(GUIDE_TOPIC_VALUES).optional().describe('可选：workflow/tools/errors/concepts；省略返回完整手册'),
       },
+      outputSchema: createToolOutputSchema(GuideDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ topic }) => toToolResult(Promise.resolve(buildGuide(topic))),
+    async ({ topic }) => toMcpToolResult(Promise.resolve(buildGuide(topic))),
   );
 }
 
@@ -87,9 +118,10 @@ function registerWorkspaceTools(server: McpServer): void {
         project_name: z.string().optional().describe('可选：项目名；默认使用目录名'),
         scan: z.boolean().optional().describe('占位 flag，M2 不做主动扫描；行为同默认 init'),
       },
+      outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async (args) => toToolResult(new WorkspaceManager().init(args)),
+    async (args) => toMcpToolResult(new WorkspaceManager().init(args)),
   );
 }
 
@@ -102,9 +134,10 @@ function registerProjectStatusTools(server: McpServer): void {
       inputSchema: {
         scene: z.string().optional().describe('可选：只返回指定 Scene 的状态，缩小接手快照'),
       },
+      outputSchema: createToolOutputSchema(ProjectStatusDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scene }) => toToolResult(getManagers().projectStatus.get({ scene }).then(withProjectStatusFollowup)),
+    async ({ scene }) => toMcpToolResult(getManagers().projectStatus.get({ scene }).then(withProjectStatusFollowup)),
   );
 }
 
@@ -115,9 +148,10 @@ function registerGovernanceMapTools(server: McpServer): void {
       title: 'Governance Map',
       description: TOOL_DESCRIPTIONS.governance_map,
       inputSchema: {},
+      outputSchema: createToolOutputSchema(GovernanceMapDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async () => toToolResult(getManagers().governanceMap.build()),
+    async () => toMcpToolResult(getManagers().governanceMap.build()),
   );
 }
 
@@ -131,10 +165,11 @@ function registerReportTools(server: McpServer): void {
         scene: z.string().optional().describe('只体检指定 scene；不给则全量'),
         release_notes: z.boolean().optional().describe('附已完成工作的 release notes 草稿'),
       },
+      outputSchema: createToolOutputSchema(GovernanceReportDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ scene, release_notes }) =>
-      toToolResult(getManagers().governanceReport.build({ scene, releaseNotes: release_notes })),
+      toMcpToolResult(getManagers().governanceReport.build({ scene, releaseNotes: release_notes })),
   );
 }
 
@@ -149,9 +184,10 @@ function registerSceneTools(server: McpServer): void {
         number: z.number().int().positive().optional().describe('可选：手动指定 Scene 序号'),
         intent: z.string().optional().describe('可选：业务意图一句话说明'),
       },
+      outputSchema: createToolOutputSchema(SceneDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().scenes.create(args)),
+    async (args) => toMcpToolResult(getManagers().scenes.create(args)),
   );
 
   server.registerTool(
@@ -160,9 +196,10 @@ function registerSceneTools(server: McpServer): void {
       title: 'List Scenes',
       description: TOOL_DESCRIPTIONS.scene_list,
       inputSchema: {},
+      outputSchema: createToolOutputSchema(z.array(SceneDataSchema)),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async () => toToolResult(getManagers().scenes.list().then(withBrokenFollowup('Scene'))),
+    async () => toMcpToolResult(getManagers().scenes.list().then(withBrokenFollowup('Scene')), true),
   );
 
   server.registerTool(
@@ -173,9 +210,10 @@ function registerSceneTools(server: McpServer): void {
       inputSchema: {
         scene: z.string().describe('Scene 标识：完整 id、序号或纯名称'),
       },
+      outputSchema: createToolOutputSchema(SceneDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scene }) => toToolResult(getManagers().scenes.get(scene)),
+    async ({ scene }) => toMcpToolResultFromData(getManagers().scenes.get(scene)),
   );
 }
 
@@ -191,9 +229,10 @@ function registerSpecTools(server: McpServer): void {
         version: z.number().int().min(0).max(99).optional().describe('可选：默认 0。小修小改直接编辑现有 requirements/design/tasks，不传 version；仅整体重写并想保留旧版对照时传 1/2/...'),
         priority: z.enum(['P0', 'P1', 'P2', 'P3']).optional().describe('可选：优先级'),
       },
+      outputSchema: createToolOutputSchema(SpecDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().specs.create(args)),
+    async (args) => toMcpToolResult(getManagers().specs.create(args)),
   );
 
   server.registerTool(
@@ -204,9 +243,10 @@ function registerSpecTools(server: McpServer): void {
       inputSchema: {
         scene: z.string().describe('Scene 标识：完整 id、序号或纯名称'),
       },
+      outputSchema: createToolOutputSchema(z.array(SpecDataSchema)),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scene }) => toToolResult(getManagers().specs.list(scene).then(withBrokenFollowup('Spec'))),
+    async ({ scene }) => toMcpToolResult(getManagers().specs.list(scene).then(withBrokenFollowup('Spec')), true),
   );
 
   server.registerTool(
@@ -218,11 +258,18 @@ function registerSpecTools(server: McpServer): void {
         scene: z.string().describe('Scene 标识：完整 id、序号或纯名称'),
         spec: z.string().describe('Spec 标识：完整 id、序号前缀或纯名称'),
       },
+      outputSchema: createToolOutputSchema(SpecDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ scene, spec }) => {
       const fs = new FileStorage(resolveWorkspaceRoot().root);
-      return toToolResult(getSpecWithGuidance(fs, getManagers().specs, scene, spec));
+      // getSpecWithGuidance 返回 Spec | AiFollowupResponse<Spec>（CLI 与 MCP 共用）；
+      // MCP 侧统一包装为 AiFollowupResponse 再交给 toMcpToolResult。
+      // 异常需在 toMcpToolResult 的 promise 链内抛出，以便被其 try/catch 捕获（如 AMBIGUOUS_REF）。
+      const response = getSpecWithGuidance(fs, getManagers().specs, scene, spec).then(
+        (result) => ('ok' in result ? result : { ok: true as const, data: result }),
+      );
+      return toMcpToolResult(response);
     },
   );
 
@@ -237,9 +284,10 @@ function registerSpecTools(server: McpServer): void {
         status: z.enum(['draft', 'ready', 'in-progress', 'completed', 'archived']).describe('目标状态'),
         reason: z.string().optional().describe('可选：变更原因'),
       },
+      outputSchema: createToolOutputSchema(SpecDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async ({ scene, spec, status, reason }) => toToolResult(getManagers().specs.updateStatus(scene, spec, status, reason)),
+    async ({ scene, spec, status, reason }) => toMcpToolResult(getManagers().specs.updateStatus(scene, spec, status, reason)),
   );
 }
 
@@ -254,11 +302,12 @@ function registerGateTools(server: McpServer): void {
         spec: z.string().describe('Spec 标识：完整 id、序号前缀或纯名称'),
         gate: z.enum(['creation', 'ready', 'completion']).describe('Gate 类型'),
       },
+      outputSchema: createToolOutputSchema(ValidationDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ scene, spec, gate }) => {
       const managers = getManagers();
-      return toToolResult(
+      return toMcpToolResult(
         managers.gates.check(gate, { scene, spec }).then((result) => ({
           ok: true,
           data: result,
@@ -285,9 +334,10 @@ function registerTaskTools(server: McpServer): void {
         parent: z.string().optional().describe('可选：父 Task ID；把大执行项拆成可分别认领/验收的子任务时使用，例如 T-003'),
         validates: z.array(z.string()).optional().describe('可选：需求/设计锚点，例如 F-01 或 D-02'),
       },
+      outputSchema: createToolOutputSchema(TaskDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().tasks.create(args)),
+    async (args) => toMcpToolResult(getManagers().tasks.create(args)),
   );
 
   server.registerTool(
@@ -308,9 +358,10 @@ function registerTaskTools(server: McpServer): void {
           key: z.string().optional().describe('可选：批内临时键，供同批 depends_on 引用；不得使用 T-xxx 格式，不落盘'),
         })).describe('要创建的任务列表；按数组顺序分配 T-xxx，任一条校验失败整批不写'),
       },
+      outputSchema: createToolOutputSchema(z.array(TaskDataSchema)),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().tasks.createMany(args)),
+    async (args) => toMcpToolResult(getManagers().tasks.createMany(args)),
   );
 
   server.registerTool(
@@ -328,9 +379,10 @@ function registerTaskTools(server: McpServer): void {
         claim_ttl_seconds: z.number().int().positive().optional().describe('可选：task claim 租约秒数'),
         touches_files: z.array(z.string()).optional().describe('可选：多窗口并行时建议声明本 Task 预计修改的文件路径，用于重叠提示，不锁源码'),
       },
+      outputSchema: createToolOutputSchema(TaskDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().tasks.update(args)),
+    async (args) => toMcpToolResult(getManagers().tasks.update(args)),
   );
 
   server.registerTool(
@@ -346,9 +398,10 @@ function registerTaskTools(server: McpServer): void {
         ttl_seconds: z.number().int().positive().optional().describe('可选：task claim 租约秒数'),
         touches_files: z.array(z.string()).optional().describe('可选：多窗口并行时建议声明预计修改的文件路径，用于重叠提示，不锁源码'),
       },
+      outputSchema: createToolOutputSchema(TaskClaimResultSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().tasks.claim(args)),
+    async (args) => toMcpToolResult(getManagers().tasks.claim(args)),
   );
 
   server.registerTool(
@@ -362,9 +415,10 @@ function registerTaskTools(server: McpServer): void {
         task: z.string().describe('Task ID，例如 T-001'),
         agent_id: z.string().describe('当前 Agent ID'),
       },
+      outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().tasks.releaseClaim(args)),
+    async (args) => toMcpToolResult(getManagers().tasks.releaseClaim(args)),
   );
 
   server.registerTool(
@@ -377,9 +431,10 @@ function registerTaskTools(server: McpServer): void {
         spec: z.string().describe('Spec 标识'),
         view: z.enum(['raw', 'readable']).optional().describe('可选：raw 返回完整 Task；readable 返回人读投影视图，隐藏 history/meta'),
       },
+      outputSchema: createToolOutputSchema(z.union([z.array(TaskDataSchema), z.array(ReadableTaskSchema)])),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scene, spec, view }) => toToolResult(
+    async ({ scene, spec, view }) => toMcpToolResult(
       (view === 'readable'
         ? getManagers().tasks.list(scene, spec, { view: 'readable' })
         : getManagers().tasks.list(scene, spec)
@@ -405,7 +460,7 @@ function registerADRTools(server: McpServer): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().adrs.create({
+    async (args) => toMcpToolResult(getManagers().adrs.create({
       ...args,
       scope: normalizeScope(args.scope),
     })),
@@ -421,7 +476,7 @@ function registerADRTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scope }) => toToolResult(getManagers().adrs.list(normalizeScope(scope))),
+    async ({ scope }) => toMcpToolResultFromData(getManagers().adrs.list(normalizeScope(scope)), true),
   );
 
   server.registerTool(
@@ -435,7 +490,7 @@ function registerADRTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scope, number }) => toToolResult(getManagers().adrs.get(normalizeScope(scope), number)),
+    async ({ scope, number }) => toMcpToolResultFromData(getManagers().adrs.get(normalizeScope(scope), number)),
   );
 }
 
@@ -450,7 +505,7 @@ function registerGoalTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ goal }) => toToolResult(Promise.resolve(new GoalAssessor().assess(goal))),
+    async ({ goal }) => toMcpToolResult(Promise.resolve(new GoalAssessor().assess(goal))),
   );
 }
 
@@ -467,7 +522,7 @@ function registerSummaryTools(server: McpServer): void {
       },
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().summaries.saveSummary(args)),
+    async (args) => toMcpToolResult(getManagers().summaries.saveSummary(args)),
   );
 }
 
@@ -484,7 +539,7 @@ function registerSearchTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().searcher.search({
+    async (args) => toMcpToolResult(getManagers().searcher.search({
       ...args,
       scope: normalizeScope(args.scope),
     })),
@@ -508,7 +563,7 @@ function registerErrorTools(server: McpServer): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().errors.record({
+    async (args) => toMcpToolResult(getManagers().errors.record({
       ...args,
       scope: normalizeScope(args.scope),
     })),
@@ -525,10 +580,10 @@ function registerErrorTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().errors.search({
+    async (args) => toMcpToolResult(getManagers().errors.search({
       query: args.query,
       scope: normalizeScope(args.scope),
-    }).then((entries) => (entries.length > 0 ? entries : {
+    }).then((entries) => (entries.length > 0 ? { ok: true, data: entries } : {
       ok: true,
       data: entries,
       ai_followup: {
@@ -536,7 +591,7 @@ function registerErrorTools(server: McpServer): void {
           'error_search 是零模型关键词检索、无语义召回：未命中时请换记录原文的关键词/错误码/文件名重试，不要用近义改述（I-14）。',
         ],
       },
-    }))),
+    })), true),
   );
 
   server.registerTool(
@@ -551,7 +606,7 @@ function registerErrorTools(server: McpServer): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().errors.promote({
+    async (args) => toMcpToolResult(getManagers().errors.promote({
       id: args.id,
       scope: normalizeScope(args.scope),
       verification: args.verification,
@@ -582,7 +637,7 @@ function registerMemoryTools(server: McpServer): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().memories.save({
+    async (args) => toMcpToolResult(getManagers().memories.save({
       ...args,
       scope: normalizeScope(args.scope),
     })),
@@ -600,11 +655,11 @@ function registerMemoryTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().memories.search({
+    async (args) => toMcpToolResultFromData(getManagers().memories.search({
       query: args.query,
       category: args.category,
       scope: normalizeScope(args.scope),
-    })),
+    }), true),
   );
 
   server.registerTool(
@@ -619,7 +674,7 @@ function registerMemoryTools(server: McpServer): void {
       },
       annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().memories.forget({
+    async (args) => toMcpToolResult(getManagers().memories.forget({
       id: args.id,
       category: args.category,
       scope: normalizeScope(args.scope),
@@ -642,7 +697,7 @@ function registerMemoryTools(server: McpServer): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().sessionCommit.commit({
+    async (args) => toMcpToolResult(getManagers().sessionCommit.commit({
       summary: args.summary,
       candidates: args.candidates,
       scope: normalizeScope(args.scope),
@@ -660,9 +715,10 @@ function registerAgentTools(server: McpServer): void {
         agent_id: z.string().optional().describe('可选：客户端自带 Agent ID'),
         client: z.string().optional().describe('可选：客户端名称，例如 codex/claude-code/cursor'),
       },
+      outputSchema: createToolOutputSchema(AgentRegisterResultSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async (args) => toToolResult(getManagers().agents.register(args)),
+    async (args) => toMcpToolResult(getManagers().agents.register(args)),
   );
 
   server.registerTool(
@@ -673,9 +729,10 @@ function registerAgentTools(server: McpServer): void {
       inputSchema: {
         agent_id: z.string().describe('Agent ID'),
       },
+      outputSchema: createToolOutputSchema(AgentHeartbeatResultSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ agent_id }) => toToolResult(getManagers().agents.heartbeat(agent_id)),
+    async ({ agent_id }) => toMcpToolResult(getManagers().agents.heartbeat(agent_id)),
   );
 
   server.registerTool(
@@ -684,9 +741,10 @@ function registerAgentTools(server: McpServer): void {
       title: 'List Agents',
       description: TOOL_DESCRIPTIONS.agent_list,
       inputSchema: {},
+      outputSchema: createToolOutputSchema(AgentListResultSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async () => toToolResult(getManagers().agents.list()),
+    async () => toMcpToolResult(getManagers().agents.list()),
   );
 
   server.registerTool(
@@ -697,9 +755,10 @@ function registerAgentTools(server: McpServer): void {
       inputSchema: {
         agent_id: z.string().describe('Agent ID'),
       },
+      outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ agent_id }) => toToolResult(getManagers().agents.unregister({ agent_id })),
+    async ({ agent_id }) => toMcpToolResult(getManagers().agents.unregister({ agent_id })),
   );
 }
 
@@ -721,15 +780,15 @@ function registerDoctorTools(server: McpServer): void {
     async ({ migrate_todos, migrate_summaries, gc_agents }) => {
       const doctor = getManagers().doctor;
       if ([migrate_todos, migrate_summaries, gc_agents].filter(Boolean).length > 1) {
-        return toToolResult(Promise.reject(new LrnevError(ErrorCode.INVALID_INPUT, 'lrnev_doctor 一次只能选择一种维护动作', {
+        return toMcpToolResult(Promise.reject(new LrnevError(ErrorCode.INVALID_INPUT, 'lrnev_doctor 一次只能选择一种维护动作', {
           field: 'migrate',
           hint: '分别使用 migrate_todos、migrate_summaries 或 gc_agents。',
         })));
       }
-      if (migrate_todos) return toToolResult(doctor.migrateTodosToSentinels());
-      if (migrate_summaries) return toToolResult(doctor.migrateLegacySummaries());
-      if (gc_agents) return toToolResult(doctor.gcAgents());
-      return toToolResult(doctor.diagnose());
+      if (migrate_todos) return toMcpToolResultFromData(doctor.migrateTodosToSentinels(), true);
+      if (migrate_summaries) return toMcpToolResultFromData(doctor.migrateLegacySummaries(), true);
+      if (gc_agents) return toMcpToolResultFromData(doctor.gcAgents(), true);
+      return toMcpToolResultFromData(doctor.diagnose(), true);
     },
   );
 }
@@ -743,7 +802,7 @@ function registerHookTools(server: McpServer): void {
       inputSchema: {},
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async () => toToolResult(getManagers().hooks.list()),
+    async () => toMcpToolResult(getManagers().hooks.list()),
   );
 
   server.registerTool(
@@ -757,7 +816,7 @@ function registerHookTools(server: McpServer): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
-    async ({ event, payload }) => toToolResult(getManagers().hooks.triggerResponse(event, payload ?? {})),
+    async ({ event, payload }) => toMcpToolResult(getManagers().hooks.triggerResponse(event, payload ?? {})),
   );
 
   server.registerTool(
@@ -770,7 +829,7 @@ function registerHookTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ lines }) => toToolResult(getManagers().hooks.tailLog(lines)),
+    async ({ lines }) => toMcpToolResult(getManagers().hooks.tailLog(lines)),
   );
 
   server.registerTool(
@@ -781,7 +840,7 @@ function registerHookTools(server: McpServer): void {
       inputSchema: { name: z.string().describe('Hook 名称') },
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ name }) => toToolResult(getManagers().hooks.setEnabled(name, true)),
+    async ({ name }) => toMcpToolResult(getManagers().hooks.setEnabled(name, true)),
   );
 
   server.registerTool(
@@ -792,7 +851,7 @@ function registerHookTools(server: McpServer): void {
       inputSchema: { name: z.string().describe('Hook 名称') },
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ name }) => toToolResult(getManagers().hooks.setEnabled(name, false)),
+    async ({ name }) => toMcpToolResult(getManagers().hooks.setEnabled(name, false)),
   );
 }
 
@@ -835,43 +894,6 @@ function getManagers(): {
   return { scenes, specs, tasks, gates, adrs, summaries, searcher, errors, memories, sessionCommit, doctor, hooks, agents, projectStatus, governanceMap, governanceReport };
 }
 
-async function toToolResult(value: Promise<unknown>): Promise<ToolResult> {
-  try {
-    const data = await value;
-    return {
-      content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
-    };
-  } catch (err) {
-    if (isLrnevError(err) && err.code === ErrorCode.AMBIGUOUS_REF) {
-      const candidates = err.candidates ?? [];
-      const payload = {
-        ok: false,
-        errors: [err.toErrorInfo()],
-        ai_followup: {
-          instructions: [
-            'Spec 引用不唯一；请从 candidates 中选择一个完整 Spec id，并用该完整 id 重新调用刚才的工具。',
-            candidates.length > 0
-              ? `候选项：${candidates.join('、')}`
-              : '错误信息中没有候选项；请先调用 spec_list 查看完整 Spec id。',
-            '确认后使用完整 Spec id 重新调用当前工具；不要继续使用短前缀或纯名称重试。',
-          ],
-        },
-      };
-      return {
-        content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }],
-      };
-    }
-
-    const payload = isLrnevError(err)
-      ? { ok: false, errors: [err.toErrorInfo()] }
-      : { ok: false, errors: [{ code: 'INTERNAL_ERROR', message: err instanceof Error ? err.message : String(err) }] };
-    return {
-      isError: true,
-      content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }],
-    };
-  }
-}
-
 function normalizeScope(scope: string | undefined): Scope {
   if (!scope || scope === 'global') return 'global';
   return scope as Scope;
@@ -905,10 +927,15 @@ function withProjectStatusFollowup<T extends AiFollowupResponse<unknown>>(respon
 
 function withBrokenFollowup<T extends { broken?: { error: string; path: string } }>(
   label: string,
-): (items: T[]) => T[] | AiFollowupResponse<T[]> {
+): (items: T[]) => AiFollowupResponse<T[]> {
   return (items) => {
     const brokenItems = items.filter((item) => item.broken);
-    if (brokenItems.length === 0) return items;
+    if (brokenItems.length === 0) {
+      return {
+        ok: true,
+        data: items,
+      };
+    }
     return {
       ok: true,
       data: items,
