@@ -1,9 +1,12 @@
+import { USER_DECISION_PRIORITY_CLAUSE } from '../core/guidance-semantics.js';
+
 export const WORKFLOW_OVERVIEW = [
   'lrnev 是确定性的项目治理引擎：文件即真相，不调用 LLM。',
   '概念：Scene > Spec > Task；Gate 只查结构契约；ADR/Errorbook/Memory 是轻产物。',
   '新建特性：首次先 lrnev_init，再 spec_create；填 requirements 后跑 spec_gate_check(ready)，再拆任务（多条清单用 task_create_many、单条用 task_create），最后 spec_gate_check(completion)。',
   '接手项目：先调 project_status 拿全貌，从 in_progress task 继续；可用 governance_map 看治理全景、lrnev_report 看治理欠债。',
   '分流(便宜先)：写不出独立验收→直接做；已有特性增量→落位 spec；独立新特性→spec_create。新 spec 优先已有 scene；新域经用户确认会有多 spec→scene_create；无域小特性落 00-default；scene/00 不确定问用户。踩坑→error_record，决策→adr_create，约定→memory_save。',
+  USER_DECISION_PRIORITY_CLAUSE,
   '不确定下一步时调 lrnev_guide。',
 ].join('\n');
 
@@ -22,7 +25,7 @@ export const TOOL_DESCRIPTIONS = {
   scene_create: '创建业务 Scene，并生成 scene.md、architecture.md、roadmap.md。何时用：需要按业务域隔离一组 Specs 时；传 intent 可在 followup 获得单/多 Spec 拆分信号。',
   scene_list: '列出当前工作区中的所有 Scene。何时用：接手项目、选择工作场景或排查 broken Scene 时。',
   scene_get: '读取一个 Scene 的元信息和统计信息。何时用：需要确认某个 Scene 的文档与统计概况时。',
-  spec_create: '创建 Spec 三文档。何时用：先自问"这是可独立交付、能写出 WHEN…THEN 验收的特性吗"——是才开 spec；做完没有独立验收可挂的小改动(改文档/排版/注释、小重构、调参数、答问题等，举例非穷举)直接做、不要开 spec；拿不准先问用户、别默认开。前置：已 init；scene 可省略。例子：spec_create{name:"login"}。',
+  spec_create: '创建 Spec 三文档。何时用：先自问"这是可独立交付、能写出 WHEN…THEN 验收的特性吗"——通常适合为这类特性开 spec；做完没有独立验收可挂的小改动(改文档/排版/注释、小重构、调参数、答问题等，举例非穷举)直接做、不要开 spec。拿不准先问用户、别默认开。注意：以上是建议，若用户已明确要求（如"帮我新建一个 Spec"），即使已有相似 Spec 可以承载，也应尊重用户决定直接创建。前置：已 init；scene 可省略。例子：spec_create{name:"login"}。',
   spec_list: '列出指定 Scene 下的所有 Spec。何时用：查看同 Scene 已有哪些特性、避免重复或找接手目标。',
   spec_get: '读取一个 Spec 的元信息和三文档存在性。何时用：进入某个 Spec 前确认 requirements/design/tasks 是否齐全。',
   spec_update: '按状态机更新 Spec 状态(draft→ready→in-progress→completed→archived)。何时用：gate 通过后回填状态，或开重写版后把被取代的旧版标 archived(归档后其待办不再进可领列表)。',

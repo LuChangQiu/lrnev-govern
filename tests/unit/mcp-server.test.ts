@@ -1095,6 +1095,71 @@ async function writeReadyRequirements(root: string, sceneId: string, specId: str
   ].join('\n'));
 }
 
+  it('F-09: 已有 Spec A 后仍可创建 Spec B（执行层非阻断）', async () => {
+    const workspace = await tmpDir({ unsafeCleanup: true });
+    const original = process.env.LRNEV_WORKSPACE;
+    process.env.LRNEV_WORKSPACE = workspace.path;
+    try {
+      const { server, client } = await connectInMemory();
+      await client.callTool({ name: 'lrnev_init', arguments: { root: workspace.path, project_name: 'demo' } });
+      await client.callTool({ name: 'scene_create', arguments: { name: 'test-scene' } });
+
+      // 创建 Spec A
+      const resultA = await client.callTool({
+        name: 'spec_create',
+        arguments: { scene: 'test-scene', name: 'feature-a' },
+      });
+      const payloadA = JSON.parse(resultA.content[0]?.type === 'text' ? resultA.content[0].text : '') as {
+        ok: boolean;
+        data: { spec: string };
+      };
+      expect(payloadA.ok).toBe(true);
+      expect(payloadA.data.spec).toContain('feature-a');
+
+      // 创建 Spec B（应成功，不被强制复用）
+      const resultB = await client.callTool({
+        name: 'spec_create',
+        arguments: { scene: 'test-scene', name: 'feature-b' },
+      });
+      const payloadB = JSON.parse(resultB.content[0]?.type === 'text' ? resultB.content[0].text : '') as {
+        ok: boolean;
+        data: { spec: string };
+        ai_followup?: { instructions: string[] };
+      };
+
+      // 验证：B 成功创建
+      expect(payloadB.ok).toBe(true);
+      expect(payloadB.data.spec).toContain('feature-b');
+
+      // 验证：followup 不含强制措辞
+      const followupText = payloadB.ai_followup?.instructions.join(' ') ?? '';
+      expect(followupText).not.toContain('不应该新建');
+      expect(followupText).not.toContain('必须复用');
+
+      // 验证：followup 包含【重要】（不得擅自撤销）
+      expect(followupText).toContain('【重要】');
+      expect(followupText).toContain('不得擅自撤销');
+
+      // 反向测试：验证两个 Spec 都被正确创建（执行层不阻断）
+      const specListResult = await client.callTool({
+        name: 'spec_list',
+        arguments: { scene: 'test-scene' },
+      });
+      const specListText = specListResult.content[0]?.type === 'text' ? specListResult.content[0].text : '';
+
+      // 验证：两个 spec 都存在（简化检查，不依赖具体返回格式）
+      expect(specListText).toContain(payloadA.data.spec);
+      expect(specListText).toContain(payloadB.data.spec);
+
+      await client.close();
+      await server.close();
+    } finally {
+      if (original === undefined) delete process.env.LRNEV_WORKSPACE;
+      else process.env.LRNEV_WORKSPACE = original;
+      await workspace.cleanup();
+    }
+  });
+
 async function connectInMemory(): Promise<{
   server: ReturnType<typeof createMcpServer>;
   client: Client;

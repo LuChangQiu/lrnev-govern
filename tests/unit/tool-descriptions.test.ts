@@ -121,8 +121,8 @@ describe('MCP 工具自描述审计', () => {
     ]) {
       expect(WORKFLOW_OVERVIEW).toContain(keyword);
     }
-    // 预算护栏：v2.3 扩容（+批量创建/治理地图/report 心智模型），上限 480→600；内容准确性优先于凑字数
-    expect([...WORKFLOW_OVERVIEW].length).toBeLessThanOrEqual(600);
+    // 预算护栏：v2.3 扩容（+批量创建/治理地图/report 心智模型），上限 480→600；08-00 语义边界修复后 600→800；内容准确性优先于凑字数
+    expect([...WORKFLOW_OVERVIEW].length).toBeLessThanOrEqual(800);
   });
 
   it('所有注册工具 description 都来自 guidance 且包含何时用', async () => {
@@ -136,7 +136,8 @@ describe('MCP 工具自描述审计', () => {
         expect(tool.description).toBe(expected[tool.name]);
         expect(tool.description).toContain('何时用');
         expect(isBareDescription(tool)).toBe(false);
-        expect([...tool.description].length).toBeLessThanOrEqual(180);
+        // 08-00 语义边界修复：spec_create 补充用户决定优先条款，上限 180→300
+        expect([...tool.description].length).toBeLessThanOrEqual(300);
       }
     } finally {
       await client.close();

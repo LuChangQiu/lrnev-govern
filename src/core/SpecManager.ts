@@ -213,8 +213,9 @@ export class SpecManager {
     });
 
     const instructions = [
-      `Spec "${spec.spec}" 已创建于 Scene "${sceneId}"，路径 .lrnev/scenes/${sceneId}/specs/${spec.spec}`,
-      '分流提醒（你正在开 spec，先确认该不该开、开在哪）：若这其实是给已完成特性加的小增量，通常该 context_search 找到对应 spec 用 task_create 落位、而非新开；若确是独立新特性，scene 选择——优先归入已有匹配业务域 scene；只有用户明确确认、或上下文非常清楚这是会承载多个 spec 的新业务域，才 scene_create；零散无稳定业务域的小型独立特性才落 00-default（兜底）。scene / 00-default 难回退，拿不准就问用户、别默认。',
+      `【事实】Spec "${spec.spec}" 已创建于 Scene "${sceneId}"，路径 .lrnev/scenes/${sceneId}/specs/${spec.spec}`,
+      `【建议】如果这是已有特性的增量，通常可以考虑 context_search 找到对应 Spec 用 task_create 落位。判断时注意：整体推翻已有 requirements/design → 通常建议开新版（version+1）保留旧版对照；独立且可验收的新特性 → 通常建议开新 Spec；旧 Spec 出现上下文冷却信号（长时间未动、已 completed、tasks 已清空）→ 先读摘要再决定复用、开新版还是独立 Spec。scene 选择时，优先归入已有匹配业务域 scene；只有用户明确确认、或上下文非常清楚这是会承载多个 spec 的新业务域，才 scene_create；零散无稳定业务域的小型独立特性才落 00-default（兜底）。`,
+      `【重要】以上是治理建议，不代表本次创建失败。若用户已明确要求创建独立 Spec，不得擅自撤销或回退。建议下一步：调用 context_search 查找相关需求，或问用户该 Spec 的具体范围。`,
       '请协助用户填充 requirements.md 的"目标"、"用户故事"、"详细需求"',
       '注意：三文档的章节标题是模板契约，不要翻译或改名（ready gate 按中文标题精确匹配，如「L0 摘要」「详细需求」），只填标题下的内容。',
       '需求填完后调用 spec_gate_check(gate=ready) 检查',

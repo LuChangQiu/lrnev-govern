@@ -13,7 +13,7 @@ import type { Spec } from '../types/spec.js';
 import type { AiFollowupResponse } from '../types/response.js';
 
 export const SPEC_REWRITE_GUIDANCE =
-  '这个 Spec 已有实现（有 completed task 或 status=completed）。若要整体推翻重做，建议开新版 spec_create --version（VV+1）保留旧版对照，再用 spec_update 归档旧版；只是增量加需求时在本版 task_create 即可，不必新开 spec。';
+  '这个 Spec 已有实现（有 completed task 或 status=completed）。若要整体推翻重做（新需求与已有 requirements/design 方向相反），建议开新版 spec_create --version（VV+1）保留旧版对照，再用 spec_update 归档旧版；只是增量加需求时在本版 task_create 即可，不必新开 spec。注意：以上是建议，若用户已明确要求独立 Spec（如"帮我新建一个 Spec"），即使已有相似 Spec 可以承载，也应尊重用户决定。';
 
 export async function getSpecWithGuidance(
   fs: FileStorage,

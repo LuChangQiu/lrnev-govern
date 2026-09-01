@@ -93,7 +93,7 @@ function addIfMatch(
 
 function nextStep(kind: GoalAssessmentKind): string {
   if (kind === 'single-spec') {
-    return '建议在现有 Scene 下创建一个 Spec，并把需求、设计、任务放入该 Spec。';
+    return '建议在现有 Scene 下创建一个 Spec，并把需求、设计、任务放入该 Spec。注意：suggested_next_step 是建议而非必须步骤，若用户已明确要求独立 Spec（如"帮我新建一个 Spec"），可直接调用 spec_create，无需等待 assess_goal 结果。';
   }
   if (kind === 'multi-spec-program') {
     return '建议先确认 Scene 边界，再拆成多个 Spec，避免一个 Spec 承载过多变化。评估只是启发式信号：若用户已明确本次只做其中一个小特性，可直接按 single-spec 走 spec_create，并在需求里记录取舍。';

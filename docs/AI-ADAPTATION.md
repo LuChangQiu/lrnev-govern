@@ -139,13 +139,20 @@ MCP 工具名与 CLI 子命令一一对应（如 `task_create_many` ↔ `lrnev t
 
   3. **该不该开 spec、开在哪**，自己判断、别对着清单匹配。按从便宜到贵判断：
      - ① 写不出独立"WHEN…THEN"验收的小改动（改文档/排版/注释/小重构/调参数/答问题）→ 直接做，不开 spec/task
-     - ② 给已完成特性加东西、能落到某现有 spec → 先 `context_search` 找到它，`task_create` 落位（不新开 spec，scene
+     - ② 给已完成特性加东西、能落到某现有 spec → 先 `context_search` 找到它，`task_create` 落位（通常无需新开 spec，scene
   沿用；completed spec 可 `spec_update` 回退到 in-progress）
      - ③ 真正独立可交付的新特性才开
   spec——(a)能写出一条有意义的"WHEN…THEN"验收吗？(b)是可独立交付的特性吗？两个都"是"才开 spec。优先归入已有匹配业务域
   scene；只有用户明确确认、或上下文非常清楚这是会承载多个 spec 的新业务域，才 `scene_create`
      - ④ 确实无稳定业务域、又是零散小型独立特性，才落 00-default（兜底，不是默认堆放处）
      - scene / 00-default 是结构决策、事后难迁：该新建 scene 还是落 00-default 拿不准时就问我，别默认。
+     
+     **三条判断标尺**（补充复用/新建/开新版的分流逻辑）：
+     - **整体推翻**：若新需求整体推翻已有 requirements 或 design（而非增量补充），通常建议开新版（version+1），保留旧版供对照。
+     - **独立特性**：若新特性独立且可验收（有明确的 WHEN...THEN 验收标准），通常建议开新 Spec，而非强行扩展已有 Spec 的范围。
+     - **上下文冷却**：若旧 Spec 出现上下文冷却信号（长时间未动、已 completed、tasks 已清空），建议先调用 `context_search` 读取摘要，确认旧 Spec 实际范围，再决定复用、开新版还是创建独立 Spec。
+     
+     **用户决定优先**：以上建议不是强制规则。若用户已明确要求（如"帮我新建一个 Spec"、"开一个独立的 Spec"），即使已有相似 Spec 可以承载，也应尊重用户决定，直接调用对应工具（如 `spec_create`）。
 
   4. **踩坑→`error_record`，技术决策→`adr_create`，约定→`memory_save`**；都不沾的小事直接做。
 
