@@ -522,8 +522,7 @@ describe('MCP server', () => {
         name: 'spec_get',
         arguments: { scene: 'user-management', spec: 'feat' },
       });
-      const getText = got.content[0]?.type === 'text' ? got.content[0].text : '';
-      const getPayload = JSON.parse(getText) as {
+      const getPayload = got.structuredContent as {
         ok: boolean;
         errors: Array<{ code: string; candidates?: string[] }>;
         ai_followup?: { instructions: string[] };
@@ -539,8 +538,7 @@ describe('MCP server', () => {
         name: 'spec_gate_check',
         arguments: { scene: 'user-management', spec: 'feat', gate: 'ready' },
       });
-      const gateText = gate.content[0]?.type === 'text' ? gate.content[0].text : '';
-      const gatePayload = JSON.parse(gateText) as {
+      const gatePayload = gate.structuredContent as {
         ok: boolean;
         errors: Array<{ code: string; candidates?: string[] }>;
         ai_followup?: { instructions: string[] };
@@ -660,8 +658,7 @@ describe('MCP server', () => {
       expect(payload.ai_followup?.instructions.join('\n')).toContain('ADR 0001');
 
       const listed = await client.callTool({ name: 'adr_list', arguments: { scope: 'global' } });
-      const listText = listed.content[0]?.type === 'text' ? listed.content[0].text : '';
-      const listPayload = JSON.parse(listText) as Array<{ title: string }>;
+      const listPayload = (listed.structuredContent?.data as Array<{ title: string }>) ?? [];
       expect(listPayload[0]?.title).toBe('Use file storage');
 
       const resource = await client.readResource({ uri: 'context://adr/1' });
@@ -779,8 +776,7 @@ describe('MCP server', () => {
         name: 'error_search',
         arguments: { query: 'token', scope: 'global' },
       });
-      const searchText = searched.content[0]?.type === 'text' ? searched.content[0].text : '';
-      const searchPayload = JSON.parse(searchText) as Array<{ id: string }>;
+      const searchPayload = (searched.structuredContent?.data as Array<{ id: string }>) ?? [];
       expect(searchPayload[0]?.id).toBe(recordPayload.data.id);
 
       const promoted = await client.callTool({
@@ -828,8 +824,7 @@ describe('MCP server', () => {
         name: 'memory_search',
         arguments: { query: 'lrnev-govern', category: 'facts', scope: 'global' },
       });
-      const searchText = searched.content[0]?.type === 'text' ? searched.content[0].text : '';
-      const searchPayload = JSON.parse(searchText) as Array<{ id: string }>;
+      const searchPayload = (searched.structuredContent?.data as Array<{ id: string }>) ?? [];
       expect(searchPayload[0]?.id).toBe(savePayload.data.id);
 
       const forgotten = await client.callTool({
@@ -937,8 +932,7 @@ describe('MCP server', () => {
       await client.callTool({ name: 'lrnev_init', arguments: { root: workspace.path, project_name: 'demo' } });
 
       const result = await client.callTool({ name: 'lrnev_doctor', arguments: { verbose: true } });
-      const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
-      const payload = JSON.parse(text) as { ok: boolean; summary: { errors: number }; issues: unknown[] };
+      const payload = (result.structuredContent as { data: { ok: boolean; summary: { errors: number }; issues: unknown[] } }).data;
       expect(payload.ok).toBe(true);
       expect(payload.summary.errors).toBe(0);
       expect(Array.isArray(payload.issues)).toBe(true);
@@ -952,8 +946,7 @@ describe('MCP server', () => {
         '',
       ].join('\n'));
       const migrated = await client.callTool({ name: 'lrnev_doctor', arguments: { migrate_todos: true } });
-      const migratedText = migrated.content[0]?.type === 'text' ? migrated.content[0].text : '';
-      const migratedPayload = JSON.parse(migratedText) as { ok: boolean; replacements: number; changed_files: number };
+      const migratedPayload = (migrated.structuredContent as { data: { ok: boolean; replacements: number; changed_files: number } }).data;
       expect(migratedPayload.ok).toBe(true);
       expect(migratedPayload.replacements).toBeGreaterThan(0);
       expect(migratedPayload.changed_files).toBeGreaterThan(0);
@@ -962,8 +955,7 @@ describe('MCP server', () => {
       await fs.write('.lrnev/.overview.md', 'legacy overview\n');
       await fs.write('.lrnev/.PROJECT.overview.md', 'new overview\n');
       const migratedSummaries = await client.callTool({ name: 'lrnev_doctor', arguments: { migrate_summaries: true } });
-      const migratedSummariesText = migratedSummaries.content[0]?.type === 'text' ? migratedSummaries.content[0].text : '';
-      const migratedSummariesPayload = JSON.parse(migratedSummariesText) as { ok: boolean; removed_count: number };
+      const migratedSummariesPayload = (migratedSummaries.structuredContent as { data: { ok: boolean; removed_count: number } }).data;
       expect(migratedSummariesPayload.ok).toBe(true);
       expect(migratedSummariesPayload.removed_count).toBe(1);
       expect(fs.exists('.lrnev/.overview.md')).toBe(false);

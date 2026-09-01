@@ -103,7 +103,7 @@ function registerGuideTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(GuideDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ topic }) => toMcpToolResult(Promise.resolve(buildGuide(topic))),
+    async ({ topic }) => toMcpToolResult(Promise.resolve(buildGuide(topic)), 'lrnev_guide'),
   );
 }
 
@@ -121,7 +121,7 @@ function registerWorkspaceTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(new WorkspaceManager().init(args)),
+    async (args) => toMcpToolResult(new WorkspaceManager().init(args), 'lrnev_init'),
   );
 }
 
@@ -137,7 +137,7 @@ function registerProjectStatusTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(ProjectStatusDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scene }) => toMcpToolResult(getManagers().projectStatus.get({ scene }).then(withProjectStatusFollowup)),
+    async ({ scene }) => toMcpToolResult(getManagers().projectStatus.get({ scene }).then(withProjectStatusFollowup), 'project_status'),
   );
 }
 
@@ -151,7 +151,7 @@ function registerGovernanceMapTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(GovernanceMapDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async () => toMcpToolResult(getManagers().governanceMap.build()),
+    async () => toMcpToolResult(getManagers().governanceMap.build(), 'governance_map'),
   );
 }
 
@@ -169,7 +169,7 @@ function registerReportTools(server: McpServer): void {
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ scene, release_notes }) =>
-      toMcpToolResult(getManagers().governanceReport.build({ scene, releaseNotes: release_notes })),
+      toMcpToolResult(getManagers().governanceReport.build({ scene, releaseNotes: release_notes }), 'lrnev_report'),
   );
 }
 
@@ -187,7 +187,7 @@ function registerSceneTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(SceneDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(getManagers().scenes.create(args)),
+    async (args) => toMcpToolResult(getManagers().scenes.create(args), 'scene_create'),
   );
 
   server.registerTool(
@@ -199,7 +199,7 @@ function registerSceneTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(z.array(SceneDataSchema)),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async () => toMcpToolResult(getManagers().scenes.list().then(withBrokenFollowup('Scene')), true),
+    async () => toMcpToolResult(getManagers().scenes.list().then(withBrokenFollowup('Scene')), 'scene_list', true),
   );
 
   server.registerTool(
@@ -213,7 +213,7 @@ function registerSceneTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(SceneDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scene }) => toMcpToolResultFromData(getManagers().scenes.get(scene)),
+    async ({ scene }) => toMcpToolResultFromData(getManagers().scenes.get(scene), 'scene_get'),
   );
 }
 
@@ -232,7 +232,7 @@ function registerSpecTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(SpecDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(getManagers().specs.create(args)),
+    async (args) => toMcpToolResult(getManagers().specs.create(args), 'spec_create'),
   );
 
   server.registerTool(
@@ -246,7 +246,7 @@ function registerSpecTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(z.array(SpecDataSchema)),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scene }) => toMcpToolResult(getManagers().specs.list(scene).then(withBrokenFollowup('Spec')), true),
+    async ({ scene }) => toMcpToolResult(getManagers().specs.list(scene).then(withBrokenFollowup('Spec')), 'spec_list', true),
   );
 
   server.registerTool(
@@ -269,7 +269,7 @@ function registerSpecTools(server: McpServer): void {
       const response = getSpecWithGuidance(fs, getManagers().specs, scene, spec).then(
         (result) => ('ok' in result ? result : { ok: true as const, data: result }),
       );
-      return toMcpToolResult(response);
+      return toMcpToolResult(response, 'spec_get');
     },
   );
 
@@ -287,7 +287,7 @@ function registerSpecTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(SpecDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async ({ scene, spec, status, reason }) => toMcpToolResult(getManagers().specs.updateStatus(scene, spec, status, reason)),
+    async ({ scene, spec, status, reason }) => toMcpToolResult(getManagers().specs.updateStatus(scene, spec, status, reason), 'spec_update'),
   );
 }
 
@@ -313,6 +313,7 @@ function registerGateTools(server: McpServer): void {
           data: result,
           ai_followup: buildGateFollowup(result, gate, scene, spec),
         })),
+        'spec_gate_check',
       );
     },
   );
@@ -337,7 +338,7 @@ function registerTaskTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(TaskDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(getManagers().tasks.create(args)),
+    async (args) => toMcpToolResult(getManagers().tasks.create(args), 'task_create'),
   );
 
   server.registerTool(
@@ -361,7 +362,7 @@ function registerTaskTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(z.array(TaskDataSchema)),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(getManagers().tasks.createMany(args)),
+    async (args) => toMcpToolResult(getManagers().tasks.createMany(args), 'task_create_many'),
   );
 
   server.registerTool(
@@ -382,7 +383,7 @@ function registerTaskTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(TaskDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(getManagers().tasks.update(args)),
+    async (args) => toMcpToolResult(getManagers().tasks.update(args), 'task_update'),
   );
 
   server.registerTool(
@@ -401,7 +402,7 @@ function registerTaskTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(TaskClaimResultSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(getManagers().tasks.claim(args)),
+    async (args) => toMcpToolResult(getManagers().tasks.claim(args), 'task_claim'),
   );
 
   server.registerTool(
@@ -418,7 +419,7 @@ function registerTaskTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(getManagers().tasks.releaseClaim(args)),
+    async (args) => toMcpToolResult(getManagers().tasks.releaseClaim(args), 'task_release'),
   );
 
   server.registerTool(
@@ -439,6 +440,7 @@ function registerTaskTools(server: McpServer): void {
         ? getManagers().tasks.list(scene, spec, { view: 'readable' })
         : getManagers().tasks.list(scene, spec)
       ).then(withTaskListFollowup),
+      'task_list',
     ),
   );
 }
@@ -463,7 +465,7 @@ function registerADRTools(server: McpServer): void {
     async (args) => toMcpToolResult(getManagers().adrs.create({
       ...args,
       scope: normalizeScope(args.scope),
-    })),
+    }), 'adr_create'),
   );
 
   server.registerTool(
@@ -476,7 +478,7 @@ function registerADRTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scope }) => toMcpToolResultFromData(getManagers().adrs.list(normalizeScope(scope)), true),
+    async ({ scope }) => toMcpToolResultFromData(getManagers().adrs.list(normalizeScope(scope)), 'adr_list', true),
   );
 
   server.registerTool(
@@ -490,7 +492,7 @@ function registerADRTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ scope, number }) => toMcpToolResultFromData(getManagers().adrs.get(normalizeScope(scope), number)),
+    async ({ scope, number }) => toMcpToolResultFromData(getManagers().adrs.get(normalizeScope(scope), number), 'adr_get'),
   );
 }
 
@@ -505,7 +507,7 @@ function registerGoalTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ goal }) => toMcpToolResult(Promise.resolve(new GoalAssessor().assess(goal))),
+    async ({ goal }) => toMcpToolResult(Promise.resolve(new GoalAssessor().assess(goal)), 'assess_goal'),
   );
 }
 
@@ -522,7 +524,7 @@ function registerSummaryTools(server: McpServer): void {
       },
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(getManagers().summaries.saveSummary(args)),
+    async (args) => toMcpToolResult(getManagers().summaries.saveSummary(args), 'summarize_save'),
   );
 }
 
@@ -542,7 +544,7 @@ function registerSearchTools(server: McpServer): void {
     async (args) => toMcpToolResult(getManagers().searcher.search({
       ...args,
       scope: normalizeScope(args.scope),
-    })),
+    }), 'context_search'),
   );
 }
 
@@ -566,7 +568,7 @@ function registerErrorTools(server: McpServer): void {
     async (args) => toMcpToolResult(getManagers().errors.record({
       ...args,
       scope: normalizeScope(args.scope),
-    })),
+    }), 'error_record'),
   );
 
   server.registerTool(
@@ -591,7 +593,7 @@ function registerErrorTools(server: McpServer): void {
           'error_search 是零模型关键词检索、无语义召回：未命中时请换记录原文的关键词/错误码/文件名重试，不要用近义改述（I-14）。',
         ],
       },
-    })), true),
+    })), 'error_search', true),
   );
 
   server.registerTool(
@@ -610,7 +612,7 @@ function registerErrorTools(server: McpServer): void {
       id: args.id,
       scope: normalizeScope(args.scope),
       verification: args.verification,
-    })),
+    }), 'error_promote'),
   );
 }
 
@@ -640,7 +642,7 @@ function registerMemoryTools(server: McpServer): void {
     async (args) => toMcpToolResult(getManagers().memories.save({
       ...args,
       scope: normalizeScope(args.scope),
-    })),
+    }), 'memory_save'),
   );
 
   server.registerTool(
@@ -659,7 +661,7 @@ function registerMemoryTools(server: McpServer): void {
       query: args.query,
       category: args.category,
       scope: normalizeScope(args.scope),
-    }), true),
+    }), 'memory_search', true),
   );
 
   server.registerTool(
@@ -678,7 +680,7 @@ function registerMemoryTools(server: McpServer): void {
       id: args.id,
       category: args.category,
       scope: normalizeScope(args.scope),
-    })),
+    }), 'memory_forget'),
   );
 
   server.registerTool(
@@ -701,7 +703,7 @@ function registerMemoryTools(server: McpServer): void {
       summary: args.summary,
       candidates: args.candidates,
       scope: normalizeScope(args.scope),
-    })),
+    }), 'session_commit'),
   );
 }
 
@@ -718,7 +720,7 @@ function registerAgentTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(AgentRegisterResultSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(getManagers().agents.register(args)),
+    async (args) => toMcpToolResult(getManagers().agents.register(args), 'agent_register'),
   );
 
   server.registerTool(
@@ -732,7 +734,7 @@ function registerAgentTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(AgentHeartbeatResultSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ agent_id }) => toMcpToolResult(getManagers().agents.heartbeat(agent_id)),
+    async ({ agent_id }) => toMcpToolResult(getManagers().agents.heartbeat(agent_id), 'agent_heartbeat'),
   );
 
   server.registerTool(
@@ -744,7 +746,7 @@ function registerAgentTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(AgentListResultSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async () => toMcpToolResult(getManagers().agents.list()),
+    async () => toMcpToolResult(getManagers().agents.list(), 'agent_list'),
   );
 
   server.registerTool(
@@ -758,7 +760,7 @@ function registerAgentTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ agent_id }) => toMcpToolResult(getManagers().agents.unregister({ agent_id })),
+    async ({ agent_id }) => toMcpToolResult(getManagers().agents.unregister({ agent_id }), 'agent_unregister'),
   );
 }
 
@@ -783,12 +785,12 @@ function registerDoctorTools(server: McpServer): void {
         return toMcpToolResult(Promise.reject(new LrnevError(ErrorCode.INVALID_INPUT, 'lrnev_doctor 一次只能选择一种维护动作', {
           field: 'migrate',
           hint: '分别使用 migrate_todos、migrate_summaries 或 gc_agents。',
-        })));
+        })), 'lrnev_doctor');
       }
-      if (migrate_todos) return toMcpToolResultFromData(doctor.migrateTodosToSentinels(), true);
-      if (migrate_summaries) return toMcpToolResultFromData(doctor.migrateLegacySummaries(), true);
-      if (gc_agents) return toMcpToolResultFromData(doctor.gcAgents(), true);
-      return toMcpToolResultFromData(doctor.diagnose(), true);
+      if (migrate_todos) return toMcpToolResultFromData(doctor.migrateTodosToSentinels(), 'lrnev_doctor', true);
+      if (migrate_summaries) return toMcpToolResultFromData(doctor.migrateLegacySummaries(), 'lrnev_doctor', true);
+      if (gc_agents) return toMcpToolResultFromData(doctor.gcAgents(), 'lrnev_doctor', true);
+      return toMcpToolResultFromData(doctor.diagnose(), 'lrnev_doctor', true);
     },
   );
 }
@@ -802,7 +804,7 @@ function registerHookTools(server: McpServer): void {
       inputSchema: {},
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async () => toMcpToolResult(getManagers().hooks.list()),
+    async () => toMcpToolResult(getManagers().hooks.list(), 'lrnev_hook_list'),
   );
 
   server.registerTool(
@@ -816,7 +818,7 @@ function registerHookTools(server: McpServer): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
-    async ({ event, payload }) => toMcpToolResult(getManagers().hooks.triggerResponse(event, payload ?? {})),
+    async ({ event, payload }) => toMcpToolResult(getManagers().hooks.triggerResponse(event, payload ?? {}), 'lrnev_hook_trigger'),
   );
 
   server.registerTool(
@@ -829,7 +831,7 @@ function registerHookTools(server: McpServer): void {
       },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ lines }) => toMcpToolResult(getManagers().hooks.tailLog(lines)),
+    async ({ lines }) => toMcpToolResult(getManagers().hooks.tailLog(lines), 'lrnev_hook_tail_log'),
   );
 
   server.registerTool(
@@ -840,7 +842,7 @@ function registerHookTools(server: McpServer): void {
       inputSchema: { name: z.string().describe('Hook 名称') },
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ name }) => toMcpToolResult(getManagers().hooks.setEnabled(name, true)),
+    async ({ name }) => toMcpToolResult(getManagers().hooks.setEnabled(name, true), 'lrnev_hook_enable'),
   );
 
   server.registerTool(
@@ -851,7 +853,7 @@ function registerHookTools(server: McpServer): void {
       inputSchema: { name: z.string().describe('Hook 名称') },
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ name }) => toMcpToolResult(getManagers().hooks.setEnabled(name, false)),
+    async ({ name }) => toMcpToolResult(getManagers().hooks.setEnabled(name, false), 'lrnev_hook_disable'),
   );
 }
 

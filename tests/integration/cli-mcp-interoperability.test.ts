@@ -51,8 +51,7 @@ describe('CLI / MCP interoperability', () => {
         name: 'spec_list',
         arguments: { scene: 'user-management' },
       });
-      const text = listed.content[0]?.type === 'text' ? listed.content[0].text : '';
-      const specs = JSON.parse(text) as Array<{ spec: string }>;
+      const specs = (listed.structuredContent?.data as Array<{ spec: string }>) ?? [];
       expect(specs[0]?.spec).toBe('01-00-user-login');
     } finally {
       await client.close();

@@ -1,19 +1,22 @@
 /**
- * 03-00-mcp-response-conformance T-002
+ * 03-00-mcp-response-conformance T-002 (M1) + T-004/T-005 (M2)
  *
  * MCP 工具返回适配器：将业务层 AiFollowupResponse 转换为
  * MCP 工具返回格式（content + structuredContent + isError）。
  *
- * M1 阶段：
- * - content 保持 B1 legacy JSON renderer（JSON.stringify）
- * - structuredContent 返回完整 LrnevToolPayload
+ * M2 阶段（T-004/T-005）：
+ * - content 使用 ModelVisibleContract 渲染器（按工具注册，未注册回退 M1）
+ * - structuredContent 返回完整 LrnevToolPayload（canonical payload）
  * - isError 基于 shouldSetIsError 规则
+ * - D-04 硬性要求：canonical 单源、逃逸层级、体积同步、错误路径 MVC
  */
 
 import type { AiFollowupResponse, ErrorInfo } from '../../types/response.js';
 import type { LrnevToolPayload, LrnevErrorInfo } from '../types/response-envelope.js';
 import { shouldSetIsError, wrapInternalError } from '../types/response-envelope.js';
 import { isLrnevError, ErrorCode } from '../../shared/errors.js';
+import { renderModelVisibleContent } from './model-visible-contract.js';
+import { errorRenderer } from './renderers/error.js';
 
 /**
  * MCP 工具返回类型
@@ -41,25 +44,26 @@ function toLrnevErrorInfo(error: ErrorInfo): LrnevErrorInfo {
 /**
  * 将 AiFollowupResponse 转换为 MCP 工具返回格式。
  *
- * M1 实现：
- * - content: JSON.stringify(完整响应, null, 2) —— 与 B0 legacy renderer 等价
- * - structuredContent: LrnevToolPayload 格式
+ * M2 实现（T-004/T-005）：
+ * - content: ModelVisibleContract 渲染器（按工具注册，未注册回退 M1）
+ * - structuredContent: LrnevToolPayload 格式（canonical payload）
  * - isError: 基于 shouldSetIsError(payload)
+ * - D-04: canonical 单源、逃逸层级、体积同步、错误路径 MVC
  *
  * @param promise 业务层返回的 Promise<AiFollowupResponse<T>>
- * @param legacyRawFormat 是否使用 B0 legacy 格式（content 直接返回 data，不包装 envelope）；
- *   B0 时期部分只读工具（list/search/doctor 等）直接对 data 做 JSON.stringify，
- *   为保持 content 逐字段等价，这些工具需要传 true。
+ * @param toolName 工具名称（必填，用于查找 MVC renderer；未注册则回退 legacy JSON）
+ * @param legacyRawFormat 已弃用（M2 不再支持，保留参数兼容性）
  * @returns MCP 工具返回对象
  */
 export async function toMcpToolResult<T>(
   promise: Promise<AiFollowupResponse<T>>,
+  toolName: string,
   legacyRawFormat = false,
 ): Promise<McpToolResult> {
   try {
     const response = await promise;
 
-    // 转换为 LrnevToolPayload
+    // 步骤 1: 构建 canonical payload (structuredContent)
     const payload: LrnevToolPayload<T> = {
       response_version: '1',
       ok: response.ok,
@@ -70,21 +74,17 @@ export async function toMcpToolResult<T>(
       summary_context: response.summary_context,
     };
 
-    // B0 兼容：对于 list/search/doctor 等只读工具，content 保持 B0 格式（直接返回 data）
-    // 但如果有 ai_followup 或 errors，仍然使用完整 envelope（因为需要传递 followup）
-    let legacyContent: string;
-    if (legacyRawFormat && response.data !== undefined && !response.ai_followup && !response.errors) {
-      legacyContent = JSON.stringify(response.data, null, 2);
-    } else {
-      legacyContent = JSON.stringify(payload, null, 2);
-    }
+    // 步骤 2: 从 canonical payload 渲染 content (D-04 单源)
+    const contentText = renderModelVisibleContent(toolName, payload);
 
+    // 步骤 3: 双通道返回
     return {
-      content: [{ type: 'text', text: legacyContent }],
+      content: [{ type: 'text', text: contentText }],
       structuredContent: payload,
       isError: shouldSetIsError(payload),
     };
   } catch (err) {
+    // D-04 错误路径：schema 失败返回工具错误，不回退旧文本
     return handleToolError(err);
   }
 }
@@ -95,11 +95,13 @@ export async function toMcpToolResult<T>(
  * 用于那些返回普通数据类型（非 AiFollowupResponse）的管理器方法。
  *
  * @param promise 返回普通数据的 Promise
- * @param legacyRawFormat 是否使用 B0 legacy 格式（content 直接返回 data，不包装 envelope）
+ * @param toolName 工具名称（必填，用于查找 MVC renderer；未注册则回退 legacy JSON）
+ * @param legacyRawFormat 已弃用（M2 不再支持，保留参数兼容性）
  * @returns MCP 工具返回对象
  */
 export async function toMcpToolResultFromData<T>(
   promise: Promise<T>,
+  toolName: string,
   legacyRawFormat = false,
 ): Promise<McpToolResult> {
   try {
@@ -112,16 +114,11 @@ export async function toMcpToolResultFromData<T>(
       data,
     };
 
-    // B0 兼容：对于 list/search/doctor 等只读工具，content 保持 B0 格式（直接返回 data）
-    let legacyContent: string;
-    if (legacyRawFormat && data !== undefined) {
-      legacyContent = JSON.stringify(data, null, 2);
-    } else {
-      legacyContent = JSON.stringify(payload, null, 2);
-    }
+    // M2: 使用 ModelVisibleContract 渲染器
+    const contentText = renderModelVisibleContent(toolName, payload);
 
     return {
-      content: [{ type: 'text', text: legacyContent }],
+      content: [{ type: 'text', text: contentText }],
       structuredContent: payload,
       isError: false,
     };
@@ -131,7 +128,12 @@ export async function toMcpToolResultFromData<T>(
 }
 
 /**
- * 统一的错误处理函数
+ * 统一的错误处理函数（D-04 错误路径 MVC）。
+ *
+ * D-04 L139-140 硬性要求：
+ * - schema 失败不得回退旧文本声称成功
+ * - isError=true 时 content 仍满足 ModelVisibleContract
+ * - 完整渲染 code/message/hint/details
  */
 function handleToolError(err: unknown): McpToolResult {
   // 处理业务层抛出的 LrnevError
@@ -155,15 +157,11 @@ function handleToolError(err: unknown): McpToolResult {
         },
       };
 
-      // Legacy content: 保持与 B0 相同的结构
-      const legacyPayload = {
-        ok: false,
-        errors: [errorInfo],
-        ai_followup: errorPayload.ai_followup,
-      };
+      // M2: 使用 error renderer（D-04 错误路径 MVC）
+      const contentText = errorRenderer.render(errorPayload);
 
       return {
-        content: [{ type: 'text', text: JSON.stringify(legacyPayload, null, 2) }],
+        content: [{ type: 'text', text: contentText }],
         structuredContent: errorPayload,
         isError: true,
       };
@@ -177,13 +175,11 @@ function handleToolError(err: unknown): McpToolResult {
       errors: [toLrnevErrorInfo(errorInfo)],
     };
 
-    const legacyPayload = {
-      ok: false,
-      errors: [errorInfo],
-    };
+    // M2: 使用 error renderer（D-04 错误路径 MVC）
+    const contentText = errorRenderer.render(errorPayload);
 
     return {
-      content: [{ type: 'text', text: JSON.stringify(legacyPayload, null, 2) }],
+      content: [{ type: 'text', text: contentText }],
       structuredContent: errorPayload,
       isError: true,
     };
@@ -197,13 +193,11 @@ function handleToolError(err: unknown): McpToolResult {
     errors: [internalError],
   };
 
-  const legacyPayload = {
-    ok: false,
-    errors: [internalError],
-  };
+  // M2: 使用 error renderer（D-04 错误路径 MVC）
+  const contentText = errorRenderer.render(errorPayload);
 
   return {
-    content: [{ type: 'text', text: JSON.stringify(legacyPayload, null, 2) }],
+    content: [{ type: 'text', text: contentText }],
     structuredContent: errorPayload,
     isError: true,
   };
