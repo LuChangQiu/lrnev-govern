@@ -1,0 +1,15 @@
+{
+  "scenarioId": "E-09",
+  "description": "旧 Spec 未更新：先读再建议",
+  "userInput": "修改登录逻辑",
+  "decisionContext": {
+    "source": "client_asserted",
+    "strength": "unspecified",
+    "summary": "用户未明确指定"
+  },
+  "expectedAction": "先读取 Spec 状态/摘要再建议",
+  "expectedTarget": "基于 Spec 实际状态建议（复用或新建）",
+  "prohibitedAction": "只按时间判断开新 Spec",
+  "severity": "一般",
+  "notes": "旧 Spec 长期未更新、非 in-progress、无 active claim"
+}

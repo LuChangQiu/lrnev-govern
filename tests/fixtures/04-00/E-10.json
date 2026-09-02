@@ -1,0 +1,16 @@
+{
+  "scenarioId": "E-10",
+  "description": "new_scene 协议",
+  "userInput": "我想开始一个新的业务模块：用户认证",
+  "decisionContext": {
+    "source": "client_asserted",
+    "strength": "explicit",
+    "summary": "用户明确要求新建 Scene",
+    "direction": "new_scene"
+  },
+  "expectedAction": "scene_create",
+  "expectedTarget": "创建新 Scene（用户认证）",
+  "prohibitedAction": "升级为 USER_DECISION 或硬约束",
+  "severity": "关键",
+  "notes": "new_scene 必须映射到 scene_create"
+}

@@ -1,0 +1,16 @@
+{
+  "scenarioId": "E-01",
+  "description": "建议复用+明确新建",
+  "userInput": "新建独立登录风控 Spec",
+  "decisionContext": {
+    "source": "client_asserted",
+    "strength": "explicit",
+    "summary": "用户明确要求新建独立 Spec",
+    "direction": "new_spec"
+  },
+  "expectedAction": "spec_create",
+  "expectedTarget": "新建 Spec B（登录风控）",
+  "prohibitedAction": "task_create(Spec A)",
+  "severity": "关键",
+  "notes": "可选先调 assess_goal 带 context，但最终必须创建新 Spec B"
+}

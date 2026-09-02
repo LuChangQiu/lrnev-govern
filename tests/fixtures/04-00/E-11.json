@@ -1,0 +1,16 @@
+{
+  "scenarioId": "E-11",
+  "description": "other 协议",
+  "userInput": "帮我分析一下现有的登录流程有什么问题",
+  "decisionContext": {
+    "source": "client_asserted",
+    "strength": "explicit",
+    "summary": "用户请求分析，非组织决策",
+    "direction": "other"
+  },
+  "expectedAction": "分析现有代码/文档",
+  "expectedTarget": "不触发自动方向比较",
+  "prohibitedAction": "升级为 USER_DECISION 或硬约束",
+  "severity": "一般",
+  "notes": "other 方向不触发自动组织工具调用"
+}

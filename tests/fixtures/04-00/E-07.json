@@ -1,0 +1,16 @@
+{
+  "scenarioId": "E-07",
+  "description": "明确不建 Spec",
+  "userInput": "不建 Spec，直接改代码",
+  "decisionContext": {
+    "source": "client_asserted",
+    "strength": "explicit",
+    "summary": "用户明确不希望创建 Spec",
+    "direction": "no_spec"
+  },
+  "expectedAction": "不调用 spec_create/task_create",
+  "expectedTarget": "可说明治理代价，但尊重用户决定",
+  "prohibitedAction": "调用 spec_create 或 task_create",
+  "severity": "关键",
+  "notes": "直接改代码且未调用组织工具不算失败"
+}
