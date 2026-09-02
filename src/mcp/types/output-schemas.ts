@@ -90,6 +90,7 @@ export function createToolOutputSchema<T extends z.ZodTypeAny>(dataSchema: T) {
     ok: z.boolean(),
     data: dataSchema.optional(),
     errors: z.array(ErrorInfoSchema).optional(),
+    error: ErrorInfoSchema.optional(), // Added: singular error field for single-error responses
     ai_followup: AiFollowupSchema.optional(),
     anchor_context: z.array(AnchorContextSchema).optional(),
     summary_context: SummaryContextSchema.optional(),
@@ -205,7 +206,9 @@ export const SceneDataSchema = z.object({
   id: z.string(),
   name: z.string(),
   number: z.number(),
+  status: z.string(), // SceneStatus: 'draft' | 'active' | 'archived'
   created: z.string(),
+  updated: z.string().optional(), // Added: matches SceneFrontmatter
   path: z.string(),
   spec_count: z.number(),
   intent: z.string().optional(),
@@ -224,6 +227,7 @@ export const SpecDataSchema = z.object({
   status: z.string(),
   priority: z.string().optional(),
   created: z.string(),
+  updated: z.string().optional(), // Already present - matches SpecFrontmatter
   path: z.string(),
   number: z.number(),
   version: z.number(),
@@ -244,6 +248,8 @@ export const SpecDataSchema = z.object({
  */
 export const TaskDataSchema = z.object({
   id: z.string(),
+  spec: z.string(), // Added: matches Task interface
+  scene: z.string(), // Added: matches Task interface
   title: z.string(),
   description: z.string().optional(),
   status: z.string(),
@@ -315,12 +321,14 @@ export const ADRDataSchema = z.object({
   title: z.string(),
   status: z.string(),
   date: z.string(),
+  created: z.string(), // Added: matches ADRFrontmatter
   scope: z.string(),
   context: z.string().optional(),
   decision: z.string().optional(),
   consequences: z.string().optional(),
   alternatives: z.array(z.string()).optional(),
   supersedes: z.array(z.string()).optional(),
+  superseded_by: z.array(z.string()).optional(), // Added: matches ADR interface (derived field)
   path: z.string(),
 });
 
@@ -377,7 +385,10 @@ export const MemoryDataSchema = z.object({
   source: z.string(),
   scope: z.string(),
   created: z.string(),
+  last_referenced: z.string().optional(), // Added: matches MemoryFrontmatter
+  reference_count: z.number().optional(), // Added: matches MemoryFrontmatter
   tentative: z.boolean().optional(),
+  path: z.string(), // Added: matches Memory interface
 });
 
 /**
@@ -385,17 +396,21 @@ export const MemoryDataSchema = z.object({
  */
 export const ErrorEntryDataSchema = z.object({
   id: z.string(),
+  fingerprint: z.string(), // Added: matches ErrorFrontmatter
+  status: z.string(),
+  scope: z.string(),
+  occurrence_count: z.number(), // Changed from optional to required: matches ErrorFrontmatter
+  first_seen: z.string(), // Added: matches ErrorFrontmatter
+  last_seen: z.string(), // Added: matches ErrorFrontmatter
+  promoted_at: z.string().optional(), // Added: matches ErrorFrontmatter
+  tags: z.array(z.string()).optional(),
   symptom: z.string(),
   root_cause: z.string(),
   fix_action: z.string(),
-  scope: z.string(),
-  status: z.string(),
-  created: z.string(),
   verification: z.string().optional(),
   references: z.array(z.string()).optional(),
-  tags: z.array(z.string()).optional(),
-  fingerprint: z.string(),
-  occurrence_count: z.number().optional(),
+  path: z.string(), // Added: matches ErrorEntry interface
+  created: z.string(), // Kept for compatibility (maps to first_seen)
 });
 
 /**
