@@ -18,7 +18,7 @@ export const E05_PreferNewConfirm: FixtureDefinition = {
   scenario: 'D-01 ⑤',
 
   // 用户原话（多轮，第 1 轮表达 preferred）
-  userInput: '第1轮："我倾向独立做用户登录，但你可以说明利弊"（preferred+new_spec）\n第3轮："好，叫 user-login"（确认 explicit+new_spec）',
+  userInput: '第1轮："我倾向独立做用户登录，但你可以说明利弊"\n第3轮："好，叫 user-login"',
 
   // 决策上下文（第 1 轮，已有 Spec A，建议复用）
   decisionContext: {

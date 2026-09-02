@@ -19,7 +19,7 @@ export const E06a_ChangeBeforeExec: FixtureDefinition = {
   scenario: 'D-01 ⑥',
 
   // 用户原话（多轮）
-  userInput: '第1轮："开新 Spec 做用户登录"（explicit+new_spec）\n第3轮（工具调用前）："等等，算了，还是在登录 Spec 里补充"（改变主意 → explicit+reuse_spec）',
+  userInput: '第1轮："开新 Spec 做用户登录"\n第3轮（工具调用前）："等等，算了，还是在登录 Spec 里补充"',
 
   // 决策上下文（第 3 轮，改变主意后，Spec A 为 in-progress）
   decisionContext: {
