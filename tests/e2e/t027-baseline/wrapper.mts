@@ -73,8 +73,8 @@ console.log(`📂 Worktree：${worktreePath}`);
 console.log(`🚀 启动 MCP server：${serverPath}`);
 console.log('');
 
-// 启动 MCP server
-const child = spawn('tsx', [serverPath], {
+// 启动 MCP server（使用 npx tsx）
+const child = spawn('npx', ['tsx', serverPath], {
   cwd: worktreePath,
   stdio: 'inherit',
   shell: true,

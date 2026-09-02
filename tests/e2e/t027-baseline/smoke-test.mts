@@ -74,9 +74,10 @@ async function testSha(sha: 'sha-a' | 'sha-b'): Promise<TestResult> {
   }
 
   return new Promise((resolve) => {
-    const child: ChildProcess = spawn('tsx', [serverPath], {
+    const child: ChildProcess = spawn('npx', ['tsx', serverPath], {
       cwd: worktreePath,
       stdio: ['pipe', 'pipe', 'pipe'],
+      shell: true,
     });
 
     let jsonrpcBuffer = '';
