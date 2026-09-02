@@ -104,7 +104,7 @@ describe('T-003: MCP 协议契约测试', () => {
       expect(payload.data).toBeDefined();
     });
 
-    it('业务拒绝：isError 必须为 true，error 字段存在', async () => {
+    it('业务拒绝：isError 必须为 true，errors 字段存在', async () => {
       // 先创建一个 spec 并标记为 archived，然后尝试非法状态转换
       await client.callTool({
         name: 'spec_create',
@@ -127,9 +127,9 @@ describe('T-003: MCP 协议契约测试', () => {
 
       expect(payload.response_version).toBe('1');
       expect(payload.ok).toBe(false);
-      expect(payload.error).toBeDefined();
-      expect(payload.error.code).toBeDefined();
-      expect(payload.error.message).toBeDefined();
+      expect(payload.errors).toBeDefined();
+      expect(payload.errors[0].code).toBeDefined();
+      expect(payload.errors[0].message).toBeDefined();
 
       // 验证 isError 标记
       expect(result.isError).toBe(true);
@@ -149,11 +149,11 @@ describe('T-003: MCP 协议契约测试', () => {
 
       const payload = result.structuredContent as any;
 
-      // F-06.3: 歧义场景应返回 candidates
-      if (payload.error?.code === 'AMBIGUOUS_REF') {
-        expect(payload.error.candidates).toBeDefined();
-        expect(Array.isArray(payload.error.candidates)).toBe(true);
-        expect(payload.error.candidates.length).toBeGreaterThan(1);
+      // F-06.3: 歧义场景应返回 candidates（使用 errors[0] 访问）
+      if (payload.errors?.[0]?.code === 'AMBIGUOUS_REF') {
+        expect(payload.errors[0].candidates).toBeDefined();
+        expect(Array.isArray(payload.errors[0].candidates)).toBe(true);
+        expect(payload.errors[0].candidates.length).toBeGreaterThan(1);
       }
       // 注：如果实现采用 "最新版本" 策略则不会歧义，此测试记录预期行为
     });
