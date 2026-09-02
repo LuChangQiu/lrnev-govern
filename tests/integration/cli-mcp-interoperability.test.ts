@@ -104,7 +104,7 @@ describe('CLI / MCP interoperability', () => {
         name: 'task_claim',
         arguments: { scene: 'user-management', spec: 'user-login', task: 'T-002', agent_id: 'agent-mcp' },
       });
-      const mcpClaim = JSON.parse(mcpClaimRaw.content[0]?.type === 'text' ? mcpClaimRaw.content[0].text : '{}');
+      const mcpClaim = mcpClaimRaw.structuredContent as { anchor_context?: Array<{ anchor: string; source: string }> };
 
       expect(cliClaim.anchor_context?.[0]?.anchor).toBe('F-01');
       expect(mcpClaim.anchor_context?.[0]?.anchor).toBe('F-01');
@@ -163,13 +163,13 @@ describe('CLI / MCP interoperability', () => {
       // governance_map：CLI map 与 MCP governance_map 内容对等（不比 generated_at）
       const cliMap = await runCli(workspace.path, ['map']);
       const mcpMapRaw = await client.callTool({ name: 'governance_map', arguments: {} });
-      const mcpMap = JSON.parse(mcpMapRaw.content[0]?.type === 'text' ? mcpMapRaw.content[0].text : '{}');
+      const mcpMap = mcpMapRaw.structuredContent as { data: { scenes: unknown[] } };
       expect(cliMap.data.scenes).toEqual(mcpMap.data.scenes);
 
       // context_search 锚点：CLI search 与 MCP context_search 命中同一 anchor
       const cliSearch = await runCli(workspace.path, ['search', '独角兽']);
       const mcpSearchRaw = await client.callTool({ name: 'context_search', arguments: { query: '独角兽' } });
-      const mcpSearch = JSON.parse(mcpSearchRaw.content[0]?.type === 'text' ? mcpSearchRaw.content[0].text : '{}');
+      const mcpSearch = mcpSearchRaw.structuredContent as { data: { results: Array<{ path: string; anchor?: string }> } };
       const cliAnchor = cliSearch.data.results.find((r: { path: string }) => r.path.includes('01-00-login'));
       const mcpAnchor = mcpSearch.data.results.find((r: { path: string }) => r.path.includes('01-00-login'));
       expect(cliAnchor?.anchor).toBe('F-01');

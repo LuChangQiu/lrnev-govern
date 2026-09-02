@@ -243,8 +243,7 @@ async function initWorkspace(client: Client, workspace: string): Promise<void> {
 }
 
 function readPayload(result: Awaited<ReturnType<Client['callTool']>>): unknown {
-  const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
-  return JSON.parse(text);
+  return result.structuredContent ?? {};
 }
 
 async function connectInMemory(): Promise<{

@@ -45,6 +45,11 @@ interface Session {
 }
 
 function parseToolResult(res: unknown): any {
+  // M2: 优先使用 structuredContent，回退到解析 content
+  const structured = (res as { structuredContent?: unknown })?.structuredContent;
+  if (structured) {
+    return structured;
+  }
   const text = (res as { content?: Array<{ type: string; text?: string }> })?.content?.[0]?.text;
   try {
     return text ? JSON.parse(text) : text;

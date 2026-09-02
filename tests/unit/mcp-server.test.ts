@@ -154,8 +154,7 @@ describe('MCP server', () => {
       await client.callTool({ name: 'spec_create', arguments: { scene: 'sg', name: 'feat-x' } });
 
       const parse = (r: Awaited<ReturnType<typeof client.callTool>>) => {
-        const t = r.content[0]?.type === 'text' ? r.content[0].text : '';
-        return JSON.parse(t) as { data?: unknown; ai_followup?: { instructions: string[] }; status?: string };
+        return r.structuredContent as { data?: unknown; ai_followup?: { instructions: string[] }; status?: string };
       };
 
       // draft（未实现）→ 无 followup 提示
@@ -192,8 +191,7 @@ describe('MCP server', () => {
         name: 'spec_create',
         arguments: { name: 'quick-feature' },
       });
-      const text = created.content[0]?.type === 'text' ? created.content[0].text : '';
-      const payload = JSON.parse(text) as { data: { scene: string; spec: string } };
+      const payload = created.structuredContent as { data: { scene: string; spec: string } };
 
       expect(payload.data.scene).toBe(DEFAULT_SCENE_ID);
       expect(payload.data.spec).toBe('01-00-quick-feature');
@@ -226,8 +224,7 @@ describe('MCP server', () => {
       });
 
       const result = await client.callTool({ name: 'project_status', arguments: {} });
-      const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
-      const payload = JSON.parse(text) as {
+      const payload = result.structuredContent as {
         data: { scenes: unknown[]; specs: unknown[]; active_tasks: Array<{ id: string; status: string }> };
         ai_followup?: { instructions: string[]; suggested_tools?: Array<{ name: string }> };
       };
@@ -275,8 +272,7 @@ describe('MCP server', () => {
         name: 'task_list',
         arguments: { scene: 'user-management', spec: 'user-login' },
       });
-      const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
-      const payload = JSON.parse(text) as {
+      const payload = result.structuredContent as {
         ok: boolean;
         data: Array<{ id: string; parent?: string; children?: unknown[] }>;
         ai_followup?: { instructions: string[] };
@@ -431,16 +427,14 @@ describe('MCP server', () => {
         name: 'spec_create',
         arguments: { scene: 'user-management', name: 'user-login' },
       });
-      const createdSpecText = createdSpec.content[0]?.type === 'text' ? createdSpec.content[0].text : '';
-      const createdSpecPayload = JSON.parse(createdSpecText) as { data: { scene: string; spec: string } };
+      const createdSpecPayload = createdSpec.structuredContent as { data: { scene: string; spec: string } };
       await writeReadyRequirements(workspace.path, createdSpecPayload.data.scene, createdSpecPayload.data.spec);
 
       const ready = await client.callTool({
         name: 'spec_gate_check',
         arguments: { scene: 'user-management', spec: 'user-login', gate: 'ready' },
       });
-      const readyText = ready.content[0]?.type === 'text' ? ready.content[0].text : '';
-      const readyPayload = JSON.parse(readyText) as {
+      const readyPayload = ready.structuredContent as {
         data: { passed: boolean };
         ai_followup?: { instructions: string[]; suggested_tools?: Array<{ name: string }> };
       };
@@ -479,8 +473,7 @@ describe('MCP server', () => {
         name: 'spec_gate_check',
         arguments: { scene: 'user-management', spec: 'user-login', gate: 'completion' },
       });
-      const completionText = completion.content[0]?.type === 'text' ? completion.content[0].text : '';
-      const completionPayload = JSON.parse(completionText) as {
+      const completionPayload = completion.structuredContent as {
         data: { passed: boolean };
         ai_followup?: { instructions: string[]; suggested_tools?: Array<{ name: string }> };
       };
@@ -575,8 +568,7 @@ describe('MCP server', () => {
       ].join('\n'));
 
       const result = await client.callTool({ name: 'scene_list', arguments: {} });
-      const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
-      const payload = JSON.parse(text) as {
+      const payload = result.structuredContent as {
         ok: boolean;
         data: Array<{ id: string; broken?: { error: string; path: string } }>;
         ai_followup?: { instructions: string[]; suggested_tools?: Array<{ name: string }> };
@@ -611,8 +603,7 @@ describe('MCP server', () => {
       await fs.write('.lrnev/scenes/01-user-management/specs/01-00-broken/tasks.md', '# Tasks\n');
 
       const result = await client.callTool({ name: 'spec_list', arguments: { scene: 'user-management' } });
-      const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
-      const payload = JSON.parse(text) as {
+      const payload = result.structuredContent as {
         ok: boolean;
         data: Array<{ spec: string; broken?: { error: string; path: string }; documents: { requirements: boolean } }>;
         ai_followup?: { instructions: string[]; suggested_tools?: Array<{ name: string }> };
@@ -679,8 +670,7 @@ describe('MCP server', () => {
       name: 'assess_goal',
       arguments: { goal: '调研 MCP 存储架构方案并验证性能约束' },
     });
-    const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
-    const payload = JSON.parse(text) as { data: { kind: string } };
+    const payload = result.structuredContent as { data: { kind: string } };
     expect(payload.data.kind).toBe('research-program');
     await client.close();
     await server.close();
@@ -738,8 +728,7 @@ describe('MCP server', () => {
         name: 'context_search',
         arguments: { query: '权限' },
       });
-      const text = searched.content[0]?.type === 'text' ? searched.content[0].text : '';
-      const payload = JSON.parse(text) as { data: { results: Array<{ uri: string }> } };
+      const payload = searched.structuredContent as { data: { results: Array<{ uri: string }> } };
       expect(payload.data.results[0]?.uri).toBe('context://scene/01-user-management');
 
       await client.close();
@@ -1101,7 +1090,7 @@ async function writeReadyRequirements(root: string, sceneId: string, specId: str
         name: 'spec_create',
         arguments: { scene: 'test-scene', name: 'feature-a' },
       });
-      const payloadA = JSON.parse(resultA.content[0]?.type === 'text' ? resultA.content[0].text : '') as {
+      const payloadA = resultA.structuredContent as {
         ok: boolean;
         data: { spec: string };
       };
@@ -1113,7 +1102,7 @@ async function writeReadyRequirements(root: string, sceneId: string, specId: str
         name: 'spec_create',
         arguments: { scene: 'test-scene', name: 'feature-b' },
       });
-      const payloadB = JSON.parse(resultB.content[0]?.type === 'text' ? resultB.content[0].text : '') as {
+      const payloadB = resultB.structuredContent as {
         ok: boolean;
         data: { spec: string };
         ai_followup?: { instructions: string[] };

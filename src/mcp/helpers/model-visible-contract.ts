@@ -11,6 +11,16 @@
  */
 
 import type { LrnevToolPayload } from '../types/response-envelope.js';
+import { errorRenderer } from './renderers/error.js';
+import { specCreateRenderer } from './renderers/spec-create.js';
+import { specGetRenderer } from './renderers/spec-get.js';
+import { specUpdateRenderer } from './renderers/spec-update.js';
+import { specListRenderer } from './renderers/spec-list.js';
+import { sceneCreateRenderer } from './renderers/scene-create.js';
+import { sceneListRenderer } from './renderers/scene-list.js';
+import { taskCreateRenderer } from './renderers/task-create.js';
+import { assessGoalRenderer } from './renderers/assess-goal.js';
+import { contextSearchRenderer } from './renderers/context-search.js';
 
 /**
  * ModelVisibleContract 渲染器接口。
@@ -43,6 +53,31 @@ type RendererRegistry = Map<string, ModelVisibleRenderer>;
  * 全局 renderer 注册表（按工具注册，非全局开关）。
  */
 const renderers: RendererRegistry = new Map();
+
+/**
+ * 初始化 M2 渲染器注册表。
+ *
+ * 第 0 批：错误路径专用（不计入工具渲染器数）
+ * 第 1 批：9 个 B2b 证据工具（08-00 迁移验证）
+ */
+function initializeRenderers(): void {
+  // 第 0 批：错误路径
+  renderers.set('__error__', errorRenderer);
+
+  // 第 1 批：9 个 B2b 证据工具
+  renderers.set('spec_create', specCreateRenderer);
+  renderers.set('spec_get', specGetRenderer);
+  renderers.set('spec_update', specUpdateRenderer);
+  renderers.set('spec_list', specListRenderer);
+  renderers.set('scene_create', sceneCreateRenderer);
+  renderers.set('scene_list', sceneListRenderer);
+  renderers.set('task_create', taskCreateRenderer);
+  renderers.set('assess_goal', assessGoalRenderer);
+  renderers.set('context_search', contextSearchRenderer);
+}
+
+// 模块加载时初始化
+initializeRenderers();
 
 /**
  * 注册工具的 ModelVisibleContract 渲染器。
