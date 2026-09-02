@@ -15,16 +15,16 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { governanceMapRenderer } from '../../src/mcp/helpers/renderers/governance-map.js';
-import { lrnevReportRenderer } from '../../src/mcp/helpers/renderers/lrnev-report.js';
-import { projectStatusRenderer } from '../../src/mcp/helpers/renderers/project-status.js';
-import { adrListRenderer } from '../../src/mcp/helpers/renderers/adr-list.js';
-import { escapeFrameworkMarkers } from '../../src/mcp/helpers/model-visible-contract.js';
-import type { LrnevToolPayload } from '../../src/mcp/types/response-envelope.js';
-import type { GovernanceMapResult } from '../../src/types/governance-map.js';
-import type { GovernanceReportResult } from '../../src/types/governance-report.js';
-import type { ProjectStatusSnapshot } from '../../src/types/project-status.js';
-import type { ADR } from '../../src/types/adr.js';
+import { governanceMapRenderer } from '../../../src/mcp/helpers/renderers/governance-map.js';
+import { lrnevReportRenderer } from '../../../src/mcp/helpers/renderers/lrnev-report.js';
+import { projectStatusRenderer } from '../../../src/mcp/helpers/renderers/project-status.js';
+import { adrListRenderer } from '../../../src/mcp/helpers/renderers/adr-list.js';
+import { escapeFrameworkMarkers } from '../../../src/mcp/helpers/model-visible-contract.js';
+import type { LrnevToolPayload } from '../../../src/mcp/types/response-envelope.js';
+import type { GovernanceMapResult } from '../../../src/types/governance-map.js';
+import type { GovernanceReportResult } from '../../../src/types/governance-report.js';
+import type { ProjectStatusSnapshot } from '../../../src/types/project-status.js';
+import type { ADR } from '../../../src/types/adr.js';
 
 describe('M2 第 4 批 A 组渲染器', () => {
   describe('governance_map 渲染器', () => {

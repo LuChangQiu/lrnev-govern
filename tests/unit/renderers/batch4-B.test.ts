@@ -5,12 +5,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { agentListRenderer } from '../../src/mcp/helpers/renderers/agent-list.js';
-import { lrnevGuideRenderer } from '../../src/mcp/helpers/renderers/lrnev-guide.js';
-import { lrnevDoctorRenderer } from '../../src/mcp/helpers/renderers/lrnev-doctor.js';
-import type { LrnevToolPayload } from '../../src/mcp/types/response-envelope.js';
-import type { AgentListResult } from '../../src/types/agent.js';
-import type { DiagnosticReport } from '../../src/types/doctor.js';
+import { agentListRenderer } from '../../../src/mcp/helpers/renderers/agent-list.js';
+import { lrnevGuideRenderer } from '../../../src/mcp/helpers/renderers/lrnev-guide.js';
+import { lrnevDoctorRenderer } from '../../../src/mcp/helpers/renderers/lrnev-doctor.js';
+import type { LrnevToolPayload } from '../../../src/mcp/types/response-envelope.js';
+import type { AgentListResult } from '../../../src/types/agent.js';
+import type { DiagnosticReport } from '../../../src/types/doctor.js';
 
 describe('agent_list renderer', () => {
   it('renders complete agent list with all required fields', () => {
