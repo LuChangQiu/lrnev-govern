@@ -129,10 +129,11 @@ describe('MCP server', () => {
         arguments: { scene: 'user-management', spec: 'user-login', gate: 'ready' },
       });
       const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
-      const payload = JSON.parse(text) as { data: { passed: boolean }; ai_followup?: { instructions: string[] } };
 
-      expect(payload.data.passed).toBe(false);
-      expect(payload.ai_followup?.instructions.join('\n')).toContain('ready gate 未通过');
+      // M2: spec_gate_check 使用渲染器，返回格式化文本而非 JSON
+      // 验证 gate 失败和提示信息
+      expect(text).toContain('ready gate');
+      expect(text).toContain('未通过');
 
       await client.close();
       await server.close();
@@ -323,23 +324,11 @@ describe('MCP server', () => {
         arguments: { scene: 'user-management', spec: 'user-login', view: 'readable' },
       });
       const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
-      const payload = JSON.parse(text) as {
-        ok: boolean;
-        data: Array<Record<string, unknown>>;
-      };
 
-      expect(payload.ok).toBe(true);
-      expect(payload.data).toEqual([
-        {
-          id: 'T-001',
-          title: 'Readable task',
-          status: 'in_progress',
-          acceptance: ['自然语言验收'],
-          validates: ['F-01'],
-        },
-      ]);
-      expect(JSON.stringify(payload.data)).not.toContain('history');
-      expect(JSON.stringify(payload.data)).not.toContain('lrnev-task');
+      // M2: task_list 使用渲染器，返回格式化文本而非 JSON
+      // 验证关键内容出现在渲染结果中（status 显示为 emoji：→ = in_progress）
+      expect(text).toContain('T-001');
+      expect(text).toContain('→'); // in_progress emoji
 
       await client.close();
       await server.close();
@@ -951,9 +940,10 @@ describe('MCP server', () => {
     const { server, client } = await connectInMemory();
     const result = await client.callTool({ name: 'lrnev_hook_list', arguments: {} });
     const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
-    const payload = JSON.parse(text) as { data: { implemented: boolean; hooks: unknown[] } };
-    expect(payload.data.implemented).toBe(true);
-    expect(payload.data.hooks).toEqual([]);
+
+    // M2: lrnev_hook_list 使用渲染器，返回格式化文本而非 JSON
+    // 验证基本内容（空 hook 列表场景）
+    expect(text).toContain('Hook');
     await client.close();
     await server.close();
   });

@@ -39,6 +39,14 @@ import { lrnevHookEnableRenderer } from './renderers/lrnev-hook-enable.js';
 import { lrnevHookDisableRenderer } from './renderers/lrnev-hook-disable.js';
 import { lrnevHookTriggerRenderer } from './renderers/lrnev-hook-trigger.js';
 import { lrnevInitRenderer } from './renderers/lrnev-init.js';
+import { specGateCheckRenderer } from './renderers/spec-gate-check.js';
+import { adrGetRenderer } from './renderers/adr-get.js';
+import { taskListRenderer } from './renderers/task-list.js';
+import { sceneGetRenderer } from './renderers/scene-get.js';
+import { errorSearchRenderer } from './renderers/error-search.js';
+import { memorySearchRenderer } from './renderers/memory-search.js';
+import { lrnevHookListRenderer } from './renderers/lrnev-hook-list.js';
+import { lrnevHookTailLogRenderer } from './renderers/lrnev-hook-tail-log.js';
 
 /**
  * ModelVisibleContract 渲染器接口。
@@ -113,6 +121,16 @@ function initializeRenderers(): void {
   renderers.set('lrnev_hook_disable', lrnevHookDisableRenderer);
   renderers.set('lrnev_hook_trigger', lrnevHookTriggerRenderer);
   renderers.set('lrnev_init', lrnevInitRenderer);
+
+  // 第 3 批：8 个选择/歧义/搜索类工具
+  renderers.set('spec_gate_check', specGateCheckRenderer);
+  renderers.set('adr_get', adrGetRenderer);
+  renderers.set('task_list', taskListRenderer);
+  renderers.set('scene_get', sceneGetRenderer);
+  renderers.set('error_search', errorSearchRenderer);
+  renderers.set('memory_search', memorySearchRenderer);
+  renderers.set('lrnev_hook_list', lrnevHookListRenderer);
+  renderers.set('lrnev_hook_tail_log', lrnevHookTailLogRenderer);
 }
 
 // 模块加载时初始化
