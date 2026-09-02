@@ -1,0 +1,57 @@
+{
+  "id": "E-05",
+  "name": "Real Constraint Conflict",
+  "scenario": "用户要求把 archived Spec 改回 in-progress。",
+  "provenance": "workspace",
+  "role": "execution_constraint",
+  "enforcement": "server_enforced",
+  "clientBehavior": {
+    "description": "解释这是服务端状态机的 EXECUTION_CONSTRAINT，展示错误与可选替代路径，不将其说成偏好分歧。",
+    "actions": [
+      "识别用户请求：spec_update(status='in-progress') on archived Spec",
+      "调用服务端 spec_update",
+      "接收 INVALID_STATUS_TRANSITION 错误",
+      "向用户解释：这是服务端状态机约束，不是建议",
+      "展示替代路径：archived 是终态，需要通过 spec_create(version=1) 开新版"
+    ]
+  },
+  "serverBehavior": {
+    "description": "SpecManager.updateStatus 返回 INVALID_STATUS_TRANSITION，不写入状态。",
+    "constraints": [
+      "引用 execution-constraints-inventory.md §1.1 Spec Status Transition",
+      "源码位置：src/types/spec.ts:25-31, src/core/SpecManager.ts:136-158",
+      "状态机规则：archived → (无合法转换)",
+      "触发条件：请求从 archived 转换到任何其他状态"
+    ],
+    "sourceFiles": [
+      "src/types/spec.ts:25-31",
+      "src/core/SpecManager.ts:136-158"
+    ],
+    "response": {
+      "errorCode": "INVALID_STATUS_TRANSITION",
+      "errorMessage": "非法 Spec 状态转换：archived → in-progress",
+      "field": "status",
+      "hint": "archived 是终态，不能再转换；如需重做请用 spec_create 开新版",
+      "observableResult": "requirements.md frontmatter status 保持 archived，未写入"
+    }
+  },
+  "observableResult": {
+    "description": "响应包含错误码和修正 hint；Spec 状态保持 archived。",
+    "assertions": [
+      "spec_update 返回错误，ok: false",
+      "错误码为 INVALID_STATUS_TRANSITION",
+      "错误消息说明状态转换不合法",
+      "提供替代路径：spec_create(version > 0)",
+      "requirements.md 的 status 字段未改变",
+      "这是确定性服务端校验，不是 RECOMMENDATION"
+    ]
+  },
+  "realConstraintReference": {
+    "inventorySection": "§1.1 Spec Status Transition",
+    "sourceFile": "src/core/SpecManager.ts:136-158",
+    "validationFunction": "isValidSpecTransition(from, to)",
+    "validTransitionsConstant": "VALID_SPEC_TRANSITIONS",
+    "archivedTransitions": "(no valid transitions - terminal state)"
+  },
+  "userStory": "当用户选择违反状态机、必填字段、引用完整性或安全边界的动作时，我希望 lrnev 由服务端真实校验拒绝，而不是只返回一条看似强硬的提示。"
+}

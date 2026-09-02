@@ -1,0 +1,184 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://lrnev.dev/schemas/evidence-contract.json",
+  "title": "Evidence Contract",
+  "description": "运行时证据数据契约 - 用于采集 guidance 消费证据",
+  "type": "object",
+  "required": [
+    "surface_id",
+    "content_hash",
+    "consumed_at",
+    "trigger_context",
+    "consumer_type",
+    "prompt_id",
+    "run_id",
+    "mcp_version",
+    "git_sha",
+    "client_version",
+    "model_version",
+    "fixture_hash",
+    "tool_sequence",
+    "allowed_tools",
+    "forbidden_tools",
+    "action_taken",
+    "action_success",
+    "severity",
+    "is_blacklist_phrase",
+    "is_pseudo_constraint",
+    "user_decision_override",
+    "session_clean"
+  ],
+  "properties": {
+    "surface_id": {
+      "type": "string",
+      "description": "被消费的 surface ID，格式：channel:category:name",
+      "pattern": "^[a-z_]+:[a-z_]+:[a-z0-9_-]+$",
+      "examples": ["server_instructions:global:workflow_overview"]
+    },
+    "content_hash": {
+      "type": "string",
+      "description": "内容 SHA256 hash（64 字符十六进制）",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "consumed_at": {
+      "type": "string",
+      "description": "消费时间戳（ISO 8601）",
+      "format": "date-time"
+    },
+    "trigger_context": {
+      "type": "string",
+      "description": "触发上下文（用户输入片段）",
+      "minLength": 1
+    },
+    "consumer_type": {
+      "type": "string",
+      "description": "消费者类型",
+      "enum": ["model", "client"]
+    },
+    "prompt_id": {
+      "type": "string",
+      "description": "对话 ID / Prompt ID",
+      "minLength": 1
+    },
+    "run_id": {
+      "type": "string",
+      "description": "本次运行 ID",
+      "minLength": 1
+    },
+    "mcp_version": {
+      "type": "string",
+      "description": "MCP 协议版本",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "examples": ["2024-11-05"]
+    },
+    "git_sha": {
+      "type": "string",
+      "description": "Git commit hash（40 字符十六进制）",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "client_version": {
+      "type": "string",
+      "description": "客户端版本",
+      "minLength": 1
+    },
+    "model_version": {
+      "type": "string",
+      "description": "模型版本",
+      "minLength": 1
+    },
+    "fixture_hash": {
+      "type": "string",
+      "description": "Fixture 内容 hash（SHA256）",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "decision_context": {
+      "description": "决策上下文（客户端传递的意图信号），null 表示未传递",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": ["strength", "direction"],
+          "properties": {
+            "strength": {
+              "type": "string",
+              "enum": ["explicit", "preferred", "unspecified"]
+            },
+            "direction": {
+              "type": ["string", "null"],
+              "enum": ["new_spec", "reuse_spec", "new_scene", "no_spec", "other", null]
+            },
+            "target_ref": {
+              "type": "string",
+              "description": "目标 spec/scene 名称或 ID"
+            },
+            "staleness_signals": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "上下文冷却信号"
+            }
+          }
+        }
+      ]
+    },
+    "tool_sequence": {
+      "type": "array",
+      "description": "工具调用序列",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allowed_tools": {
+      "type": "array",
+      "description": "允许的工具集合",
+      "items": {
+        "type": "string"
+      }
+    },
+    "forbidden_tools": {
+      "type": "array",
+      "description": "禁止的工具集合",
+      "items": {
+        "type": "string"
+      }
+    },
+    "action_taken": {
+      "type": ["string", "null"],
+      "description": "AI 最终采取的动作，null 表示纯文本回答"
+    },
+    "action_success": {
+      "type": "boolean",
+      "description": "动作是否成功"
+    },
+    "failure_category": {
+      "type": "string",
+      "description": "失败分类（仅在 action_success=false 时填写）",
+      "enum": ["gate", "validation", "user_cancel", "state_machine_validation", "other"]
+    },
+    "severity": {
+      "type": "string",
+      "description": "严重度",
+      "enum": ["high", "medium", "low"]
+    },
+    "is_blacklist_phrase": {
+      "type": "boolean",
+      "description": "是否含黑名单词汇"
+    },
+    "is_pseudo_constraint": {
+      "type": "boolean",
+      "description": "是否为伪约束"
+    },
+    "user_decision_override": {
+      "type": "boolean",
+      "description": "用户是否覆盖 AI 建议"
+    },
+    "session_clean": {
+      "type": "boolean",
+      "description": "是否为 clean session（盲测用）"
+    }
+  },
+  "additionalProperties": false
+}

@@ -396,21 +396,22 @@ export const MemoryDataSchema = z.object({
  */
 export const ErrorEntryDataSchema = z.object({
   id: z.string(),
-  fingerprint: z.string(), // Added: matches ErrorFrontmatter
+  fingerprint: z.string(),
   status: z.string(),
   scope: z.string(),
-  occurrence_count: z.number(), // Changed from optional to required: matches ErrorFrontmatter
-  first_seen: z.string(), // Added: matches ErrorFrontmatter
-  last_seen: z.string(), // Added: matches ErrorFrontmatter
-  promoted_at: z.string().optional(), // Added: matches ErrorFrontmatter
+  occurrence_count: z.number(),
+  first_seen: z.string(),
+  last_seen: z.string(),
+  promoted_at: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  symptom: z.string(),
-  root_cause: z.string(),
-  fix_action: z.string(),
-  verification: z.string().optional(),
-  references: z.array(z.string()).optional(),
-  path: z.string(), // Added: matches ErrorEntry interface
-  created: z.string(), // Kept for compatibility (maps to first_seen)
+  path: z.string(),
+  body: z.object({
+    symptom: z.string(),
+    root_cause: z.string(),
+    fix_action: z.string(),
+    verification: z.string().optional(),
+    references: z.array(z.string()).optional(),
+  }),
 });
 
 /**
@@ -429,27 +430,68 @@ export const HookDataSchema = z.object({
 });
 
 /**
+ * Hook list result schema
+ */
+export const HookListResultSchema = z.object({
+  implemented: z.literal(true),
+  hooks: z.array(z.object({
+    name: z.string(),
+    event: z.string(),
+    command: z.union([z.string(), z.array(z.string())]),
+    timeout_ms: z.number(),
+    mode: z.enum(['sync', 'async']),
+    enabled: z.boolean(),
+    env: z.record(z.string(), z.string()),
+    cwd: z.string().optional(),
+    on_failure: z.enum(['abort', 'warn', 'silent']),
+  })),
+  recent: z.array(z.object({
+    ts: z.string(),
+    event: z.string(),
+    hook: z.string(),
+    mode: z.enum(['sync', 'async']),
+    status: z.enum(['success', 'failed', 'timeout']),
+    duration_ms: z.number(),
+    exit_code: z.number(),
+    stdout_tail: z.string().optional(),
+    stderr_tail: z.string().optional(),
+  })),
+  config_path: z.string(),
+  issues: z.array(z.object({
+    index: z.number().optional(),
+    name: z.string().optional(),
+    code: z.literal('HOOK_CONFIG_INVALID'),
+    message: z.string(),
+    path: z.string(),
+  })),
+});
+
+/**
  * Goal assessment data schema
  */
 export const GoalAssessmentDataSchema = z.object({
-  goal: z.string(),
   kind: z.enum(['single-spec', 'multi-spec-program', 'research-program']),
-  reasoning: z.string(),
-  signal: z.string(),
+  confidence: z.enum(['low', 'medium', 'high']),
+  score: z.number(),
+  reasons: z.array(z.string()),
+  suggested_next_step: z.string(),
 });
 
 /**
  * Context search result schema
  */
 export const ContextSearchResultSchema = z.object({
-  items: z.array(z.object({
+  query: z.string(),
+  scope: z.string(),
+  max_depth: z.number(),
+  results: z.array(z.object({
     uri: z.string(),
-    title: z.string(),
-    l0: z.string().optional(),
-    l1: z.string().optional(),
-    relevance: z.number().optional(),
+    path: z.string(),
+    matched_level: z.string(),
+    score: z.number(),
+    snippet: z.string(),
+    anchor: z.string().optional(),
   })),
-  total: z.number().optional(),
 });
 
 /**
@@ -667,36 +709,70 @@ export const GuideDataSchema = z.object({
 });
 
 /**
- * Doctor result schema
+ * Doctor result schema (union of all possible return types)
  */
-export const DoctorResultSchema = z.object({
-  issues: z.array(z.object({
-    severity: z.enum(['error', 'warning', 'info']),
-    category: z.string(),
-    message: z.string(),
-    path: z.string().optional(),
-    suggestion: z.string().optional(),
-  })),
-  summary: z.object({
-    total_issues: z.number(),
-    errors: z.number(),
-    warnings: z.number(),
+export const DoctorResultSchema = z.union([
+  // DiagnosticReport
+  z.object({
+    ok: z.boolean(),
+    checked_at: z.string(),
+    summary: z.object({
+      errors: z.number(),
+      warnings: z.number(),
+      info: z.number(),
+    }),
+    issues: z.array(z.object({
+      code: z.string(),
+      severity: z.enum(['error', 'warning', 'info']),
+      message: z.string(),
+      path: z.string().optional(),
+      suggestion: z.string().optional(),
+    })),
   }),
-  migrations: z.object({
-    todos_migrated: z.number().optional(),
-    summaries_removed: z.number().optional(),
-    agents_cleaned: z.number().optional(),
-  }).optional(),
-});
+  // TodoMigrationReport
+  z.object({
+    ok: z.literal(true),
+    migrated_at: z.string(),
+    scanned_files: z.number(),
+    changed_files: z.number(),
+    replacements: z.number(),
+    files: z.array(z.object({
+      path: z.string(),
+      replacements: z.array(z.unknown()),
+    })),
+  }),
+  // SummaryMigrationReport
+  z.object({
+    ok: z.literal(true),
+    migrated_at: z.string(),
+    removed_count: z.number(),
+    removed: z.array(z.string()),
+  }),
+  // AgentGcReport
+  z.object({
+    ok: z.literal(true),
+    gc_at: z.string(),
+    removed: z.array(z.string()),
+    released_expired_claims: z.number(),
+    kept_active: z.number(),
+    kept_dead_with_claims: z.number(),
+  }),
+]);
 
 /**
  * Session commit result schema
  */
 export const SessionCommitResultSchema = z.object({
-  summary: z.string(),
-  saved_count: z.number(),
-  skipped_count: z.number(),
-  deduplicated_count: z.number(),
+  saved: z.array(MemoryDataSchema),
+  skipped: z.array(z.object({
+    candidate: z.object({
+      category: z.string(),
+      content: z.string(),
+      source: z.string(),
+    }),
+    reason: z.enum(['duplicate', 'invalid', 'rejected']),
+    similar_to: z.string().optional(),
+  })),
 });
 
 /**
@@ -715,11 +791,9 @@ export const SummarizeSaveResultSchema = z.object({
  * Hook trigger result schema
  */
 export const HookTriggerResultSchema = z.object({
-  hook: z.string(),
   event: z.string(),
-  status: z.string(),
-  duration_ms: z.number().optional(),
-  output: z.string().optional(),
+  matched: z.number(),
+  warnings: z.array(z.string()),
 });
 
 /**

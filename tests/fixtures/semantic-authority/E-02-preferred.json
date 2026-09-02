@@ -1,0 +1,44 @@
+{
+  "id": "E-02",
+  "name": "Preferred Recommendation Without Confirmation",
+  "scenario": "服务端建议复用已有 Spec，但用户没有明确选择。",
+  "provenance": "lrnev",
+  "role": "recommendation",
+  "enforcement": "none",
+  "clientBehavior": {
+    "description": "展示 RECOMMENDATION 与候选下一步；对不可逆或影响范围大的动作请求确认。",
+    "actions": [
+      "展示 RECOMMENDATION：「可以考虑在现有 Spec 下创建 Task」",
+      "展示候选路径：复用现有 Spec 或创建新 Spec",
+      "对于可逆、低风险操作：可自行选择并解释",
+      "对于不可逆、高影响操作：请求用户确认",
+      "不生成伪造的 USER_DECISION"
+    ]
+  },
+  "serverBehavior": {
+    "description": "不生成 USER_DECISION，不把推荐写成拒绝规则。",
+    "response": {
+      "canInclude": [
+        "【事实】存在 Spec A 可能承载此需求",
+        "【建议】优先评估在 A 下创建 Task",
+        "【下一步】可调用 task_create 或 spec_create"
+      ],
+      "mustNotInclude": [
+        "【用户已决定】使用 Spec A",
+        "【用户已确认】不创建新 Spec",
+        "【执行约束】只能使用现有 Spec",
+        "从 GoalAssessor.suggested_next_step 生成的 USER_DECISION"
+      ]
+    }
+  },
+  "observableResult": {
+    "description": "没有「用户已选择」字段或文案；用户仍可选择任何满足真实约束的路径。",
+    "assertions": [
+      "响应不包含 USER_DECISION 标记",
+      "响应不声称用户已确认某个方向",
+      "用户可选择复用或新建，两者均为合法路径",
+      "RECOMMENDATION 标记为可选，不是强制"
+    ]
+  },
+  "userStory": "当用户没有指定组织方式时，我希望 AI 可以基于事实提出建议并询问用户，而不是把默认建议伪装成用户决定。"
+}

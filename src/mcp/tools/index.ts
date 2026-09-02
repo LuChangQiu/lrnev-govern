@@ -51,6 +51,7 @@ import {
   MemoryDataSchema,
   ErrorEntryDataSchema,
   HookDataSchema,
+  HookListResultSchema,
   GoalAssessmentDataSchema,
   ContextSearchResultSchema,
   ProjectStatusDataSchema,
@@ -460,6 +461,7 @@ function registerADRTools(server: McpServer): void {
         consequences: z.string().optional().describe('后果与风险'),
         supersedes: z.array(z.string()).optional().describe('替代的 ADR 编号'),
       },
+      outputSchema: createToolOutputSchema(ADRDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(getManagers().adrs.create({
@@ -476,6 +478,7 @@ function registerADRTools(server: McpServer): void {
       inputSchema: {
         scope: z.string().optional().describe('global 或 scene:{id}'),
       },
+      outputSchema: createToolOutputSchema(z.array(ADRDataSchema)),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ scope }) => toMcpToolResultFromData(getManagers().adrs.list(normalizeScope(scope)), 'adr_list', true),
@@ -490,6 +493,7 @@ function registerADRTools(server: McpServer): void {
         scope: z.string().describe('global 或 scene:{id}'),
         number: z.string().describe('ADR 编号，例如 1 或 0001'),
       },
+      outputSchema: createToolOutputSchema(ADRDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ scope, number }) => toMcpToolResultFromData(getManagers().adrs.get(normalizeScope(scope), number), 'adr_get'),
@@ -505,6 +509,7 @@ function registerGoalTools(server: McpServer): void {
       inputSchema: {
         goal: z.string().describe('用户目标描述'),
       },
+      outputSchema: createToolOutputSchema(GoalAssessmentDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ goal }) => toMcpToolResult(Promise.resolve(new GoalAssessor().assess(goal)), 'assess_goal'),
@@ -522,6 +527,7 @@ function registerSummaryTools(server: McpServer): void {
         l0: z.string().optional().describe('L0 一句话摘要'),
         l1: z.string().optional().describe('L1 概览摘要'),
       },
+      outputSchema: createToolOutputSchema(SummarizeSaveResultSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async (args) => toMcpToolResult(getManagers().summaries.saveSummary(args), 'summarize_save'),
@@ -539,6 +545,7 @@ function registerSearchTools(server: McpServer): void {
         scope: z.string().optional().describe('global 或 scene:{id}'),
         max_depth: z.number().int().positive().optional().describe('最大下钻深度，默认 3'),
       },
+      outputSchema: createToolOutputSchema(ContextSearchResultSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(getManagers().searcher.search({
@@ -563,6 +570,7 @@ function registerErrorTools(server: McpServer): void {
         references: z.array(z.string()).optional().describe('可选：提交、PR、日志等引用'),
         tags: z.array(z.string()).optional().describe('可选：标签'),
       },
+      outputSchema: createToolOutputSchema(ErrorEntryDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(getManagers().errors.record({
@@ -580,6 +588,7 @@ function registerErrorTools(server: McpServer): void {
         query: z.string().describe('搜索关键词'),
         scope: z.string().optional().describe('global 或 scene:{id}，默认 global'),
       },
+      outputSchema: createToolOutputSchema(z.array(ErrorEntryDataSchema)),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(getManagers().errors.search({
@@ -606,6 +615,7 @@ function registerErrorTools(server: McpServer): void {
         scope: z.string().optional().describe('global 或 scene:{id}，默认 global'),
         verification: z.string().optional().describe('验证证据'),
       },
+      outputSchema: createToolOutputSchema(ErrorEntryDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(getManagers().errors.promote({
@@ -637,6 +647,7 @@ function registerMemoryTools(server: McpServer): void {
         scope: z.string().optional().describe('global 或 scene:{id}，默认 global'),
         tentative: z.boolean().optional().describe('是否为不确定记忆'),
       },
+      outputSchema: createToolOutputSchema(MemoryDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(getManagers().memories.save({
@@ -655,6 +666,7 @@ function registerMemoryTools(server: McpServer): void {
         category: categorySchema.optional().describe('可选：记忆分类'),
         scope: z.string().optional().describe('global 或 scene:{id}，默认 global'),
       },
+      outputSchema: createToolOutputSchema(z.array(MemoryDataSchema)),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResultFromData(getManagers().memories.search({
@@ -674,6 +686,7 @@ function registerMemoryTools(server: McpServer): void {
         category: categorySchema.describe('记忆分类'),
         scope: z.string().optional().describe('global 或 scene:{id}，默认 global'),
       },
+      outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
       annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     async (args) => toMcpToolResult(getManagers().memories.forget({
@@ -697,6 +710,7 @@ function registerMemoryTools(server: McpServer): void {
         })).describe('候选记忆列表'),
         scope: z.string().optional().describe('global 或 scene:{id}，默认 global'),
       },
+      outputSchema: createToolOutputSchema(SessionCommitResultSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(getManagers().sessionCommit.commit({
@@ -777,6 +791,7 @@ function registerDoctorTools(server: McpServer): void {
         migrate_summaries: z.boolean().optional().describe('可选：删除旧式目录级摘要文件 .abstract.md / .overview.md'),
         gc_agents: z.boolean().optional().describe('可选：显式清理已判 dead 且名下无未过期 claim 的 agent 记录'),
       },
+      outputSchema: createToolOutputSchema(DoctorResultSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ migrate_todos, migrate_summaries, gc_agents }) => {
@@ -802,6 +817,7 @@ function registerHookTools(server: McpServer): void {
       title: 'List Hooks',
       description: TOOL_DESCRIPTIONS.lrnev_hook_list,
       inputSchema: {},
+      outputSchema: createToolOutputSchema(HookListResultSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async () => toMcpToolResult(getManagers().hooks.list(), 'lrnev_hook_list'),
@@ -816,6 +832,7 @@ function registerHookTools(server: McpServer): void {
         event: z.string().describe('事件名，例如 task.update.completed'),
         payload: z.record(z.string(), z.unknown()).optional().describe('可选 payload，会注入 LRNEV_PAYLOAD'),
       },
+      outputSchema: createToolOutputSchema(HookTriggerResultSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     async ({ event, payload }) => toMcpToolResult(getManagers().hooks.triggerResponse(event, payload ?? {}), 'lrnev_hook_trigger'),
@@ -829,6 +846,7 @@ function registerHookTools(server: McpServer): void {
       inputSchema: {
         lines: z.number().int().positive().optional().describe('可选：读取最近 N 条 hook 日志，默认使用配置 recent_list_limit'),
       },
+      outputSchema: createToolOutputSchema(z.array(HookLogEntrySchema)),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ lines }) => toMcpToolResult(getManagers().hooks.tailLog(lines), 'lrnev_hook_tail_log'),
@@ -840,6 +858,7 @@ function registerHookTools(server: McpServer): void {
       title: 'Enable Hook',
       description: TOOL_DESCRIPTIONS.lrnev_hook_enable,
       inputSchema: { name: z.string().describe('Hook 名称') },
+      outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ name }) => toMcpToolResult(getManagers().hooks.setEnabled(name, true), 'lrnev_hook_enable'),
@@ -851,6 +870,7 @@ function registerHookTools(server: McpServer): void {
       title: 'Disable Hook',
       description: TOOL_DESCRIPTIONS.lrnev_hook_disable,
       inputSchema: { name: z.string().describe('Hook 名称') },
+      outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ name }) => toMcpToolResult(getManagers().hooks.setEnabled(name, false), 'lrnev_hook_disable'),

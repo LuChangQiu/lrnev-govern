@@ -1,0 +1,64 @@
+{
+  "id": "E-04",
+  "name": "User Changed Decision",
+  "scenario": "用户先确认方案 A，随后明确改为方案 B。",
+  "provenance": "user_quote",
+  "role": "decision_boundary",
+  "enforcement": "client_boundary",
+  "clientBehavior": {
+    "description": "用最后一次有效确认更新 DECISION_BOUNDARY，明确告知 A 已被替换。",
+    "actions": [
+      "初始：用户确认「在现有 Spec A 下创建 Task」",
+      "记录为 DECISION_BOUNDARY(A)",
+      "后续：用户明确改变「不，创建新 Spec B」",
+      "更新 DECISION_BOUNDARY 为方案 B",
+      "向用户确认：已从 A 切换到 B",
+      "调用 spec_create(B) 而不是 task_create(A)"
+    ]
+  },
+  "serverBehavior": {
+    "description": "按 B 的实际工具输入与校验执行，不以旧确认制造额外阻断。",
+    "constraints": [
+      "只校验当前工具调用的真实约束",
+      "不因历史决定 A 而拒绝 B",
+      "不要求用户「撤销 A」的额外步骤"
+    ],
+    "response": {
+      "canInclude": [
+        "【事实】Spec B 已创建",
+        "【事实】之前考虑过在 A 下创建 Task（如需说明上下文）"
+      ],
+      "mustNotInclude": [
+        "【执行约束】必须先撤销方案 A",
+        "因历史决定而拒绝当前合法输入",
+        "把客户端对话历史当作服务端状态锁"
+      ]
+    }
+  },
+  "observableResult": {
+    "description": "后续动作按 B 处理；历史 A 可以保留为对话记录，但不能继续被当作当前决定。",
+    "assertions": [
+      "Spec B 创建成功（假设输入合法）",
+      "不存在针对 Spec A 的 Task 创建",
+      "服务端未因历史决定 A 产生阻断",
+      "客户端上下文清晰标识当前决定为 B"
+    ]
+  },
+  "dialogueFlow": [
+    {
+      "turn": 1,
+      "user": "在 Spec A 下创建任务",
+      "client": "记录 DECISION_BOUNDARY: 使用 Spec A"
+    },
+    {
+      "turn": 2,
+      "user": "不对，我要创建新的 Spec B",
+      "client": "更新 DECISION_BOUNDARY: 创建 Spec B（覆盖之前的决定）"
+    },
+    {
+      "turn": 3,
+      "server": "spec_create(B) 成功，不因之前考虑 A 而拒绝"
+    }
+  ],
+  "userStory": "用户决定可以改变；最后一次明确确认覆盖先前确认。"
+}

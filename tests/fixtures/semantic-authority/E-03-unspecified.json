@@ -1,0 +1,46 @@
+{
+  "id": "E-03",
+  "name": "Unspecified Direction Requires Clarification",
+  "scenario": "用户仅表达目标，未说明应复用、创建还是修改哪一个对象。",
+  "provenance": "client_asserted",
+  "role": "action_hint",
+  "enforcement": "client_boundary",
+  "clientBehavior": {
+    "description": "低风险、可逆时可以选择并解释；否则先提问澄清。",
+    "actions": [
+      "识别用户目标模糊（如「添加登录功能」，未指定在哪个 Spec）",
+      "可调用 assess_goal 获取复杂度启发式",
+      "低风险场景（如添加文档）：可自行选择并解释理由",
+      "高风险场景（如架构变更）：先询问用户意图",
+      "不把 GoalAssessor.kind 或 suggested_next_step 当作 USER_DECISION"
+    ]
+  },
+  "serverBehavior": {
+    "description": "可返回事实、建议、下一步和工具参数错误，但不持久化猜测出的方向。",
+    "response": {
+      "canInclude": [
+        "【事实】当前有 N 个 Spec 可能相关",
+        "【建议】可使用 assess_goal 评估复杂度",
+        "【下一步】确认后可调用 spec_create 或 task_create",
+        "GoalAssessor 的 kind（single-spec/multi-spec-program/research-program）作为启发式"
+      ],
+      "mustNotInclude": [
+        "【用户已决定】创建新 Spec",
+        "【用户已确认】使用现有 Spec X",
+        "服务端自动选择方向并持久化",
+        "把 GoalAssessor.kind 伪装成用户意图"
+      ]
+    }
+  },
+  "observableResult": {
+    "description": "任何自动选择都带解释且可改；没有来自 GoalAssessor 的伪造 USER_DECISION。",
+    "assertions": [
+      "响应提供事实和建议",
+      "如客户端自动选择，必须附带可理解的解释",
+      "用户可随时改变方向",
+      "GoalAssessor 结果仅作为 RECOMMENDATION 或 ACTION_HINT",
+      "服务端未持久化未经确认的方向"
+    ]
+  },
+  "userStory": "当用户没有指定组织方式时，我希望 AI 可以基于事实提出建议并询问用户，而不是把默认建议伪装成用户决定。"
+}

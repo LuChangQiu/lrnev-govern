@@ -1,0 +1,46 @@
+{
+  "id": "E-01",
+  "name": "Explicit User Request Overrides Recommendation",
+  "scenario": "已有相近 Spec A，服务端给出「在 A 下建 Task」的 RECOMMENDATION；用户明确要求「新建 Spec B」。",
+  "provenance": "user_quote",
+  "role": "decision_boundary",
+  "enforcement": "client_boundary",
+  "clientBehavior": {
+    "description": "记录用户原话或确认结果为 DECISION_BOUNDARY，调用 spec_create(B)；不把建议显示成禁令。",
+    "actions": [
+      "识别用户明确请求：「新建 Spec B」",
+      "记录为 DECISION_BOUNDARY（用户确认方向）",
+      "调用 spec_create(name='B', scene=current_scene)",
+      "不将 RECOMMENDATION 显示为阻断规则"
+    ]
+  },
+  "serverBehavior": {
+    "description": "只校验 spec_create 的真实输入约束；不会因存在 A 而阻止 B。",
+    "constraints": [
+      "验证 name 为 kebab-case（参考 execution-constraints-inventory.md §4.2）",
+      "验证 name+version 在 scene 内唯一（参考 §5.2）",
+      "不因已有相似 Spec A 而拒绝创建 B"
+    ],
+    "response": {
+      "canInclude": [
+        "【事实】Spec A 已存在",
+        "【建议】考虑在 A 下创建 Task 以复用现有结构",
+        "【事实】Spec B 已创建"
+      ],
+      "mustNotInclude": [
+        "【执行约束】不能创建新 Spec，必须使用 A",
+        "拒绝创建 B（当输入合法时）"
+      ]
+    }
+  },
+  "observableResult": {
+    "description": "B 在输入合法时创建成功；响应可以同时说明 A 的存在和创建 B 的事实。",
+    "assertions": [
+      "Spec B 的 requirements.md 存在于文件系统",
+      "响应包含成功状态",
+      "响应可包含关于 A 的 FACT 和 RECOMMENDATION",
+      "RECOMMENDATION 不阻止 B 的创建"
+    ]
+  },
+  "userStory": "当已有 Spec 可以承载但用户明确要求新建 Spec 时，我希望建议仍可解释利弊，但不能被当作禁止新建的规则。"
+}
