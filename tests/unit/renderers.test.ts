@@ -1,5 +1,9 @@
 /**
- * M2 渲染器单元测试
+ * M2 渲染器单元测试（临时：1088 行，待第 4 批前拆分）
+ *
+ * TODO (第 4 批前必办)：
+ * - 拆分为 4 个文件：batch1/2/3/common
+ * - 第 4 批 sub-agent 各自创建独立测试文件避免合并冲突
  *
  * 第 1 批验收标准（6 点）：
  * 1. 常量引用（assess-goal 必须 import guidance-semantics.ts）
