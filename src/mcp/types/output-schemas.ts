@@ -779,11 +779,14 @@ export const SessionCommitResultSchema = z.object({
  */
 export const SummarizeSaveResultSchema = z.object({
   uri: z.string(),
-  saved: z.object({
-    l0: z.boolean(),
-    l1: z.boolean(),
-  }),
-  path: z.string(),
+  saved: z.array(z.object({
+    level: z.enum(['L0', 'L1']),
+    path: z.string(),
+  })),
+  skipped: z.array(z.object({
+    level: z.enum(['L0', 'L1']),
+    reason: z.string(),
+  })),
 });
 
 /**
@@ -796,15 +799,18 @@ export const HookTriggerResultSchema = z.object({
 });
 
 /**
- * Hook log entry schema
+ * Hook log entry schema (对照 src/types/hooks.ts HookRecord)
  */
 export const HookLogEntrySchema = z.object({
-  timestamp: z.string(),
-  hook: z.string(),
+  ts: z.string(),
   event: z.string(),
-  status: z.string(),
-  duration_ms: z.number().optional(),
-  output: z.string().optional(),
+  hook: z.string(),
+  mode: z.enum(['sync', 'async']),
+  status: z.enum(['success', 'failed', 'timeout']),
+  duration_ms: z.number(),
+  exit_code: z.number(),
+  stdout_tail: z.string().optional(),
+  stderr_tail: z.string().optional(),
 });
 
 // 导出常用的完整响应 schema
