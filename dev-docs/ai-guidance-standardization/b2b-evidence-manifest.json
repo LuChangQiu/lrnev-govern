@@ -4,7 +4,7 @@
   "baseline_ref": "02-00 guidance-surface-inventory-v2 (346 surfaces)",
   "git_sha": "f4511b971ff33ff52bdebdf0845354d2ba612d42",
   "generated_at": "2026-09-02T03:00:28.667Z",
-  "note": "B2b-s 结构基线。无真实 LLM/客户端参与：action_taken/action_success/failure_category 由采集器基于 fixture 结构事实（工具序列、expectedAction 是否为 null、真实状态机转换规则 VALID_SPEC_TRANSITIONS）独立判定，不读取 fixture.evidenceFields 的预期值。C 类字段中 consumed_at/trigger_context/prompt_id 为权宜推断值（见每条记录 c_class_basis），client_version/model_version 为 null，需 05-00 Profile 阶段由客户端回传。",
+  "note": "B2b-s 结构基线。无真实 LLM/客户端参与：action_taken/action_success/failure_category 由采集器基于 fixture 结构事实（工具序列、expectedAction 是否为 null、真实状态机转换规则 VALID_SPEC_TRANSITIONS）独立判定，不读取 fixture.evidenceFields 的预期值。C 类字段中 consumed_at/trigger_context/prompt_id 为权宜推断值（见每条记录 c_class_basis），client_version/model_version 为 null，需 05-00 Profile 阶段由客户端回传。证据生成时刻：f4511b9 (第 4 批测试修正后)。git_sha 是证据完整性字段，记录真实生成时刻，不得手改。",
   "started_at": "2026-09-02T03:00:26.820Z",
   "completed_at": "2026-09-02T03:00:28.667Z",
   "evidences": [
