@@ -47,6 +47,13 @@ import { errorSearchRenderer } from './renderers/error-search.js';
 import { memorySearchRenderer } from './renderers/memory-search.js';
 import { lrnevHookListRenderer } from './renderers/lrnev-hook-list.js';
 import { lrnevHookTailLogRenderer } from './renderers/lrnev-hook-tail-log.js';
+import { governanceMapRenderer } from './renderers/governance-map.js';
+import { lrnevReportRenderer } from './renderers/lrnev-report.js';
+import { projectStatusRenderer } from './renderers/project-status.js';
+import { adrListRenderer } from './renderers/adr-list.js';
+import { agentListRenderer } from './renderers/agent-list.js';
+import { lrnevGuideRenderer } from './renderers/lrnev-guide.js';
+import { lrnevDoctorRenderer } from './renderers/lrnev-doctor.js';
 
 /**
  * ModelVisibleContract 渲染器接口。
@@ -131,6 +138,15 @@ function initializeRenderers(): void {
   renderers.set('memory_search', memorySearchRenderer);
   renderers.set('lrnev_hook_list', lrnevHookListRenderer);
   renderers.set('lrnev_hook_tail_log', lrnevHookTailLogRenderer);
+
+  // 第 4 批：7 个 list/inspection 类工具
+  renderers.set('governance_map', governanceMapRenderer);
+  renderers.set('lrnev_report', lrnevReportRenderer);
+  renderers.set('project_status', projectStatusRenderer);
+  renderers.set('adr_list', adrListRenderer);
+  renderers.set('agent_list', agentListRenderer);
+  renderers.set('lrnev_guide', lrnevGuideRenderer);
+  renderers.set('lrnev_doctor', lrnevDoctorRenderer);
 }
 
 // 模块加载时初始化
