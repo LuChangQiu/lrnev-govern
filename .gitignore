@@ -19,3 +19,4 @@ Thumbs.db
 /.lrnev/
 /.codex/
 /.claude/
+tests/e2e/t027-baseline/.smoke-results/

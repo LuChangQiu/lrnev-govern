@@ -20,23 +20,48 @@ T-027 双 SHA 对照基建，用于验证 guidance 迁移（B0 → M2）的行�
 ## 目录结构
 
 ```
-.claude/t027-worktrees/
-├── sha-a/                      # SHA A worktree (45a86e15)
-├── sha-b/                      # SHA B worktree (6383e99)
-├── current-sha.txt             # SHA 指针文件（sha-a 或 sha-b）
-├── wrapper.mts                 # MCP server wrapper（读指针启动对应 worktree）
-├── smoke-test.mts              # 冒烟验证脚本
-├── claude-code-config.json     # Claude Code 配置（lrnev-t027 实例）
-├── codex-config.json           # Codex 配置
-├── opencode-config.json        # OpenCode 配置
-└── README.md                   # 本文档
+tests/e2e/t027-baseline/          # 入库版本（受控）
+├── wrapper.mts                   # MCP server wrapper
+├── smoke-test.mts                # 冒烟验证（真实 MCP 握手）
+├── current-sha.txt               # 指针文件说明（真实文件在 .claude/）
+├── claude-code-config.json       # Claude Code 配置
+├── codex-config.json             # Codex 配置（草稿）
+├── opencode-config.json          # OpenCode 配置（草稿）
+└── README.md                     # 本文档
+
+.claude/t027-worktrees/           # 运行时文件（gitignore 区）
+├── sha-a/                        # SHA A worktree (45a86e15)
+├── sha-b/                        # SHA B worktree (6383e99)
+└── current-sha.txt               # SHA 指针文件（sha-a 或 sha-b）
 ```
 
 ---
 
 ## 使用方法
 
-### 1. 切换 SHA
+### 1. 创建 Worktrees（首次运行）
+
+```bash
+# 从项目根目录运行
+git worktree add .claude/t027-worktrees/sha-a 45a86e15
+git worktree add .claude/t027-worktrees/sha-b 6383e99
+
+# 创建指针文件（默认 SHA A）
+echo "sha-a" > .claude/t027-worktrees/current-sha.txt
+```
+
+### 2. 依赖策略
+
+**SHA A (45a86e15) 依赖解析**：
+- 依赖 node_modules 上溯到主仓库（worktree 在主仓库内）
+- SHA A 时代依赖版本：已在主仓库 node_modules 中
+- **验证要求**：SHA A 必须真实启动成功（npm install 已在主仓库完成）
+
+**SHA B (6383e99) 依赖解析**：
+- 同 SHA A，依赖主仓库 node_modules
+- 869/869 测试已验证依赖完整
+
+### 3. 切换 SHA
 
 **切换到 SHA A**（B0 基线）：
 ```bash
@@ -48,16 +73,43 @@ echo "sha-a" > .claude/t027-worktrees/current-sha.txt
 echo "sha-b" > .claude/t027-worktrees/current-sha.txt
 ```
 
-### 2. 启动 MCP Server
+### 4. 启动 MCP Server
 
 ```bash
-tsx .claude/t027-worktrees/wrapper.mts
+# 从项目根目录运行
+tsx tests/e2e/t027-baseline/wrapper.mts
 ```
 
 Wrapper 会：
-1. 读取 `current-sha.txt` 指针
+1. 读取 `.claude/t027-worktrees/current-sha.txt` 指针
 2. 切换到对应 worktree
 3. 启动 `src/mcp/server.ts`
+
+---
+
+## 冒烟验证
+
+### 运行冒烟测试（真实 MCP 握手）
+
+```bash
+# 从项目根目录运行
+tsx tests/e2e/t027-baseline/smoke-test.mts
+```
+
+**验证项**：
+1. ✅ SHA A (45a86e15) 能否启动并完成 MCP initialize 握手
+2. ✅ SHA B (6383e99) 能否启动并完成 MCP initialize 握手
+3. ✅ tools/list 返回工具清单
+4. ✅ 按 SHA 记录工具清单摘要（验证单变量）
+
+**不依赖超时假阳性**：
+- 真实 stdio 通信
+- 验证 initialize response
+- 验证 tools/list response
+- 记录工具清单 hash
+
+**输出**：
+- 工具清单摘要保存在 `tests/e2e/t027-baseline/.smoke-results/tools-summary.json`
 
 ---
 
@@ -65,54 +117,26 @@ Wrapper 会：
 
 ### Claude Code
 
-将 `claude-code-config.json` 内容合并到 Claude Code 配置文件：
+**配置文件**：`claude-code-config.json`
+
+将内容合并到 Claude Code 配置文件：
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
-**注意**：使用独立实例名 `lrnev-t027`，不影响日常发布版配置。
+**注意**：
+- 使用独立实例名 `lrnev-t027`，不影响日常发布版配置
+- 需从项目根目录运行（wrapper 会自动查找项目根）
 
-### Codex
+### Codex（草稿，待验证）
 
 配置文件：`codex-config.json`
-（待 Codex 具体配置方式确认）
+状态：格式草稿，未实测（需改为 TOML 格式）
 
-### OpenCode
+### OpenCode（草稿，待验证）
 
 配置文件：`opencode-config.json`
 模型：DeepSeek V4 Flash
-（待 OpenCode 具体配置方式确认）
-
----
-
-## 冒烟验证
-
-### 运行冒烟测试
-
-```bash
-tsx .claude/t027-worktrees/smoke-test.mts
-```
-
-**验证项**：
-1. ✅ SHA A (45a86e15) 能否启动
-2. ✅ SHA B (6383e99) 能否启动
-3. ✅ wrapper 切换是否正常
-
-### 手工验证（必做）
-
-冒烟测试通过后，手工验证三客户端 headless MCP 工具调用：
-
-**Claude Code**：
-1. 启动 Claude Code
-2. 确认 `lrnev-t027` MCP server 已连接
-3. 测试工具调用（如 `spec_create`）
-
-**Codex**：
-1. 配置 Codex 使用 `lrnev-t027`
-2. 测试 MCP 工具调用
-
-**OpenCode**：
-1. 配置 OpenCode 使用 `lrnev-t027`
-2. 测试 MCP 工具调用
+状态：格式草稿，未实测（需改为 mcp 数组格式）
 
 ---
 
@@ -120,25 +144,30 @@ tsx .claude/t027-worktrees/smoke-test.mts
 
 ### 12 个决策场景
 
-| 场景 ID | 描述 | 预期行为 |
-|---------|------|----------|
-| E-01 | 建议复用+明确新建 | spec_create |
-| E-02 | 建议新建+明确复用 | task_create |
-| E-03 | 低风险场景未指定 | spec_get |
-| E-04 | 高成本场景未指定 | assess_goal |
-| E-05 | 偏好新建后确认 | spec_create |
-| E-06a | 用户改变主意-提议时 | task_create |
-| E-06b | 用户改变主意-提议时（变体） | task_create |
-| E-07 | 明确不建 Spec | null |
-| E-08 | 状态机保护 | spec_update |
-| E-09 | 伪约束（非真实限制） | spec_get |
-| E-10 | new_scene 协议 | scene_create |
-| E-11 | other 协议 | null |
+| 场景 ID | 描述 |
+|---------|------|
+| E-01 | 建议复用+明确新建 |
+| E-02 | 建议新建+明确复用 |
+| E-03 | 低风险场景未指定 |
+| E-04 | 高成本场景未指定 |
+| E-05 | 偏好新建后确认 |
+| E-06a | 用户改变主意-提议时 |
+| E-06b | 用户改变主意-提议时（变体） |
+| E-07 | 明确不建 Spec |
+| E-08 | 状态机保护（spec_update 非法状态转换） |
+| E-09 | 去伪约束验证（移除黑名单词汇后行为保持） |
+| E-10 | new_scene 协议 |
+| E-11 | other 协议 |
+
+**注意**：
+- E-08 描述已按 04-00 design 修正
+- E-09 描述已按 04-00 design 修正
 
 ### 盲测原则
 
-- 只含用户原话（来自 `tests/fixtures/04-00/*.json`）
+- 只含用户原话（来自 `tests/fixtures/04-00/*.json` 的 `userInput`）
 - 不添加提示词干预
+- 不向执行者展示预期答案
 - 期望答案事后对照
 - 全量录制会话日志
 
@@ -150,9 +179,7 @@ tsx .claude/t027-worktrees/smoke-test.mts
 
 ## Phase 3: 证据提交
 
-### 证据格式
-
-参考 `dev-docs/ai-guidance-standardization/b2b-evidence-manifest.json`：
+### 证据格式（占位示例，待实施时完善）
 
 ```json
 {
@@ -177,6 +204,8 @@ tsx .claude/t027-worktrees/smoke-test.mts
 }
 ```
 
+**注意**：此为占位示例，实际证据格式待 Phase 2 实施时完善。
+
 ### 提交流程
 
 1. 生成证据清单（每客户端 × 每 SHA × 12 场景）
@@ -198,33 +227,18 @@ tsx .claude/t027-worktrees/smoke-test.mts
 
 ---
 
-## 已知坑
-
-### Claude Code `claude -p` 受限
-
-老版 Claude Code CLI 的 `claude -p` 可能不完整启用 MCP 工具。
-
-**验证方式**：
-- 手工启动 Claude Code GUI
-- 确认 MCP 工具列表可见
-- 测试实际工具调用
-
-**fallback**：
-- 使用 GUI 手工执行
-- 或等待 Claude Code CLI 更新
-
----
-
 ## 维护者
 
 - **创建时间**: 2026-09-02
 - **创建人**: Claude Opus 5
 - **复审**: DeepSeek（审查方）
+- **修订**: 2026-09-02（修复 P0①②③⑤ + P1⑥⑦⑧）
 
 ---
 
 ## 参考文档
 
 - 04-00 最终观测报告：`dev-docs/ai-guidance-standardization/04-00-最终观测报告.md`
+- 04-00 design：`.lrnev/scenes/04-ai-guidance-standardization/specs/04-00-agent-e2e-observability/design.md`
 - 四阶段证据清单：`dev-docs/ai-guidance-standardization/b*-evidence-manifest.json`
 - 05-00 requirements：`.lrnev/scenes/04-ai-guidance-standardization/specs/05-00-lrnev-guidance-profile/requirements.md`

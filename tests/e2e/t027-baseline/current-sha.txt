@@ -1,1 +1,11 @@
-sha-a
+# T-027 SHA 指针文件说明
+#
+# 真实指针文件在：.claude/t027-worktrees/current-sha.txt（gitignore 区）
+# 本文件仅作说明，不参与运行
+#
+# 切换 SHA：
+#   echo "sha-a" > .claude/t027-worktrees/current-sha.txt
+#   echo "sha-b" > .claude/t027-worktrees/current-sha.txt
+#
+# SHA A = 45a86e15 (B0 基线)
+# SHA B = 6383e99 (M2 收尾，不含 Profile)
