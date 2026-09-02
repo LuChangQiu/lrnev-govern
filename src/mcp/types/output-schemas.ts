@@ -90,7 +90,6 @@ export function createToolOutputSchema<T extends z.ZodTypeAny>(dataSchema: T) {
     ok: z.boolean(),
     data: dataSchema.optional(),
     errors: z.array(ErrorInfoSchema).optional(),
-    error: ErrorInfoSchema.optional(), // Added: singular error field for single-error responses
     ai_followup: AiFollowupSchema.optional(),
     anchor_context: z.array(AnchorContextSchema).optional(),
     summary_context: SummaryContextSchema.optional(),

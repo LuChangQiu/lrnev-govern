@@ -69,7 +69,6 @@ export async function toMcpToolResult<T>(
       ok: response.ok,
       data: response.data,
       errors: response.errors?.map(toLrnevErrorInfo),
-      error: response.errors && response.errors.length === 1 ? toLrnevErrorInfo(response.errors[0]) : undefined,
       ai_followup: response.ai_followup,
       anchor_context: response.anchor_context,
       summary_context: response.summary_context,
@@ -148,7 +147,6 @@ function handleToolError(err: unknown): McpToolResult {
         response_version: '1',
         ok: false,
         errors: [lrnevError],
-        error: lrnevError,
         ai_followup: {
           instructions: [
             'Spec 引用不唯一；请从 candidates 中选择一个完整 Spec id，并用该完整 id 重新调用刚才的工具。',
@@ -177,7 +175,6 @@ function handleToolError(err: unknown): McpToolResult {
       response_version: '1',
       ok: false,
       errors: [lrnevError],
-      error: lrnevError,
     };
 
     // M2: 使用 error renderer（D-04 错误路径 MVC）
