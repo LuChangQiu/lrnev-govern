@@ -388,8 +388,7 @@ describe('MCP server', () => {
           touches_files: ['src/auth.ts'],
         },
       });
-      const secondText = second.content[0]?.type === 'text' ? second.content[0].text : '';
-      const secondPayload = JSON.parse(secondText) as {
+      const secondPayload = second.structuredContent as {
         data: { claimed: boolean; overlaps?: unknown[] };
         ai_followup?: { instructions: string[] };
       };
@@ -402,8 +401,7 @@ describe('MCP server', () => {
         name: 'task_release',
         arguments: { scene: 'user-management', spec: 'user-login', task: 'T-002', agent_id: 'agent-b' },
       });
-      const releasedText = released.content[0]?.type === 'text' ? released.content[0].text : '';
-      const releasedPayload = JSON.parse(releasedText) as { data: { released: boolean } };
+      const releasedPayload = released.structuredContent as { data: { released: boolean } };
       expect(releasedPayload.data.released).toBe(true);
 
       await client.close();
@@ -643,8 +641,7 @@ describe('MCP server', () => {
           decision: '使用文件系统作为事实来源。',
         },
       });
-      const createdText = created.content[0]?.type === 'text' ? created.content[0].text : '';
-      const payload = JSON.parse(createdText) as { data: { number: string }; ai_followup?: { instructions: string[] } };
+      const payload = created.structuredContent as { data: { number: string }; ai_followup?: { instructions: string[] } };
       expect(payload.data.number).toBe('0001');
       expect(payload.ai_followup?.instructions.join('\n')).toContain('ADR 0001');
 
@@ -757,8 +754,7 @@ describe('MCP server', () => {
           scope: 'global',
         },
       });
-      const recordText = recorded.content[0]?.type === 'text' ? recorded.content[0].text : '';
-      const recordPayload = JSON.parse(recordText) as { data: { id: string; status: string } };
+      const recordPayload = recorded.structuredContent as { data: { id: string; status: string } };
       expect(recordPayload.data.status).toBe('incident');
 
       const searched = await client.callTool({
@@ -776,8 +772,7 @@ describe('MCP server', () => {
           verification: '集成测试通过',
         },
       });
-      const promoteText = promoted.content[0]?.type === 'text' ? promoted.content[0].text : '';
-      const promotePayload = JSON.parse(promoteText) as { data: { status: string } };
+      const promotePayload = promoted.structuredContent as { data: { status: string } };
       expect(promotePayload.data.status).toBe('promoted');
 
       await client.close();
@@ -806,8 +801,7 @@ describe('MCP server', () => {
           scope: 'global',
         },
       });
-      const saveText = saved.content[0]?.type === 'text' ? saved.content[0].text : '';
-      const savePayload = JSON.parse(saveText) as { data: { id: string } };
+      const savePayload = saved.structuredContent as { data: { id: string } };
 
       const searched = await client.callTool({
         name: 'memory_search',
@@ -820,8 +814,7 @@ describe('MCP server', () => {
         name: 'memory_forget',
         arguments: { id: savePayload.data.id, category: 'facts', scope: 'global' },
       });
-      const forgetText = forgotten.content[0]?.type === 'text' ? forgotten.content[0].text : '';
-      const forgetPayload = JSON.parse(forgetText) as { data: { deleted: boolean } };
+      const forgetPayload = forgotten.structuredContent as { data: { deleted: boolean } };
       expect(forgetPayload.data.deleted).toBe(true);
 
       await client.close();
@@ -852,8 +845,7 @@ describe('MCP server', () => {
           ],
         },
       });
-      const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
-      const payload = JSON.parse(text) as { data: { saved: unknown[]; skipped: unknown[] } };
+      const payload = result.structuredContent as { data: { saved: unknown[]; skipped: unknown[] } };
       expect(payload.data.saved).toHaveLength(1);
       expect(payload.data.skipped).toHaveLength(1);
 
@@ -878,29 +870,25 @@ describe('MCP server', () => {
         name: 'agent_register',
         arguments: { agent_id: 'mcp-agent', client: 'codex' },
       });
-      const registerText = registered.content[0]?.type === 'text' ? registered.content[0].text : '';
-      const registerPayload = JSON.parse(registerText) as { data: { agent_id: string } };
+      const registerPayload = registered.structuredContent as { data: { agent_id: string } };
       expect(registerPayload.data.agent_id).toBe('mcp-agent');
 
       const heartbeat = await client.callTool({
         name: 'agent_heartbeat',
         arguments: { agent_id: 'mcp-agent' },
       });
-      const heartbeatText = heartbeat.content[0]?.type === 'text' ? heartbeat.content[0].text : '';
-      const heartbeatPayload = JSON.parse(heartbeatText) as { data: { status: string } };
+      const heartbeatPayload = heartbeat.structuredContent as { data: { status: string } };
       expect(heartbeatPayload.data.status).toBe('active');
 
       const listed = await client.callTool({ name: 'agent_list', arguments: {} });
-      const listText = listed.content[0]?.type === 'text' ? listed.content[0].text : '';
-      const listPayload = JSON.parse(listText) as { data: { agents: Array<{ agent_id: string }> } };
+      const listPayload = listed.structuredContent as { data: { agents: Array<{ agent_id: string }> } };
       expect(listPayload.data.agents.map((item) => item.agent_id)).toContain('mcp-agent');
 
       const unregistered = await client.callTool({
         name: 'agent_unregister',
         arguments: { agent_id: 'mcp-agent' },
       });
-      const unregisterText = unregistered.content[0]?.type === 'text' ? unregistered.content[0].text : '';
-      const unregisterPayload = JSON.parse(unregisterText) as { data: { agent_id: string } };
+      const unregisterPayload = unregistered.structuredContent as { data: { agent_id: string } };
       expect(unregisterPayload.data.agent_id).toBe('mcp-agent');
 
       await client.close();
@@ -986,7 +974,7 @@ describe('MCP server', () => {
       }]);
 
       const disabled = await client.callTool({ name: 'lrnev_hook_disable', arguments: { name: 'mcp-hook' } });
-      const disabledPayload = JSON.parse(disabled.content[0]?.type === 'text' ? disabled.content[0].text : '') as { data: { enabled: boolean } };
+      const disabledPayload = disabled.structuredContent as { data: { enabled: boolean } };
       expect(disabledPayload.data.enabled).toBe(false);
 
       await client.callTool({ name: 'lrnev_hook_enable', arguments: { name: 'mcp-hook' } });
@@ -994,11 +982,11 @@ describe('MCP server', () => {
         name: 'lrnev_hook_trigger',
         arguments: { event: 'task.create', payload: { task_id: 'T-001' } },
       });
-      const triggeredPayload = JSON.parse(triggered.content[0]?.type === 'text' ? triggered.content[0].text : '') as { data: { matched: number } };
+      const triggeredPayload = triggered.structuredContent as { data: { matched: number } };
       expect(triggeredPayload.data.matched).toBe(1);
       expect((await fs.read('.lrnev/state/hook-log.jsonl'))).toContain('mcp-hook');
       const tailed = await client.callTool({ name: 'lrnev_hook_tail_log', arguments: { lines: 1 } });
-      const tailedPayload = JSON.parse(tailed.content[0]?.type === 'text' ? tailed.content[0].text : '') as { data: Array<{ hook: string }> };
+      const tailedPayload = tailed.structuredContent as { data: Array<{ hook: string }> };
       expect(tailedPayload.data).toEqual([expect.objectContaining({ hook: 'mcp-hook' })]);
 
       await client.close();

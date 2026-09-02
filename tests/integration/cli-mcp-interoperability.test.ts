@@ -75,8 +75,7 @@ describe('CLI / MCP interoperability', () => {
         name: 'task_update',
         arguments: { scene: 'user-management', spec: 'user-login', task_id: 'T-002', status: 'in_progress' },
       });
-      const mcpText = mcpRes.content[0]?.type === 'text' ? mcpRes.content[0].text : '';
-      const mcpUpd = JSON.parse(mcpText) as { anchor_context?: Array<{ anchor: string; source: string }> };
+      const mcpUpd = mcpRes.structuredContent as { anchor_context?: Array<{ anchor: string; source: string }> };
 
       expect(cliUpd.anchor_context?.[0]?.anchor).toBe('F-01');
       expect(mcpUpd.anchor_context?.[0]?.anchor).toBe('F-01');
@@ -135,7 +134,7 @@ describe('CLI / MCP interoperability', () => {
         name: 'task_update',
         arguments: { scene: 'user-management', spec: 'user-login', task_id: 'T-002', status: 'in_progress' },
       });
-      const mcpUpd = JSON.parse(mcpRaw.content[0]?.type === 'text' ? mcpRaw.content[0].text : '{}');
+      const mcpUpd = mcpRaw.structuredContent as { summary_context?: { source: string; l0: string } };
 
       expect(cliUpd.summary_context?.source).toBe('sidecar');
       expect(cliUpd.summary_context?.l0).toBe('打通登录与会话管理。');

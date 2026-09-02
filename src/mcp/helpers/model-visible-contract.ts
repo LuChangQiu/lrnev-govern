@@ -21,6 +21,24 @@ import { sceneListRenderer } from './renderers/scene-list.js';
 import { taskCreateRenderer } from './renderers/task-create.js';
 import { assessGoalRenderer } from './renderers/assess-goal.js';
 import { contextSearchRenderer } from './renderers/context-search.js';
+import { taskCreateManyRenderer } from './renderers/task-create-many.js';
+import { taskUpdateRenderer } from './renderers/task-update.js';
+import { taskClaimRenderer } from './renderers/task-claim.js';
+import { taskReleaseRenderer } from './renderers/task-release.js';
+import { adrCreateRenderer } from './renderers/adr-create.js';
+import { memorySaveRenderer } from './renderers/memory-save.js';
+import { memoryForgetRenderer } from './renderers/memory-forget.js';
+import { errorRecordRenderer } from './renderers/error-record.js';
+import { errorPromoteRenderer } from './renderers/error-promote.js';
+import { summarizeSaveRenderer } from './renderers/summarize-save.js';
+import { sessionCommitRenderer } from './renderers/session-commit.js';
+import { agentRegisterRenderer } from './renderers/agent-register.js';
+import { agentHeartbeatRenderer } from './renderers/agent-heartbeat.js';
+import { agentUnregisterRenderer } from './renderers/agent-unregister.js';
+import { lrnevHookEnableRenderer } from './renderers/lrnev-hook-enable.js';
+import { lrnevHookDisableRenderer } from './renderers/lrnev-hook-disable.js';
+import { lrnevHookTriggerRenderer } from './renderers/lrnev-hook-trigger.js';
+import { lrnevInitRenderer } from './renderers/lrnev-init.js';
 
 /**
  * ModelVisibleContract 渲染器接口。
@@ -59,6 +77,7 @@ const renderers: RendererRegistry = new Map();
  *
  * 第 0 批：错误路径专用（不计入工具渲染器数）
  * 第 1 批：9 个 B2b 证据工具（08-00 迁移验证）
+ * 第 2 批：18 个写入/状态变更工具
  */
 function initializeRenderers(): void {
   // 第 0 批：错误路径
@@ -74,6 +93,26 @@ function initializeRenderers(): void {
   renderers.set('task_create', taskCreateRenderer);
   renderers.set('assess_goal', assessGoalRenderer);
   renderers.set('context_search', contextSearchRenderer);
+
+  // 第 2 批：18 个写入/状态变更工具
+  renderers.set('task_create_many', taskCreateManyRenderer);
+  renderers.set('task_update', taskUpdateRenderer);
+  renderers.set('task_claim', taskClaimRenderer);
+  renderers.set('task_release', taskReleaseRenderer);
+  renderers.set('adr_create', adrCreateRenderer);
+  renderers.set('memory_save', memorySaveRenderer);
+  renderers.set('memory_forget', memoryForgetRenderer);
+  renderers.set('error_record', errorRecordRenderer);
+  renderers.set('error_promote', errorPromoteRenderer);
+  renderers.set('summarize_save', summarizeSaveRenderer);
+  renderers.set('session_commit', sessionCommitRenderer);
+  renderers.set('agent_register', agentRegisterRenderer);
+  renderers.set('agent_heartbeat', agentHeartbeatRenderer);
+  renderers.set('agent_unregister', agentUnregisterRenderer);
+  renderers.set('lrnev_hook_enable', lrnevHookEnableRenderer);
+  renderers.set('lrnev_hook_disable', lrnevHookDisableRenderer);
+  renderers.set('lrnev_hook_trigger', lrnevHookTriggerRenderer);
+  renderers.set('lrnev_init', lrnevInitRenderer);
 }
 
 // 模块加载时初始化
