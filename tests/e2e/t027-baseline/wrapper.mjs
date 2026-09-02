@@ -1,4 +1,4 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env node
 /**
  * T-027 双 SHA wrapper
  *
@@ -9,20 +9,25 @@
  * 使用：
  * - 切换到 SHA A: echo "sha-a" > .claude/t027-worktrees/current-sha.txt
  * - 切换到 SHA B: echo "sha-b" > .claude/t027-worktrees/current-sha.txt
- * - 启动 server: tsx tests/e2e/t027-baseline/wrapper.mts
+ * - 启动 server: node tests/e2e/t027-baseline/wrapper.mjs
  *
  * 注意：
  * - 指针文件在 .claude/t027-worktrees/current-sha.txt（gitignore 区）
  * - worktrees 在 .claude/t027-worktrees/sha-{a,b}/
  * - wrapper 从项目根目录显式解析路径
+ * - 所有日志走 stderr（stdout 是 JSON-RPC 通道）
  */
 
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 // 显式解析到项目根目录（向上查找 package.json）
-function findProjectRoot(startDir: string): string {
+function findProjectRoot(startDir) {
   let dir = startDir;
   while (dir !== resolve(dir, '..')) {
     if (existsSync(resolve(dir, 'package.json'))) {
@@ -33,9 +38,10 @@ function findProjectRoot(startDir: string): string {
   throw new Error('未找到项目根目录（package.json）');
 }
 
-const projectRoot = findProjectRoot(process.cwd());
+const projectRoot = findProjectRoot(__dirname);
 const worktreeBaseDir = resolve(projectRoot, '.claude/t027-worktrees');
 const currentShaPath = resolve(worktreeBaseDir, 'current-sha.txt');
+const mcpEntryPath = resolve(worktreeBaseDir, 'mcp-entry.mjs');
 
 // 读取当前 SHA 指针
 if (!existsSync(currentShaPath)) {
@@ -53,7 +59,6 @@ if (currentSha !== 'sha-a' && currentSha !== 'sha-b') {
 
 // 构建 worktree 路径（显式指向 .claude/t027-worktrees/）
 const worktreePath = resolve(worktreeBaseDir, currentSha);
-const serverPath = resolve(worktreePath, 'src/mcp/server.ts');
 
 // 验证 worktree 存在
 if (!existsSync(worktreePath)) {
@@ -62,22 +67,23 @@ if (!existsSync(worktreePath)) {
   process.exit(1);
 }
 
-if (!existsSync(serverPath)) {
-  console.error(`❌ MCP server 不存在：${serverPath}`);
+// 验证垫片入口存在
+if (!existsSync(mcpEntryPath)) {
+  console.error(`❌ MCP 垫片入口不存在：${mcpEntryPath}`);
   process.exit(1);
 }
 
-console.log(`🔀 T-027 双 SHA wrapper`);
-console.log(`📍 当前 SHA：${currentSha}`);
-console.log(`📂 Worktree：${worktreePath}`);
-console.log(`🚀 启动 MCP server：${serverPath}`);
-console.log('');
+console.error(`🔀 T-027 双 SHA wrapper`);
+console.error(`📍 当前 SHA：${currentSha}`);
+console.error(`📂 Worktree：${worktreePath}`);
+console.error(`🚀 启动 MCP server（通过垫片入口）`);
+console.error('');
 
-// 启动 MCP server（使用 npx tsx）
-const child = spawn('npx', ['tsx', serverPath], {
+// 启动 MCP server（node + tsx + 垫片入口）
+const child = spawn('node', ['--import', 'tsx', mcpEntryPath], {
   cwd: worktreePath,
   stdio: 'inherit',
-  shell: true,
+  shell: false,
 });
 
 child.on('error', (err) => {

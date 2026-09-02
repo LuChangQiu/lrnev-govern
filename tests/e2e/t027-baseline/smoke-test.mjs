@@ -1,39 +1,31 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env node
 /**
- * T-027 Phase 1 冒烟验证（真实 MCP 握手）
+ * T-027 Phase 1 冒烟验证（真实 MCP 握手 + wrapper 全链）
  *
  * 验证项：
- * 1. SHA A (45a86e15) 能否启动并完成 MCP initialize 握手
- * 2. SHA B (6383e99) 能否启动并完成 MCP initialize 握手
+ * 1. SHA A (45a86e15) 通过 wrapper 启动并完成 MCP initialize 握手
+ * 2. SHA B (6383e99) 通过 wrapper 启动并完成 MCP initialize 握手
  * 3. tools/list 返回工具清单
  * 4. 按 SHA 记录工具清单摘要（验证单变量）
  *
- * 不依赖超时假阳性：
+ * 全链验证：
+ * - 通过 wrapper.mjs 启动（不绕过）
  * - 真实 stdio 通信
  * - 验证 initialize response
  * - 验证 tools/list response
  * - 记录工具清单 hash
  */
 
-import { spawn, ChildProcess } from 'node:child_process';
-import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { spawn } from 'node:child_process';
+import { writeFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
-interface TestResult {
-  sha: string;
-  success: boolean;
-  error?: string;
-  serverInfo?: {
-    protocolVersion?: string;
-    capabilities?: any;
-    serverInfo?: any;
-  };
-  toolsListHash?: string;
-  toolCount?: number;
-}
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-function findProjectRoot(startDir: string): string {
+function findProjectRoot(startDir) {
   let dir = startDir;
   while (dir !== resolve(dir, '..')) {
     if (existsSync(resolve(dir, 'package.json'))) {
@@ -44,53 +36,35 @@ function findProjectRoot(startDir: string): string {
   throw new Error('未找到项目根目录');
 }
 
-async function testSha(sha: 'sha-a' | 'sha-b'): Promise<TestResult> {
-  console.log(`\n🧪 测试 ${sha}...`);
+async function testSha(sha, projectRoot, wrapperPath) {
+  console.error(`\n🧪 测试 ${sha}...`);
 
-  const projectRoot = findProjectRoot(process.cwd());
   const worktreeBaseDir = resolve(projectRoot, '.claude/t027-worktrees');
   const currentShaPath = resolve(worktreeBaseDir, 'current-sha.txt');
-  const worktreePath = resolve(worktreeBaseDir, sha);
-  const serverPath = resolve(worktreePath, 'src/mcp/server.ts');
 
   // 切换 SHA
   writeFileSync(currentShaPath, sha);
 
-  // 验证 worktree 和 server 存在
-  if (!existsSync(worktreePath)) {
-    return {
-      sha,
-      success: false,
-      error: `Worktree 不存在：${worktreePath}`,
-    };
-  }
-
-  if (!existsSync(serverPath)) {
-    return {
-      sha,
-      success: false,
-      error: `MCP server 不存在：${serverPath}`,
-    };
-  }
-
-  return new Promise((resolve) => {
-    const child: ChildProcess = spawn('npx', ['tsx', serverPath], {
-      cwd: worktreePath,
+  return new Promise((resolvePromise) => {
+    const child = spawn('node', [wrapperPath], {
+      cwd: projectRoot,
       stdio: ['pipe', 'pipe', 'pipe'],
-      shell: true,
+      shell: false,
     });
 
     let jsonrpcBuffer = '';
+    let stderrBuffer = '';
     let initializeReceived = false;
     let toolsListReceived = false;
-    let toolsList: any[] = [];
+    let toolsList = [];
 
     const timeout = setTimeout(() => {
       child.kill();
-      resolve({
+      resolvePromise({
         sha,
         success: false,
         error: '超时（15 秒）未完成 MCP 握手',
+        stderr: stderrBuffer,
       });
     }, 15000);
 
@@ -110,7 +84,7 @@ async function testSha(sha: 'sha-a' | 'sha-b'): Promise<TestResult> {
           // initialize response
           if (response.result && response.result.protocolVersion) {
             initializeReceived = true;
-            console.log(`  ✅ initialize 握手成功`);
+            console.error(`  ✅ initialize 握手成功`);
 
             // 发送 tools/list 请求
             const toolsListRequest = {
@@ -126,7 +100,7 @@ async function testSha(sha: 'sha-a' | 'sha-b'): Promise<TestResult> {
           if (response.result && Array.isArray(response.result.tools)) {
             toolsListReceived = true;
             toolsList = response.result.tools;
-            console.log(`  ✅ tools/list 返回 ${toolsList.length} 个工具`);
+            console.error(`  ✅ tools/list 返回 ${toolsList.length} 个工具`);
 
             clearTimeout(timeout);
             child.kill();
@@ -135,12 +109,13 @@ async function testSha(sha: 'sha-a' | 'sha-b'): Promise<TestResult> {
             const toolNames = toolsList.map(t => t.name).sort();
             const toolsHash = createHash('sha256').update(JSON.stringify(toolNames)).digest('hex').slice(0, 8);
 
-            resolve({
+            resolvePromise({
               sha,
               success: true,
               serverInfo: response.result.serverInfo,
               toolsListHash: toolsHash,
               toolCount: toolsList.length,
+              stderr: stderrBuffer,
             });
           }
         } catch (err) {
@@ -151,28 +126,29 @@ async function testSha(sha: 'sha-a' | 'sha-b'): Promise<TestResult> {
 
     child.stderr?.on('data', (data) => {
       const stderr = data.toString();
-      // 只记录致命错误，忽略警告
-      if (stderr.includes('Error') || stderr.includes('FATAL')) {
-        console.error(`  ⚠️ stderr: ${stderr}`);
-      }
+      stderrBuffer += stderr;
+      // 实时输出 stderr（wrapper 日志）
+      process.stderr.write(stderr);
     });
 
     child.on('error', (err) => {
       clearTimeout(timeout);
-      resolve({
+      resolvePromise({
         sha,
         success: false,
         error: `spawn 失败：${err.message}`,
+        stderr: stderrBuffer,
       });
     });
 
     child.on('exit', (code, signal) => {
       clearTimeout(timeout);
       if (!initializeReceived || !toolsListReceived) {
-        resolve({
+        resolvePromise({
           sha,
           success: false,
           error: `提前退出（code=${code}, signal=${signal}），未完成 MCP 握手`,
+          stderr: stderrBuffer,
         });
       }
     });
@@ -197,11 +173,12 @@ async function testSha(sha: 'sha-a' | 'sha-b'): Promise<TestResult> {
 }
 
 async function main() {
-  console.log('🚀 T-027 Phase 1 冒烟验证（真实 MCP 握手）');
-  console.log('═'.repeat(60));
+  console.error('🚀 T-027 Phase 1 冒烟验证（真实 MCP 握手 + wrapper 全链）');
+  console.error('═'.repeat(60));
 
-  const projectRoot = findProjectRoot(process.cwd());
+  const projectRoot = findProjectRoot(__dirname);
   const worktreeBaseDir = resolve(projectRoot, '.claude/t027-worktrees');
+  const wrapperPath = resolve(projectRoot, 'tests/e2e/t027-baseline/wrapper.mjs');
 
   // 验证 worktrees 存在
   if (!existsSync(worktreeBaseDir)) {
@@ -212,27 +189,33 @@ async function main() {
     process.exit(1);
   }
 
-  const results: TestResult[] = [];
+  // 验证 wrapper 存在
+  if (!existsSync(wrapperPath)) {
+    console.error(`❌ Wrapper 不存在：${wrapperPath}`);
+    process.exit(1);
+  }
+
+  const results = [];
 
   // 测试 SHA A
-  results.push(await testSha('sha-a'));
+  results.push(await testSha('sha-a', projectRoot, wrapperPath));
 
   // 测试 SHA B
-  results.push(await testSha('sha-b'));
+  results.push(await testSha('sha-b', projectRoot, wrapperPath));
 
   // 输出结果
-  console.log('\n📊 冒烟验证结果');
-  console.log('═'.repeat(60));
+  console.error('\n📊 冒烟验证结果');
+  console.error('═'.repeat(60));
 
   for (const result of results) {
     const status = result.success ? '✅ 通过' : '❌ 失败';
-    console.log(`\n${result.sha}: ${status}`);
+    console.error(`\n${result.sha}: ${status}`);
     if (result.error) {
-      console.log(`  错误：${result.error}`);
+      console.error(`  错误：${result.error}`);
     }
     if (result.toolCount !== undefined) {
-      console.log(`  工具数量：${result.toolCount}`);
-      console.log(`  工具清单 hash：${result.toolsListHash}`);
+      console.error(`  工具数量：${result.toolCount}`);
+      console.error(`  工具清单 hash：${result.toolsListHash}`);
     }
   }
 
@@ -254,28 +237,26 @@ async function main() {
       })),
     };
 
-    writeFileSync(
-      resolve(summaryDir, 'tools-summary.json'),
-      JSON.stringify(summary, null, 2)
-    );
+    const summaryPath = resolve(summaryDir, 'tools-summary.json');
+    writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
 
-    console.log('\n✅ 工具清单摘要已保存：tests/e2e/t027-baseline/.smoke-results/tools-summary.json');
+    console.error(`\n✅ 工具清单摘要已保存：${summaryPath}`);
   }
 
-  console.log('\n📝 下一步');
-  console.log('═'.repeat(60));
+  console.error('\n📝 下一步');
+  console.error('═'.repeat(60));
 
   if (allPassed) {
-    console.log('✅ 冒烟验证通过！');
-    console.log('');
-    console.log('下一步：手工验证三客户端 headless MCP 工具调用');
-    console.log('  1. 配置客户端使用 lrnev-t027');
-    console.log('  2. 测试至少一个客户端的工具调用');
-    console.log('  3. 报告 DeepSeek 复审');
+    console.error('✅ 冒烟验证通过！');
+    console.error('');
+    console.error('下一步：手工验证三客户端 headless MCP 工具调用');
+    console.error('  1. 配置客户端使用 lrnev-t027');
+    console.error('  2. 测试至少一个客户端的工具调用');
+    console.error('  3. 报告 DeepSeek 复审');
   } else {
-    console.log('❌ 冒烟验证失败！');
-    console.log('');
-    console.log('请检查失败原因后重新运行。');
+    console.error('❌ 冒烟验证失败！');
+    console.error('');
+    console.error('请检查失败原因后重新运行。');
   }
 
   process.exit(allPassed ? 0 : 1);

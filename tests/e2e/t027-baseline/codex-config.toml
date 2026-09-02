@@ -1,0 +1,10 @@
+# Codex 配置（草稿，需 TOML 格式）
+#
+# 注意：Codex 使用 TOML 格式，本文件仅作参考
+#
+# 参考格式：
+# [mcpServers.lrnev-t027]
+# command = "node"
+# args = ["E:/project/.lrnev/lrnev-cli/product/lrnev-govern/tests/e2e/t027-baseline/wrapper.mjs"]
+#
+# 待实施：转换为 Codex 实际配置格式

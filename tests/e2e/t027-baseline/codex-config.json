@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "lrnev-t027": {
-      "command": "tsx",
-      "args": [".claude/t027-worktrees/wrapper.mts"],
-      "cwd": "E:/project/.lrnev/lrnev-cli/product/lrnev-govern"
-    }
-  }
-}
