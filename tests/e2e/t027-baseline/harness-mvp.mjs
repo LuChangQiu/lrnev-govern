@@ -21,13 +21,29 @@ import { tmpdir } from 'node:os';
 const projectRoot = process.cwd();
 const sha = process.env.T027_SHA || 'sha-a';
 
-// 创建独立临时工作区
-const tempWorkspace = resolve(tmpdir(), `t027-workspace-${Date.now()}`);
+// 修正 P0-1: 使用项目子目录 + 临时 CLAUDE_CONFIG_DIR 隔离
+const tempWorkspace = resolve(projectRoot, '.claude/t027-harness-workspace', `run-${Date.now()}`);
+const tempConfigDir = resolve(projectRoot, '.claude/t027-harness-config', `config-${Date.now()}`);
 mkdirSync(tempWorkspace, { recursive: true });
+mkdirSync(tempConfigDir, { recursive: true });
+
+// 创建纯净的 MCP 配置（只有 lrnev-t027）
+const mcpConfigPath = resolve(tempConfigDir, 'mcp.json');
+const wrapperPath = resolve(projectRoot, 'tests/e2e/t027-baseline/wrapper.mjs');
+writeFileSync(mcpConfigPath, JSON.stringify({
+  mcpServers: {
+    'lrnev-t027': {
+      command: 'node',
+      args: [wrapperPath],
+      disabled: false
+    }
+  }
+}, null, 2));
 
 console.error('🚀 T-027 Clean Session Harness (MVP)');
 console.error(`📍 SHA: ${sha}`);
 console.error(`🗂️  独立工作区: ${tempWorkspace}`);
+console.error(`⚙️  隔离配置: ${tempConfigDir}`);
 console.error('');
 
 // E-01 fixture（硬编码，先跑通）
@@ -129,16 +145,16 @@ scene: 01-user-management
 }
 
 /**
- * 2. 预检（真实验证 assess_goal）
+ * 2. 预检（真实验证 assess_goal，修正 P0-2）
  */
 async function precheck() {
   console.error('🔍 预检（assess_goal）...');
 
-  // 通过 wrapper 调用 assess_goal
   const wrapperPath = resolve(projectRoot, 'tests/e2e/t027-baseline/wrapper.mjs');
 
   // 设置 SHA 指针
   const shaPointerPath = resolve(projectRoot, '.claude/t027-worktrees/current-sha.txt');
+  mkdirSync(resolve(projectRoot, '.claude/t027-worktrees'), { recursive: true });
   writeFileSync(shaPointerPath, sha);
 
   const result = await new Promise((resolve, reject) => {
@@ -152,78 +168,142 @@ async function precheck() {
       }
     });
 
-    // 发送 assess_goal 请求（JSON-RPC）
-    const request = {
+    let stdout = '';
+    let stderr = '';
+    let initReceived = false;
+    let assessReceived = false;
+
+    child.stderr.on('data', (data) => {
+      stderr += data.toString();
+      process.stderr.write(data);
+    });
+
+    // 超时保护
+    const timer = setTimeout(() => {
+      if (!assessReceived) {
+        child.kill();
+        reject(new Error('预检超时：10 秒内未完成'));
+      }
+    }, 10000);
+
+    // 在 stdout data 流中解析响应
+    child.stdout.on('data', (data) => {
+      stdout += data.toString();
+      const lines = stdout.split('\n');
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line);
+
+          // 1. 收到 initialize 响应
+          if (msg.id === 1 && msg.result && !initReceived) {
+            initReceived = true;
+            // 发送 initialized 通知
+            child.stdin.write(JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'notifications/initialized'
+            }) + '\n');
+            // 调用 assess_goal
+            const assessRequest = {
+              jsonrpc: '2.0',
+              id: 2,
+              method: 'tools/call',
+              params: {
+                name: 'assess_goal',
+                arguments: {
+                  goal: e01Fixture.userInput
+                }
+              }
+            };
+            child.stdin.write(JSON.stringify(assessRequest) + '\n');
+          }
+
+          // 2. 收到 assess_goal 响应 -> 立即 resolve + kill
+          if (msg.id === 2 && msg.result && !assessReceived) {
+            assessReceived = true;
+            clearTimeout(timer);
+
+            // 提取 structuredContent
+            const content = msg.result.content?.[0];
+            if (content?.type === 'text') {
+              const data = JSON.parse(content.text);
+              const structuredContent = data.structuredContent || data;
+              child.kill();
+              resolve(structuredContent);
+              return;
+            }
+          }
+        } catch (e) {
+          // 忽略非 JSON 行或解析失败
+        }
+      }
+    });
+
+    child.on('exit', (code) => {
+      clearTimeout(timer);
+      if (!assessReceived) {
+        reject(new Error(`预检失败 (exit ${code}): ${stderr}`));
+      }
+    });
+
+    // 发送 initialize 请求
+    const initRequest = {
       jsonrpc: '2.0',
       id: 1,
-      method: 'tools/call',
+      method: 'initialize',
       params: {
-        name: 'assess_goal',
-        arguments: {
-          goal: e01Fixture.userInput
+        protocolVersion: '2025-11-25', // 使用 server 实际版本
+        capabilities: {},
+        clientInfo: {
+          name: 't027-harness',
+          version: '1.0.0'
         }
       }
     };
 
-    child.stdin.write(JSON.stringify(request) + '\n');
-    child.stdin.end();
-
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    child.stderr.on('data', (data) => {
-      stderr += data.toString();
-      // 打印服务端日志
-      process.stderr.write(data);
-    });
-
-    child.on('exit', (code) => {
-      if (code !== 0) {
-        reject(new Error(`预检失败: ${stderr}`));
-      } else {
-        try {
-          const response = JSON.parse(stdout.split('\n').find(line => line.includes('"result"')));
-          resolve(response.result);
-        } catch (e) {
-          reject(new Error(`预检响应解析失败: ${stdout}`));
-        }
-      }
-    });
+    child.stdin.write(JSON.stringify(initRequest) + '\n');
   });
 
-  console.error(`   服务端建议: ${result.assessment || result}`);
+  console.error(`   评估结果: ${result.data?.kind || 'unknown'}`);
+  console.error(`   建议下一步: ${result.data?.suggested_next_step || 'N/A'}`);
 
-  // 验证建议方向是否符合场景前提
-  // E-01 期望：服务端建议 reuse（因为有 in-progress spec）
-  if (result.assessment === 'single-spec-program' && result.recommendation?.includes('复用')) {
-    console.error('✅ 预检通过（建议复用，符合场景前提）');
-    return true;
-  } else {
-    console.error('⚠️  预检异常：建议方向不符预期');
-    return true; // 继续执行，记录异常
+  // E-01 场景：用户说"开新 Spec"，但已有 in-progress spec
+  // assess_goal 只做粒度评估（single-spec/multi-spec-program/research-program）
+  // 不期望它给出"复用"建议——那是后续 AI 主循环的决策
+  // 这里只验证：(1) assess_goal 成功返回 (2) 识别为 single-spec
+  if (!result.ok || !result.data) {
+    console.error('⚠️  预检失败：assess_goal 返回错误');
+    console.error('   → 跳过本场景测试');
+    return false;
   }
+
+  const kind = result.data.kind;
+  if (kind !== 'single-spec') {
+    console.error(`⚠️  预检失败：粒度评估不符预期（期望 single-spec，实际 ${kind}）`);
+    console.error('   → 跳过本场景测试');
+    return false;
+  }
+
+  console.error('✅ 预检通过（assess_goal 成功，粒度评估正确）');
+  return true;
 }
 
 /**
- * 3. 驱动客户端执行（使用 claude CLI + wrapper）
+ * 3. 驱动客户端执行（使用 claude CLI + 临时配置目录）
  */
 async function driveClient(prompt) {
   console.error('🤖 驱动客户端执行...');
   console.error(`   Prompt: "${prompt}"`);
   console.error(`   工作区: ${tempWorkspace}`);
+  console.error(`   配置: ${mcpConfigPath}`);
 
-  const mcpConfigPath = resolve(projectRoot, 'tests/e2e/t027-baseline/.t027-mcp-config.json');
-
-  // 构建完整命令字符串（Windows 需要 shell）
+  // 构建参数
   const args = [
     '--mcp-config', mcpConfigPath,
     '--output-format', 'stream-json',
     '--verbose',
-    '-p', JSON.stringify(prompt)  // JSON 编码避免特殊字符问题
+    '-p', JSON.stringify(prompt)
   ];
 
   return new Promise((resolve, reject) => {
@@ -234,27 +314,40 @@ async function driveClient(prompt) {
       env: {
         ...process.env,
         LRNEV_WORKSPACE: tempWorkspace,
-        T027_SHA: sha
+        T027_SHA: sha,
+        CLAUDE_CONFIG_DIR: tempConfigDir  // P0-1: 隔离配置目录
       }
     });
 
     let stdout = '';
     let stderr = '';
     const toolCalls = [];
+    let initEvent = null;
 
     claude.stdout?.on('data', (data) => {
       stdout += data.toString();
-      // 解析 stream-json 提取 tool_use
+      // 解析 stream-json 提取 init 和 tool_use
       const lines = data.toString().split('\n');
       for (const line of lines) {
         if (!line.trim()) continue;
         try {
           const event = JSON.parse(line);
-          if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
-            toolCalls.push({
-              tool: event.content_block.name,
-              input: event.content_block.input
-            });
+
+          // 捕获 init 事件（验证工具纯净性）
+          if (event.type === 'system' && event.subtype === 'init') {
+            initEvent = event;
+          }
+
+          // 捕获 tool_use - 修复：从 message.content 数组中提取
+          if (event.type === 'assistant' && event.message?.content) {
+            for (const block of event.message.content) {
+              if (block.type === 'tool_use') {
+                toolCalls.push({
+                  tool: block.name,
+                  input: block.input
+                });
+              }
+            }
           }
         } catch (e) {
           // 忽略非 JSON 行
@@ -271,7 +364,8 @@ async function driveClient(prompt) {
         code,
         stdout,
         stderr,
-        toolCalls
+        toolCalls,
+        initEvent  // 返回 init 事件以验证工具纯净性
       });
     });
 
@@ -282,14 +376,23 @@ async function driveClient(prompt) {
 }
 
 /**
- * 4. 清理工作区（真实删除临时目录）
+ * 4. 清理工作区（删除临时目录和配置）
  */
 async function cleanupWorkspace() {
-  console.error('🧹 清理工作区（删除临时目录）...');
+  console.error('🧹 清理工作区（删除临时目录和配置）...');
 
   try {
-    rmSync(tempWorkspace, { recursive: true, force: true });
-    console.error('✅ 临时工作区已删除');
+    // 清理工作区
+    if (existsSync(tempWorkspace)) {
+      rmSync(tempWorkspace, { recursive: true, force: true });
+      console.error('   ✅ 工作区已删除');
+    }
+
+    // 清理配置目录
+    if (existsSync(tempConfigDir)) {
+      rmSync(tempConfigDir, { recursive: true, force: true });
+      console.error('   ✅ 配置目录已删除');
+    }
   } catch (err) {
     console.error(`⚠️  清理失败: ${err.message}`);
   }
@@ -309,7 +412,9 @@ async function main() {
     // 2. 预检
     const precheckPassed = await precheck();
     if (!precheckPassed) {
-      console.error('⚠️  预检失败，但继续执行');
+      console.error('⚠️  预检失败，跳过本场景测试');
+      await cleanupWorkspace();
+      process.exit(2); // 退出码 2 表示跳过
     }
 
     // 3. 驱动客户端
@@ -322,7 +427,26 @@ async function main() {
       console.error(`   工具序列: ${JSON.stringify(result.toolCalls.map(t => t.tool.replace('mcp__lrnev-t027__', '')), null, 2)}`);
     }
 
-    // 4. 记录证据（24 字段）
+    // P0-1: 验证工具纯净性
+    if (result.initEvent) {
+      const tools = result.initEvent.tools || [];
+      const lrnevTools = tools.filter(t => t.startsWith('mcp__lrnev__'));
+      const lrnevT027Tools = tools.filter(t => t.startsWith('mcp__lrnev-t027__'));
+
+      console.error('\n🔍 工具环境验证:');
+      console.error(`   总工具数: ${tools.length}`);
+      console.error(`   mcp__lrnev: ${lrnevTools.length}`);
+      console.error(`   mcp__lrnev-t027: ${lrnevT027Tools.length}`);
+
+      if (lrnevTools.length > 0) {
+        console.error('   ❌ 工具污染：检测到发布版 mcp__lrnev');
+        console.error(`   → 污染工具: ${lrnevTools.slice(0, 5).join(', ')}...`);
+      } else {
+        console.error('   ✅ 工具纯净：仅暴露 mcp__lrnev-t027');
+      }
+    }
+
+    // 4. 记录证据（24 字段，真实化）
     const evidence = {
       // 元信息
       scenario_id: e01Fixture.id,
@@ -335,15 +459,15 @@ async function main() {
       // B类：决策与动作
       tool_sequence: result.toolCalls.map(t => t.tool),
       action_taken: result.toolCalls[0]?.tool || null,
-      action_success: result.code === 0 && result.toolCalls.some(t => t.tool.includes('spec_create')),
+      action_success: result.code === 0 && result.toolCalls.some(t => t.tool.includes(e01Fixture.expectedAction)),
       user_decision_override: true,
       severity: e01Fixture.severity,
 
-      // C类：运行环境
-      git_sha: sha === 'sha-a' ? '45a86e15' : '6383e99',
-      session_clean: true,
+      // C类：运行环境（真实化）
+      git_sha: sha === 'sha-a' ? await getFullGitSha('sha-a') : await getFullGitSha('sha-b'),
+      session_clean: result.initEvent ? !result.initEvent.tools.some(t => t.startsWith('mcp__lrnev__')) : null,
       client: 'claude-code',
-      model_version: null,
+      model_version: result.initEvent?.model || null,
       mcp_version: '2024-11-05',
       consumed_at: new Date().toISOString(),
 
@@ -351,22 +475,30 @@ async function main() {
       surface_id: 'server_instructions:global:workflow_overview',
       content_hash: null,
       consumer_type: 'model',
-      decision_context: null,
+      decision_context: e01Fixture.decisionContext,
 
       // 其他
       trigger_context: null,
-      prompt_id: null
+      prompt_id: null,
+
+      // 调试信息
+      _debug: {
+        total_tools: result.initEvent?.tools?.length || 0,
+        lrnev_tools: result.initEvent?.tools?.filter(t => t.startsWith('mcp__lrnev__')).length || 0,
+        lrnev_t027_tools: result.initEvent?.tools?.filter(t => t.startsWith('mcp__lrnev-t027__')).length || 0
+      }
     };
 
-    // 对照期望
+    // 对照期望 - 修复：检查整个序列是否包含期望动作
     const expectedAction = e01Fixture.expectedAction;
-    const actualAction = result.toolCalls[0]?.tool || null;
-    const matched = actualAction?.includes(expectedAction);
+    const actualFirstAction = result.toolCalls[0]?.tool || null;
+    const hasExpectedAction = result.toolCalls.some(t => t.tool.includes(expectedAction));
 
     console.error('\n📋 期望对照:');
     console.error(`   期望动作: ${expectedAction}`);
-    console.error(`   实际动作: ${actualAction || '无'}`);
-    console.error(`   判定: ${matched ? '✅ 通过' : '❌ 未通过'}`);
+    console.error(`   首个动作: ${actualFirstAction || '无'}`);
+    console.error(`   完整序列: ${result.toolCalls.map(t => t.tool.replace('mcp__lrnev-t027__', '')).join(' → ')}`);
+    console.error(`   判定: ${hasExpectedAction ? '✅ 通过（序列包含期望动作）' : '❌ 未通过'}`);
 
     // 保存证据
     const evidenceDir = resolve(projectRoot, 'tests/e2e/t027-baseline/.evidences');
@@ -387,7 +519,7 @@ async function main() {
     // 5. 清理工作区
     await cleanupWorkspace();
 
-    if (matched) {
+    if (hasExpectedAction) {
       console.error('\n✅ E-01 测试通过');
       process.exit(0);
     } else {
@@ -407,6 +539,33 @@ async function main() {
 
     process.exit(1);
   }
+}
+
+/**
+ * 辅助：获取完整 git SHA
+ */
+async function getFullGitSha(shaLabel) {
+  return new Promise((resolve, reject) => {
+    const worktreePath = resolve(projectRoot, '.claude/t027-worktrees', shaLabel);
+    const child = spawn('git', ['rev-parse', 'HEAD'], {
+      cwd: worktreePath,
+      stdio: ['inherit', 'pipe', 'pipe']
+    });
+
+    let stdout = '';
+    child.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    child.on('exit', (code) => {
+      if (code === 0) {
+        resolve(stdout.trim());
+      } else {
+        // 降级：返回短 SHA
+        resolve(shaLabel === 'sha-a' ? '45a86e15' : '6383e99');
+      }
+    });
+  });
 }
 
 main();

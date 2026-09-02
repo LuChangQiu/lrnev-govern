@@ -88,10 +88,16 @@ console.error(`🚀 启动 MCP server（通过垫片入口）`);
 console.error('');
 
 // 启动 MCP server（node + tsx + 垫片入口）
+// 透传 LRNEV_WORKSPACE 等环境变量给 server
 const child = spawn('node', ['--import', 'tsx', mcpEntryPath], {
   cwd: worktreePath,
   stdio: 'inherit',
   shell: false,
+  env: {
+    ...process.env,
+    // 如果调用方设置了 LRNEV_WORKSPACE，优先使用；否则用 worktree 目录
+    LRNEV_WORKSPACE: process.env.LRNEV_WORKSPACE || worktreePath
+  }
 });
 
 child.on('error', (err) => {
