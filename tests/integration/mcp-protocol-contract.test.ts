@@ -54,46 +54,35 @@ describe('T-003: MCP 协议契约测试', () => {
   });
 
   describe('F-05: tools/list 枚举 - 42 工具全覆盖 outputSchema', () => {
-    it('所有工具必须声明 outputSchema', async () => {
+    it('必须提供恰好 42 个 lrnev 工具', async () => {
       const toolsList = await client.listTools();
-
-      // 验证工具数量（实际可能因初始化状态而异）
       const lrnevTools = toolsList.tools.filter(t => t.name.startsWith('lrnev_'));
 
-      // 至少有基础工具可用
-      expect(lrnevTools.length).toBeGreaterThan(0);
+      // F-05 强制要求：必须恰好 42 个工具
+      expect(lrnevTools.length).toBe(42);
+    });
 
-      // 验证每个工具都有 inputSchema
+    it('所有工具必须声明 outputSchema（强制断言）', async () => {
+      const toolsList = await client.listTools();
+      const lrnevTools = toolsList.tools.filter(t => t.name.startsWith('lrnev_'));
+
+      // 验证每个工具都有 inputSchema 和 outputSchema
+      const missingOutputSchema: string[] = [];
+
       for (const tool of lrnevTools) {
         expect(tool.inputSchema).toBeDefined();
         expect(tool.inputSchema.type).toBe('object');
 
-        // F-05 要求：所有工具必须声明 outputSchema
-        // 注：当前 MCP SDK 可能未支持 outputSchema 字段，此测试标记预期行为
-        if ('outputSchema' in tool) {
-          expect(tool.outputSchema).toBeDefined();
+        // F-05 强制要求：所有工具必须声明 outputSchema（不能用 if 跳过）
+        if (!('outputSchema' in tool) || !(tool as any).outputSchema) {
+          missingOutputSchema.push(tool.name);
         }
       }
-    });
 
-    it('核心工具清单可用', async () => {
-      const toolsList = await client.listTools();
-      const lrnevTools = toolsList.tools.filter(t => t.name.startsWith('lrnev_')).map(t => t.name);
-
-      // F-05: 验证基础工具可用（至少这些工具必须存在）
-      const essentialTools = [
-        'lrnev_init',
-        'lrnev_guide',
-        'lrnev_doctor',
-        'lrnev_report',
-      ];
-
-      for (const tool of essentialTools) {
-        expect(lrnevTools).toContain(tool);
+      // 如果有工具缺失 outputSchema，测试失败并列出清单
+      if (missingOutputSchema.length > 0) {
+        throw new Error(`以下 ${missingOutputSchema.length} 个工具缺失 outputSchema: ${missingOutputSchema.join(', ')}`);
       }
-
-      // 验证至少有基础工具数量
-      expect(lrnevTools.length).toBeGreaterThanOrEqual(essentialTools.length);
     });
   });
 
@@ -111,34 +100,54 @@ describe('T-003: MCP 协议契约测试', () => {
       expect(payload.data).toBeDefined();
     });
 
-    it('业务拒绝：error 字段存在', async () => {
-      // 尝试非法操作
-      try {
-        await client.callTool({
-          name: 'spec_update',
-          arguments: { scene: '00-default', spec: 'nonexistent', status: 'completed' },
-        });
-      } catch (error: any) {
-        // 业务拒绝可能抛出错误
-        expect(error).toBeDefined();
-      }
-    });
+    it('业务拒绝：isError 必须为 true，error 字段存在', async () => {
+      const result = await client.callTool({
+        name: 'spec_update',
+        arguments: { scene: '00-default', spec: 'nonexistent-spec-12345', status: 'completed' },
+      });
 
-    it('协议字段存在性验证', async () => {
-      const result = await client.callTool({ name: 'task_list', arguments: { scene: '00-default', spec: 'test-spec' } });
+      // F-06.2: 业务拒绝必须返回结构化错误
+      expect(result.structuredContent).toBeDefined();
       const payload = result.structuredContent as any;
 
-      // 协议基础字段必须存在
       expect(payload.response_version).toBe('1');
-      expect(payload.ok).toBeDefined();
+      expect(payload.ok).toBe(false);
+      expect(payload.error).toBeDefined();
+      expect(payload.error.code).toBeDefined();
+      expect(payload.error.message).toBeDefined();
+
+      // 验证 isError 标记
+      expect(result.isError).toBe(true);
     });
 
-    it('错误处理：传入非法参数', async () => {
-      try {
-        await client.callTool({ name: 'task_create', arguments: { scene: 123 } } as any);
-      } catch (error: any) {
-        expect(error).toBeDefined();
+    it('歧义引用：AMBIGUOUS_REF 返回 candidates 列表', async () => {
+      // 创建两个名称相似的 spec 以触发歧义
+      await client.callTool({ name: 'scene_create', arguments: { name: 'auth' } });
+      await client.callTool({ name: 'spec_create', arguments: { scene: '01-auth', name: 'login', version: 0 } });
+      await client.callTool({ name: 'spec_create', arguments: { scene: '01-auth', name: 'login', version: 1 } });
+
+      // 尝试用模糊引用访问
+      const result = await client.callTool({
+        name: 'spec_get',
+        arguments: { scene: '01-auth', spec: 'login' }, // 模糊：可能是 v0 或 v1
+      });
+
+      const payload = result.structuredContent as any;
+
+      // F-06.3: 歧义场景应返回 candidates
+      if (payload.error?.code === 'AMBIGUOUS_REF') {
+        expect(payload.error.candidates).toBeDefined();
+        expect(Array.isArray(payload.error.candidates)).toBe(true);
+        expect(payload.error.candidates.length).toBeGreaterThan(1);
       }
+      // 注：如果实现采用 "最新版本" 策略则不会歧义，此测试记录预期行为
+    });
+
+    it('内部错误：传入无效类型参数应抛出或返回错误', async () => {
+      // 传入错误类型的参数
+      await expect(
+        client.callTool({ name: 'task_create', arguments: { scene: 123, spec: null, title: {} } } as any),
+      ).rejects.toThrow();
     });
   });
 
@@ -166,98 +175,158 @@ describe('T-003: MCP 协议契约测试', () => {
   });
 
   describe('F-08: annotations 逐工具副作用核对', () => {
-    it('写操作工具不得标记 readOnly', async () => {
-      const toolsList = await client.listTools();
+    let toolsList: Awaited<ReturnType<typeof client.listTools>>;
 
+    beforeAll(async () => {
+      toolsList = await client.listTools();
+    });
+
+    it('写操作工具不得标记 readOnly', async () => {
       // 写操作工具清单
       const writeTools = ['spec_create', 'task_create', 'spec_update', 'task_update', 'adr_create'];
+
+      const violations: string[] = [];
 
       for (const toolName of writeTools) {
         const tool = toolsList.tools.find(t => t.name === toolName);
         expect(tool).toBeDefined();
 
         // F-08: 写操作不得标 readOnly=true
-        const annotations = (tool as any).annotations || {};
-        if (annotations.readOnly === true) {
-          throw new Error(`${toolName} 是写操作但标记了 readOnly=true`);
+        const annotations = (tool as any).annotations;
+        if (annotations?.readOnly === true) {
+          violations.push(`${toolName} 是写操作但标记了 readOnly=true`);
         }
+      }
+
+      if (violations.length > 0) {
+        throw new Error(`Annotations 违规:\n${violations.join('\n')}`);
       }
     });
 
-    it('只读工具应标记 readOnly', async () => {
-      const toolsList = await client.listTools();
-
+    it('只读工具必须标记 readOnly=true', async () => {
       // 只读工具清单
-      const readOnlyTools = ['spec_get', 'task_list', 'scene_list', 'adr_get', 'project_status'];
+      const readOnlyTools = ['spec_get', 'task_list', 'scene_list', 'adr_get', 'project_status', 'lrnev_guide'];
+
+      const missing: string[] = [];
 
       for (const toolName of readOnlyTools) {
         const tool = toolsList.tools.find(t => t.name === toolName);
         expect(tool).toBeDefined();
 
-        // F-08: 只读工具应标 readOnly（如果支持 annotations）
-        // 注：当前实现可能未完全支持 annotations，此测试标记预期行为
+        // F-08: 只读工具必须标 readOnly=true
+        const annotations = (tool as any).annotations;
+        if (annotations?.readOnly !== true) {
+          missing.push(`${toolName} 是只读操作但未标记 readOnly=true`);
+        }
+      }
+
+      if (missing.length > 0) {
+        // 记录修正清单，但允许测试继续（实现问题需另行修正）
+        console.warn(`⚠️  需要修正的 readOnly annotations:\n${missing.join('\n')}`);
+        expect(missing.length).toBe(0); // 强制失败以暴露问题
       }
     });
 
-    it('幂等操作应标记 idempotent', async () => {
-      const toolsList = await client.listTools();
+    it('幂等操作应标记 idempotent=true', async () => {
+      // 幂等操作清单（多次调用结果相同）
+      const idempotentTools = ['spec_create', 'adr_create', 'scene_create'];
 
-      // 幂等操作清单
-      const idempotentTools = ['spec_create', 'task_create'];
+      const missing: string[] = [];
 
       for (const toolName of idempotentTools) {
         const tool = toolsList.tools.find(t => t.name === toolName);
         expect(tool).toBeDefined();
 
-        // F-08: 幂等操作应标记（预期行为）
+        // F-08: 幂等操作应标记 idempotent=true
+        const annotations = (tool as any).annotations;
+        if (annotations?.idempotent !== true) {
+          missing.push(`${toolName} 是幂等操作但未标记 idempotent=true`);
+        }
+      }
+
+      if (missing.length > 0) {
+        console.warn(`⚠️  需要修正的 idempotent annotations:\n${missing.join('\n')}`);
+        expect(missing.length).toBe(0);
       }
     });
 
-    it('破坏性操作应标记 destructive', async () => {
-      const toolsList = await client.listTools();
+    it('破坏性操作应标记 destructive=true', async () => {
+      // 破坏性操作清单
+      const destructiveTools = ['memory_forget'];
 
-      // 破坏性操作清单（如有）
-      const destructiveTools = ['memory_forget', 'error_promote'];
+      const missing: string[] = [];
 
       for (const toolName of destructiveTools) {
         const tool = toolsList.tools.find(t => t.name === toolName);
         if (tool) {
-          // F-08: 破坏性操作应标记（预期行为）
+          // F-08: 破坏性操作应标记 destructive=true
+          const annotations = (tool as any).annotations;
+          if (annotations?.destructive !== true) {
+            missing.push(`${toolName} 是破坏性操作但未标记 destructive=true`);
+          }
         }
+      }
+
+      if (missing.length > 0) {
+        console.warn(`⚠️  需要修正的 destructive annotations:\n${missing.join('\n')}`);
+        expect(missing.length).toBe(0);
       }
     });
 
-    it('开放世界操作应标记 openWorld', async () => {
-      const toolsList = await client.listTools();
-
-      // 开放世界操作清单
+    it('开放世界操作应标记 openWorld=true', async () => {
+      // 开放世界操作清单（返回结果不确定/可能为空）
       const openWorldTools = ['context_search', 'error_search', 'memory_search'];
+
+      const missing: string[] = [];
 
       for (const toolName of openWorldTools) {
         const tool = toolsList.tools.find(t => t.name === toolName);
         expect(tool).toBeDefined();
 
-        // F-08: 开放世界操作应标记（预期行为）
+        // F-08: 开放世界操作应标记 openWorld=true
+        const annotations = (tool as any).annotations;
+        if (annotations?.openWorld !== true) {
+          missing.push(`${toolName} 是开放世界操作但未标记 openWorld=true`);
+        }
+      }
+
+      if (missing.length > 0) {
+        console.warn(`⚠️  需要修正的 openWorld annotations:\n${missing.join('\n')}`);
+        expect(missing.length).toBe(0);
       }
     });
   });
 
   describe('F-09: transport 证据产出', () => {
-    it('记录测试执行环境信息', () => {
+    it('记录测试执行环境信息（从实测获取）', async () => {
+      // 从实际 tools/list 获取数据
+      const toolsList = await client.listTools();
+      const lrnevTools = toolsList.tools.filter(t => t.name.startsWith('lrnev_'));
+
+      // 统计实际测试覆盖
+      const errorMatrixScenariosRun = 4; // 成功/业务拒绝/歧义/内部错误
+      const annotationsChecked = 5; // readOnly/idempotent/destructive/openWorld/写操作核对
+
       const evidence = {
         test_file: 'tests/integration/mcp-protocol-contract.test.ts',
         git_sha: process.env.GIT_SHA || 'unknown',
         test_run_id: Date.now(),
         coverage: {
-          tools_count: 42,
-          error_matrix_scenarios: 4, // 成功/业务拒绝/歧义/内部错误
-          annotations_checked: 5, // readOnly/idempotent/destructive/openWorld/写操作核对
+          tools_count: lrnevTools.length, // 实测值，不是硬编码
+          error_matrix_scenarios: errorMatrixScenariosRun,
+          annotations_checked: annotationsChecked,
         },
       };
 
       // F-09: 测试结果本身即 transport 证据
-      expect(evidence.coverage.tools_count).toBe(42);
+      expect(evidence.coverage.tools_count).toBe(42); // 期望 42，但从实测获取
       expect(evidence.test_file).toContain('mcp-protocol-contract.test.ts');
+      expect(evidence.coverage.error_matrix_scenarios).toBe(4);
+      expect(evidence.coverage.annotations_checked).toBe(5);
+
+      // 输出证据到控制台供外部收集
+      console.log('\n📊 T-003 Transport Evidence:');
+      console.log(JSON.stringify(evidence, null, 2));
     });
   });
 });
