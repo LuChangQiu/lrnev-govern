@@ -93,9 +93,9 @@ async function main() {
   const gitSha = getGitSha();
   const startedAt = new Date().toISOString();
 
-  // B1/B2a 阶段：加载 v3 五角色文本用于重新计算 content_hash
+  // B1/B2a/B2b 阶段：加载 v3 五角色文本用于重新计算 content_hash
   let v3Surfaces: Map<string, any> | null = null;
-  if (stage === 'B1' || stage === 'B2a') {
+  if (stage === 'B1' || stage === 'B2a' || stage === 'B2b') {
     try {
       const v3Path = args['v3-path']
         ? resolve(repoRoot, args['v3-path'])
@@ -131,8 +131,8 @@ async function main() {
       prompt_id: evidence.run_id,
     };
 
-    // B1/B2a 阶段：用 v3 text_v1 重新计算 content_hash，并补充额外字段
-    if ((stage === 'B1' || stage === 'B2a') && v3Surfaces) {
+    // B1/B2a/B2b 阶段：用 v3 text_v1 重新计算 content_hash，并补充额外字段
+    if ((stage === 'B1' || stage === 'B2a' || stage === 'B2b') && v3Surfaces) {
       const surfaceId = (evidence as any).surface_id;
       const v3Surface = v3Surfaces.get(surfaceId);
       if (v3Surface && v3Surface.text_v1) {
