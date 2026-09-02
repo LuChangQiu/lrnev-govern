@@ -1,0 +1,22 @@
+{
+  "scenario_id": "E-01",
+  "run_id": "run-1788342884376-p6zhcr2u",
+  "fixture_hash": "6330d790",
+  "tool_sequence": [],
+  "action_taken": null,
+  "action_success": false,
+  "user_decision_override": true,
+  "severity": "high",
+  "git_sha": "45a86e15",
+  "session_clean": true,
+  "client": "claude-code",
+  "model_version": null,
+  "mcp_version": "2024-11-05",
+  "consumed_at": "2026-09-02T09:54:44.377Z",
+  "surface_id": "server_instructions:global:workflow_overview",
+  "content_hash": null,
+  "consumer_type": "model",
+  "decision_context": null,
+  "trigger_context": null,
+  "prompt_id": null
+}
