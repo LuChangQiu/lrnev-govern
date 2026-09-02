@@ -29,12 +29,16 @@ export const lrnevDoctorRenderer: ModelVisibleRenderer<DiagnosticReport> = {
 
     lines.push('## 摘要');
     lines.push('');
-    lines.push(`- **错误**: ${summary.errors}`);
-    lines.push(`- **警告**: ${summary.warnings}`);
-    lines.push(`- **信息**: ${summary.info}`);
+    if (summary) {
+      lines.push(`- **错误**: ${summary.errors}`);
+      lines.push(`- **警告**: ${summary.warnings}`);
+      lines.push(`- **信息**: ${summary.info}`);
+    } else {
+      lines.push('（无统计信息）');
+    }
     lines.push('');
 
-    if (issues.length === 0) {
+    if (!issues || issues.length === 0) {
       lines.push('未发现问题。');
       lines.push('');
     } else {

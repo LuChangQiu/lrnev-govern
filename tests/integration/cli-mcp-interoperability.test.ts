@@ -201,20 +201,25 @@ describe('CLI / MCP interoperability', () => {
 
       const cli = await runCli(workspace.path, ['report']);
       const mcpRaw = await client.callTool({ name: 'lrnev_report', arguments: {} });
-      const mcp = JSON.parse(mcpRaw.content[0]?.type === 'text' ? mcpRaw.content[0].text : '{}');
+      const mcpText = mcpRaw.content[0]?.type === 'text' ? mcpRaw.content[0].text : '';
 
-      // 不比 generated_at；链路与覆盖率数据应深相等
-      expect(cli.data.chain).toEqual(mcp.data.chain);
-      expect(cli.data.coverage).toEqual(mcp.data.coverage);
-      expect(cli.data.headline).toBe(mcp.data.headline);
+      // M2: MCP lrnev_report 使用渲染器返回格式化文本，CLI 仍返回 JSON
+      // 验证 MCP 文本包含关键信息
+      expect(mcpText).toContain('# 治理体检报告');
+      expect(mcpText).toContain('链路完整度');
+
+      // 验证 CLI JSON 结构完整
+      expect(cli.data.chain).toBeDefined();
+      expect(cli.data.coverage).toBeDefined();
+      expect(cli.data.headline).toBeDefined();
       expect(cli.data.chain.unclosed[0]?.spec).toBe('01-00-login');
 
-      // scene 参数对等
+      // scene 参数对等：两者都应支持 scene 过滤
       const cliScene = await runCli(workspace.path, ['report', '--scene', '00-default']);
       const mcpSceneRaw = await client.callTool({ name: 'lrnev_report', arguments: { scene: '00-default' } });
-      const mcpScene = JSON.parse(mcpSceneRaw.content[0]?.type === 'text' ? mcpSceneRaw.content[0].text : '{}');
+      const mcpSceneText = mcpSceneRaw.content[0]?.type === 'text' ? mcpSceneRaw.content[0].text : '';
       expect(cliScene.data.scope).toBe('00-default');
-      expect(cliScene.data.chain).toEqual(mcpScene.data.chain);
+      expect(mcpSceneText).toContain('00-default');
     } finally {
       await client.close();
       await server.close();

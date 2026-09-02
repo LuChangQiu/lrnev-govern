@@ -53,16 +53,15 @@ describe('lrnev guide', () => {
     const { server, client } = await connectInMemory();
     try {
       const full = await client.callTool({ name: 'lrnev_guide', arguments: {} });
-      const fullPayload = readPayload(full) as ReturnType<typeof buildGuide>;
-      expect(fullPayload.data.topic).toBe('all');
-      expect(fullPayload.data.content).toContain('## 工作流 (workflow)');
-      expect(fullPayload.data.content).toContain('## 错误自救 (errors)');
+      const fullText = full.content[0]?.type === 'text' ? full.content[0].text : '';
+      // M2: 返回格式化文本
+      expect(fullText).toContain('工作流 (workflow)');
+      expect(fullText).toContain('错误自救 (errors)');
 
       const errors = await client.callTool({ name: 'lrnev_guide', arguments: { topic: 'errors' } });
-      const errorsPayload = readPayload(errors) as ReturnType<typeof buildGuide>;
-      expect(errorsPayload.data.topic).toBe('errors');
-      expect(errorsPayload.data.content).toContain('AMBIGUOUS_REF');
-      expect(errorsPayload.data.content).not.toContain('## 工具速查 (tools)');
+      const errorsText = errors.content[0]?.type === 'text' ? errors.content[0].text : '';
+      expect(errorsText).toContain('AMBIGUOUS_REF');
+      expect(errorsText).not.toContain('工具速查 (tools)');
     } finally {
       await client.close();
       await server.close();

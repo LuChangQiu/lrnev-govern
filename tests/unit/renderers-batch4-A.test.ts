@@ -471,8 +471,8 @@ describe('M2 第 4 批 A 组渲染器', () => {
       expect(content).toContain('可领任务数: 2');
       expect(content).toContain('T-004: 添加密码加密 (依赖: T-003)');
 
-      // Active agents
-      expect(content).toContain('agent-a (active)');
+      // Active agents 格式：**agent_id** (status)
+      expect(content).toContain('**agent-a** (active)');
       expect(content).toContain('客户端: claude-code');
       expect(content).toContain('当前任务: T-001 实现登录接口');
       expect(content).toContain('01-auth/01-01-login/T-001 (涉及: src/auth/login.ts)');

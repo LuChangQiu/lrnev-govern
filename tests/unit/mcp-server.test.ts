@@ -898,10 +898,10 @@ describe('MCP server', () => {
       await client.callTool({ name: 'lrnev_init', arguments: { root: workspace.path, project_name: 'demo' } });
 
       const result = await client.callTool({ name: 'lrnev_doctor', arguments: { verbose: true } });
-      const payload = (result.structuredContent as { data: { ok: boolean; summary: { errors: number }; issues: unknown[] } }).data;
-      expect(payload.ok).toBe(true);
-      expect(payload.summary.errors).toBe(0);
-      expect(Array.isArray(payload.issues)).toBe(true);
+      // M2: lrnev_doctor 使用渲染器，返回格式化文本
+      const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
+      expect(text).toContain('# lrnev 工作区诊断');
+      expect(text).toContain('检查时间');
 
       await new FileStorage(workspace.path).write('.lrnev/scenes/00-default/specs/legacy/tasks.md', [
         '# Legacy Tasks',
@@ -912,6 +912,7 @@ describe('MCP server', () => {
         '',
       ].join('\n'));
       const migrated = await client.callTool({ name: 'lrnev_doctor', arguments: { migrate_todos: true } });
+      // M2: migrate_todos 仍返回 structuredContent（非渲染工具）
       const migratedPayload = (migrated.structuredContent as { data: { ok: boolean; replacements: number; changed_files: number } }).data;
       expect(migratedPayload.ok).toBe(true);
       expect(migratedPayload.replacements).toBeGreaterThan(0);
