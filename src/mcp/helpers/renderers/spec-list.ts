@@ -4,7 +4,8 @@ import type { LrnevToolPayload } from '../../types/response-envelope.js';
 /**
  * spec_list 渲染器
  *
- * 08-00 验证点：WORKFLOW_OVERVIEW 条款 + MVC required 字段
+ * 08-00 验证点：MVC required 字段 + ai_followup 投影
+ * 渲染器职责：投影 canonical payload 中已有数据，不再创作 guidance 文本
  */
 export const specListRenderer: ModelVisibleRenderer = {
   render(payload: LrnevToolPayload<Array<{ spec: string; status: string; broken?: unknown }>>): string {
@@ -22,7 +23,7 @@ export const specListRenderer: ModelVisibleRenderer = {
     }
     lines.push('');
 
-    // ai_followup 渲染
+    // ai_followup 渲染（投影 canonical payload 中已有数据）
     if (payload.ai_followup?.instructions) {
       for (const instruction of payload.ai_followup.instructions) {
         lines.push(instruction);

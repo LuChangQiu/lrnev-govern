@@ -1,0 +1,546 @@
+{
+  "spec": "04-00-agent-e2e-observability",
+  "stage": "B2b",
+  "baseline_ref": "02-00 guidance-surface-inventory-v2 (346 surfaces)",
+  "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+  "generated_at": "2026-09-02T01:11:51.513Z",
+  "note": "B2b-s 结构基线。无真实 LLM/客户端参与：action_taken/action_success/failure_category 由采集器基于 fixture 结构事实（工具序列、expectedAction 是否为 null、真实状态机转换规则 VALID_SPEC_TRANSITIONS）独立判定，不读取 fixture.evidenceFields 的预期值。C 类字段中 consumed_at/trigger_context/prompt_id 为权宜推断值（见每条记录 c_class_basis），client_version/model_version 为 null，需 05-00 Profile 阶段由客户端回传。",
+  "started_at": "2026-09-02T01:11:50.068Z",
+  "completed_at": "2026-09-02T01:11:51.513Z",
+  "evidences": [
+    {
+      "scenario_id": "E-01",
+      "evidence": {
+        "surface_id": "server_instructions:global:workflow_overview",
+        "content_hash": "71d1a6be9d5d926ec2120f84ede0968be5eca75e93978866b53e5729735aac85",
+        "consumed_at": "2026-09-02T01:11:50.201Z",
+        "trigger_context": "开新 Spec 做用户登录功能",
+        "consumer_type": "model",
+        "prompt_id": "run-1788311510077-dhfyfz9",
+        "run_id": "run-1788311510077-dhfyfz9",
+        "mcp_version": "2025-11-25",
+        "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+        "client_version": null,
+        "model_version": null,
+        "fixture_hash": "b936841e9d623f041acfec50cb2355a5d0117fcd956f45e87327c63269ce94d1",
+        "decision_context": {
+          "strength": "explicit",
+          "direction": "new_spec",
+          "target_ref": "user-login"
+        },
+        "tool_sequence": [
+          "spec_create"
+        ],
+        "allowed_tools": [
+          "spec_create",
+          "spec_list",
+          "spec_get"
+        ],
+        "forbidden_tools": [
+          "task_create"
+        ],
+        "action_taken": "spec_create",
+        "action_success": true,
+        "severity": "high",
+        "is_blacklist_phrase": false,
+        "is_pseudo_constraint": false,
+        "user_decision_override": true,
+        "session_clean": true
+      },
+      "c_class_basis": {
+        "consumed_at": "推断值：本次 fixture 运行完成时刻（tool_sequence 为空的场景亦同）",
+        "trigger_context": "测试专用值，来自 fixture.userInput（截断至200字符）",
+        "prompt_id": "测试专用值，未接入真实会话系统，等于本次运行 run_id",
+        "client_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传",
+        "model_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传"
+      }
+    },
+    {
+      "scenario_id": "E-02",
+      "evidence": {
+        "surface_id": "server_instructions:global:workflow_overview",
+        "content_hash": "71d1a6be9d5d926ec2120f84ede0968be5eca75e93978866b53e5729735aac85",
+        "consumed_at": "2026-09-02T01:11:50.348Z",
+        "trigger_context": "继续在登录 Spec 里补充用户登录",
+        "consumer_type": "model",
+        "prompt_id": "run-1788311510201-8tx3172",
+        "run_id": "run-1788311510201-8tx3172",
+        "mcp_version": "2025-11-25",
+        "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+        "client_version": null,
+        "model_version": null,
+        "fixture_hash": "df13132b404b0d1e79ce55c2cddb52a1ab8ce6b6bc9dbcbfb99e0179b72dd510",
+        "decision_context": {
+          "strength": "explicit",
+          "direction": "reuse_spec",
+          "target_ref": "scene=01-user-management, spec=01-00-user-login"
+        },
+        "tool_sequence": [
+          "task_create"
+        ],
+        "allowed_tools": [
+          "task_create",
+          "spec_get"
+        ],
+        "forbidden_tools": [
+          "spec_create"
+        ],
+        "action_taken": "task_create",
+        "action_success": true,
+        "severity": "high",
+        "is_blacklist_phrase": false,
+        "is_pseudo_constraint": false,
+        "user_decision_override": true,
+        "session_clean": true
+      },
+      "c_class_basis": {
+        "consumed_at": "推断值：本次 fixture 运行完成时刻（tool_sequence 为空的场景亦同）",
+        "trigger_context": "测试专用值，来自 fixture.userInput（截断至200字符）",
+        "prompt_id": "测试专用值，未接入真实会话系统，等于本次运行 run_id",
+        "client_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传",
+        "model_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传"
+      }
+    },
+    {
+      "scenario_id": "E-03",
+      "evidence": {
+        "surface_id": "server_instructions:global:workflow_overview",
+        "content_hash": "71d1a6be9d5d926ec2120f84ede0968be5eca75e93978866b53e5729735aac85",
+        "consumed_at": "2026-09-02T01:11:50.472Z",
+        "trigger_context": "做用户登录功能",
+        "consumer_type": "model",
+        "prompt_id": "run-1788311510348-6zz86qv",
+        "run_id": "run-1788311510348-6zz86qv",
+        "mcp_version": "2025-11-25",
+        "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+        "client_version": null,
+        "model_version": null,
+        "fixture_hash": "af795a7aaecefba0331e912ddbe522c774f04c9d29396009e5671d4382af067a",
+        "decision_context": {
+          "strength": "unspecified",
+          "direction": null
+        },
+        "tool_sequence": [
+          "spec_get"
+        ],
+        "allowed_tools": [
+          "spec_get",
+          "spec_list",
+          "task_create"
+        ],
+        "forbidden_tools": [],
+        "action_taken": "spec_get",
+        "action_success": true,
+        "severity": "medium",
+        "is_blacklist_phrase": false,
+        "is_pseudo_constraint": false,
+        "user_decision_override": false,
+        "session_clean": true
+      },
+      "c_class_basis": {
+        "consumed_at": "推断值：本次 fixture 运行完成时刻（tool_sequence 为空的场景亦同）",
+        "trigger_context": "测试专用值，来自 fixture.userInput（截断至200字符）",
+        "prompt_id": "测试专用值，未接入真实会话系统，等于本次运行 run_id",
+        "client_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传",
+        "model_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传"
+      }
+    },
+    {
+      "scenario_id": "E-04",
+      "evidence": {
+        "surface_id": "server_instructions:global:workflow_overview",
+        "content_hash": "71d1a6be9d5d926ec2120f84ede0968be5eca75e93978866b53e5729735aac85",
+        "consumed_at": "2026-09-02T01:11:50.589Z",
+        "trigger_context": "我想做一个支付模块，支持微信、支付宝、银行卡",
+        "consumer_type": "model",
+        "prompt_id": "run-1788311510472-6m5oqwh",
+        "run_id": "run-1788311510472-6m5oqwh",
+        "mcp_version": "2025-11-25",
+        "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+        "client_version": null,
+        "model_version": null,
+        "fixture_hash": "a2b6d2e95f4f6498ed7fdd7da2b52e70556181ea453a95a3ba4af9db8755666d",
+        "decision_context": {
+          "strength": "unspecified",
+          "direction": null
+        },
+        "tool_sequence": [
+          "assess_goal"
+        ],
+        "allowed_tools": [
+          "spec_list",
+          "scene_list",
+          "assess_goal"
+        ],
+        "forbidden_tools": [
+          "spec_create",
+          "scene_create"
+        ],
+        "action_taken": "assess_goal",
+        "action_success": true,
+        "severity": "medium",
+        "is_blacklist_phrase": false,
+        "is_pseudo_constraint": false,
+        "user_decision_override": false,
+        "session_clean": true
+      },
+      "c_class_basis": {
+        "consumed_at": "推断值：本次 fixture 运行完成时刻（tool_sequence 为空的场景亦同）",
+        "trigger_context": "测试专用值，来自 fixture.userInput（截断至200字符）",
+        "prompt_id": "测试专用值，未接入真实会话系统，等于本次运行 run_id",
+        "client_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传",
+        "model_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传"
+      }
+    },
+    {
+      "scenario_id": "E-05",
+      "evidence": {
+        "surface_id": "server_instructions:global:workflow_overview",
+        "content_hash": "71d1a6be9d5d926ec2120f84ede0968be5eca75e93978866b53e5729735aac85",
+        "consumed_at": "2026-09-02T01:11:50.699Z",
+        "trigger_context": "第1轮：\"我倾向独立做用户登录，但你可以说明利弊\"（preferred+new_spec）\n第3轮：\"好，叫 user-login\"（确认 explicit+new_spec）",
+        "consumer_type": "model",
+        "prompt_id": "run-1788311510589-svleyxz",
+        "run_id": "run-1788311510589-svleyxz",
+        "mcp_version": "2025-11-25",
+        "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+        "client_version": null,
+        "model_version": null,
+        "fixture_hash": "22d42104873a021a446f1c43ec0c130bab8244f8191705466093e4cf7ccf2aa2",
+        "decision_context": {
+          "strength": "explicit",
+          "direction": "new_spec",
+          "target_ref": "user-login"
+        },
+        "tool_sequence": [
+          "spec_create"
+        ],
+        "allowed_tools": [
+          "spec_create",
+          "spec_list"
+        ],
+        "forbidden_tools": [],
+        "action_taken": "spec_create",
+        "action_success": true,
+        "severity": "medium",
+        "is_blacklist_phrase": false,
+        "is_pseudo_constraint": false,
+        "user_decision_override": true,
+        "session_clean": true
+      },
+      "c_class_basis": {
+        "consumed_at": "推断值：本次 fixture 运行完成时刻（tool_sequence 为空的场景亦同）",
+        "trigger_context": "测试专用值，来自 fixture.userInput（截断至200字符）",
+        "prompt_id": "测试专用值，未接入真实会话系统，等于本次运行 run_id",
+        "client_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传",
+        "model_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传"
+      }
+    },
+    {
+      "scenario_id": "E-06a",
+      "evidence": {
+        "surface_id": "server_instructions:global:workflow_overview",
+        "content_hash": "71d1a6be9d5d926ec2120f84ede0968be5eca75e93978866b53e5729735aac85",
+        "consumed_at": "2026-09-02T01:11:50.811Z",
+        "trigger_context": "第1轮：\"开新 Spec 做用户登录\"（explicit+new_spec）\n第3轮（工具调用前）：\"等等，算了，还是在登录 Spec 里补充\"（改变主意 → explicit+reuse_spec）",
+        "consumer_type": "model",
+        "prompt_id": "run-1788311510699-51ezxl6",
+        "run_id": "run-1788311510699-51ezxl6",
+        "mcp_version": "2025-11-25",
+        "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+        "client_version": null,
+        "model_version": null,
+        "fixture_hash": "2e8cc9c4a834a254273a80c3407bc92ec154cdb379bb5fd56a6445b3fe7db884",
+        "decision_context": {
+          "strength": "explicit",
+          "direction": "reuse_spec",
+          "target_ref": "scene=01-user-management, spec=01-00-user-login"
+        },
+        "tool_sequence": [
+          "task_create"
+        ],
+        "allowed_tools": [
+          "task_create",
+          "spec_get"
+        ],
+        "forbidden_tools": [
+          "spec_create"
+        ],
+        "action_taken": "task_create",
+        "action_success": true,
+        "severity": "high",
+        "is_blacklist_phrase": false,
+        "is_pseudo_constraint": false,
+        "user_decision_override": true,
+        "session_clean": true
+      },
+      "c_class_basis": {
+        "consumed_at": "推断值：本次 fixture 运行完成时刻（tool_sequence 为空的场景亦同）",
+        "trigger_context": "测试专用值，来自 fixture.userInput（截断至200字符）",
+        "prompt_id": "测试专用值，未接入真实会话系统，等于本次运行 run_id",
+        "client_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传",
+        "model_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传"
+      }
+    },
+    {
+      "scenario_id": "E-06b",
+      "evidence": {
+        "surface_id": "server_instructions:global:workflow_overview",
+        "content_hash": "71d1a6be9d5d926ec2120f84ede0968be5eca75e93978866b53e5729735aac85",
+        "consumed_at": "2026-09-02T01:11:50.926Z",
+        "trigger_context": "第1轮：\"开新 Spec 做用户登录\"（explicit+new_spec）\n第2轮（AI 已执行 spec_create）：\"算了，还是在登录 Spec 里补充\"（改变主意 → explicit+reuse_spec）",
+        "consumer_type": "model",
+        "prompt_id": "run-1788311510811-64mig50",
+        "run_id": "run-1788311510811-64mig50",
+        "mcp_version": "2025-11-25",
+        "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+        "client_version": null,
+        "model_version": null,
+        "fixture_hash": "66f1f6180261e7de182c475b893261aa4d001b6c4b85322dcbcb974a9e3ac542",
+        "decision_context": {
+          "strength": "explicit",
+          "direction": "reuse_spec",
+          "target_ref": "scene=01-user-management, spec=01-00-user-login"
+        },
+        "tool_sequence": [
+          "task_create"
+        ],
+        "allowed_tools": [
+          "task_create",
+          "spec_get",
+          "spec_list"
+        ],
+        "forbidden_tools": [],
+        "action_taken": "task_create",
+        "action_success": true,
+        "severity": "high",
+        "is_blacklist_phrase": false,
+        "is_pseudo_constraint": false,
+        "user_decision_override": true,
+        "session_clean": true
+      },
+      "c_class_basis": {
+        "consumed_at": "推断值：本次 fixture 运行完成时刻（tool_sequence 为空的场景亦同）",
+        "trigger_context": "测试专用值，来自 fixture.userInput（截断至200字符）",
+        "prompt_id": "测试专用值，未接入真实会话系统，等于本次运行 run_id",
+        "client_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传",
+        "model_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传"
+      }
+    },
+    {
+      "scenario_id": "E-07",
+      "evidence": {
+        "surface_id": "server_instructions:global:workflow_overview",
+        "content_hash": "71d1a6be9d5d926ec2120f84ede0968be5eca75e93978866b53e5729735aac85",
+        "consumed_at": "2026-09-02T01:11:51.038Z",
+        "trigger_context": "不用开 Spec，直接回答问题：lrnev 的 Scene 是什么？",
+        "consumer_type": "model",
+        "prompt_id": "run-1788311510926-91z4cdy",
+        "run_id": "run-1788311510926-91z4cdy",
+        "mcp_version": "2025-11-25",
+        "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+        "client_version": null,
+        "model_version": null,
+        "fixture_hash": "a1dbbf33bc9201a6ceb47517aacb5ef57e3ebf6b712c87778d7b21eec70a0cd7",
+        "decision_context": {
+          "strength": "explicit",
+          "direction": "no_spec"
+        },
+        "tool_sequence": [],
+        "allowed_tools": [],
+        "forbidden_tools": [
+          "spec_create",
+          "scene_create",
+          "task_create"
+        ],
+        "action_taken": null,
+        "action_success": true,
+        "severity": "high",
+        "is_blacklist_phrase": false,
+        "is_pseudo_constraint": false,
+        "user_decision_override": true,
+        "session_clean": true
+      },
+      "c_class_basis": {
+        "consumed_at": "推断值：本次 fixture 运行完成时刻（tool_sequence 为空的场景亦同）",
+        "trigger_context": "测试专用值，来自 fixture.userInput（截断至200字符）",
+        "prompt_id": "测试专用值，未接入真实会话系统，等于本次运行 run_id",
+        "client_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传",
+        "model_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传"
+      }
+    },
+    {
+      "scenario_id": "E-08",
+      "evidence": {
+        "surface_id": "tool_metadata:spec_update:description",
+        "content_hash": "9f3c114462166d51f929feb0a070a42a8b0b644c8daa60e2aa50f78ba74fbeb8",
+        "consumed_at": "2026-09-02T01:11:51.150Z",
+        "trigger_context": "把已归档的 Spec 01-login 改为 in-progress",
+        "consumer_type": "model",
+        "prompt_id": "run-1788311511038-f4z1eij",
+        "run_id": "run-1788311511038-f4z1eij",
+        "mcp_version": "2025-11-25",
+        "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+        "client_version": null,
+        "model_version": null,
+        "fixture_hash": "852bc0d57aa646302c42d3dbeb11679e38c352e7c815265a7e0c532a38146239",
+        "decision_context": null,
+        "tool_sequence": [
+          "spec_update"
+        ],
+        "allowed_tools": [
+          "spec_update",
+          "spec_get"
+        ],
+        "forbidden_tools": [],
+        "action_taken": "spec_update",
+        "action_success": false,
+        "failure_category": "state_machine_validation",
+        "severity": "high",
+        "is_blacklist_phrase": false,
+        "is_pseudo_constraint": false,
+        "user_decision_override": false,
+        "session_clean": true
+      },
+      "c_class_basis": {
+        "consumed_at": "推断值：本次 fixture 运行完成时刻（tool_sequence 为空的场景亦同）",
+        "trigger_context": "测试专用值，来自 fixture.userInput（截断至200字符）",
+        "prompt_id": "测试专用值，未接入真实会话系统，等于本次运行 run_id",
+        "client_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传",
+        "model_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传"
+      }
+    },
+    {
+      "scenario_id": "E-09",
+      "evidence": {
+        "surface_id": "server_instructions:global:workflow_overview",
+        "content_hash": "71d1a6be9d5d926ec2120f84ede0968be5eca75e93978866b53e5729735aac85",
+        "consumed_at": "2026-09-02T01:11:51.278Z",
+        "trigger_context": "继续做登录功能",
+        "consumer_type": "model",
+        "prompt_id": "run-1788311511150-4wkviok",
+        "run_id": "run-1788311511150-4wkviok",
+        "mcp_version": "2025-11-25",
+        "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+        "client_version": null,
+        "model_version": null,
+        "fixture_hash": "8d69d07a8b5d1aadc50d40231a556509501bac2a0b84833b8d20f5ae736a4e29",
+        "decision_context": {
+          "strength": "unspecified",
+          "direction": null,
+          "staleness_signals": [
+            "long time since update",
+            "status=completed"
+          ]
+        },
+        "tool_sequence": [
+          "spec_get"
+        ],
+        "allowed_tools": [
+          "spec_get",
+          "spec_list",
+          "context_search"
+        ],
+        "forbidden_tools": [],
+        "action_taken": "spec_get",
+        "action_success": true,
+        "severity": "medium",
+        "is_blacklist_phrase": false,
+        "is_pseudo_constraint": false,
+        "user_decision_override": false,
+        "session_clean": true
+      },
+      "c_class_basis": {
+        "consumed_at": "推断值：本次 fixture 运行完成时刻（tool_sequence 为空的场景亦同）",
+        "trigger_context": "测试专用值，来自 fixture.userInput（截断至200字符）",
+        "prompt_id": "测试专用值，未接入真实会话系统，等于本次运行 run_id",
+        "client_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传",
+        "model_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传"
+      }
+    },
+    {
+      "scenario_id": "E-10",
+      "evidence": {
+        "surface_id": "server_instructions:global:workflow_overview",
+        "content_hash": "71d1a6be9d5d926ec2120f84ede0968be5eca75e93978866b53e5729735aac85",
+        "consumed_at": "2026-09-02T01:11:51.398Z",
+        "trigger_context": "开新 Scene 做权限管理",
+        "consumer_type": "model",
+        "prompt_id": "run-1788311511278-k77ocdb",
+        "run_id": "run-1788311511278-k77ocdb",
+        "mcp_version": "2025-11-25",
+        "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+        "client_version": null,
+        "model_version": null,
+        "fixture_hash": "1c7739ba293e725178d28eb969af1c9f1d74aa4fe1a21cbbebd5ae5532485446",
+        "decision_context": {
+          "strength": "explicit",
+          "direction": "new_scene",
+          "target_ref": "permission-management"
+        },
+        "tool_sequence": [
+          "scene_create"
+        ],
+        "allowed_tools": [
+          "scene_create"
+        ],
+        "forbidden_tools": [],
+        "action_taken": "scene_create",
+        "action_success": true,
+        "severity": "low",
+        "is_blacklist_phrase": false,
+        "is_pseudo_constraint": false,
+        "user_decision_override": false,
+        "session_clean": true
+      },
+      "c_class_basis": {
+        "consumed_at": "推断值：本次 fixture 运行完成时刻（tool_sequence 为空的场景亦同）",
+        "trigger_context": "测试专用值，来自 fixture.userInput（截断至200字符）",
+        "prompt_id": "测试专用值，未接入真实会话系统，等于本次运行 run_id",
+        "client_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传",
+        "model_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传"
+      }
+    },
+    {
+      "scenario_id": "E-11",
+      "evidence": {
+        "surface_id": "server_instructions:global:workflow_overview",
+        "content_hash": "71d1a6be9d5d926ec2120f84ede0968be5eca75e93978866b53e5729735aac85",
+        "consumed_at": "2026-09-02T01:11:51.513Z",
+        "trigger_context": "不用开 Spec/Scene，直接回答问题：lrnev 的 Scene 是什么？",
+        "consumer_type": "model",
+        "prompt_id": "run-1788311511398-lohsihz",
+        "run_id": "run-1788311511398-lohsihz",
+        "mcp_version": "2025-11-25",
+        "git_sha": "bf43fc12cc103db630ff05931968b1b66b87c427",
+        "client_version": null,
+        "model_version": null,
+        "fixture_hash": "05dfec6bf84dd9e5bd35ffc5b98f84292dfe85ce495d96bb130801f6c053b93b",
+        "decision_context": {
+          "strength": "explicit",
+          "direction": "other"
+        },
+        "tool_sequence": [],
+        "allowed_tools": [],
+        "forbidden_tools": [
+          "spec_create",
+          "scene_create"
+        ],
+        "action_taken": null,
+        "action_success": true,
+        "severity": "low",
+        "is_blacklist_phrase": false,
+        "is_pseudo_constraint": false,
+        "user_decision_override": false,
+        "session_clean": true
+      },
+      "c_class_basis": {
+        "consumed_at": "推断值：本次 fixture 运行完成时刻（tool_sequence 为空的场景亦同）",
+        "trigger_context": "测试专用值，来自 fixture.userInput（截断至200字符）",
+        "prompt_id": "测试专用值，未接入真实会话系统，等于本次运行 run_id",
+        "client_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传",
+        "model_version": "服务端不可采，需 05-00 Profile 阶段由客户端回传"
+      }
+    }
+  ]
+}
