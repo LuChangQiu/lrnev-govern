@@ -19,12 +19,13 @@ export const E07_ExplicitNoSpec: FixtureDefinition = {
   scenario: 'D-01 ⑧',
 
   // 用户原话
-  userInput: '不用开 Spec，直接回答问题：lrnev 的 Scene 是什么？',
+  userInput: '登录页有 bug，不建 Spec 了，直接改代码',
 
   // 决策上下文（场景状态）
   decisionContext: {
     scene: '01-user-management',
-    user_intent: 'question only, no spec'
+    user_intent: 'fix bug directly, no spec',
+    ai_would_suggest: 'task_create or spec_create'
   },
 
   // 预期客户端传递的 decision_context

@@ -17,7 +17,7 @@ describe('E-07: 明确不建 Spec', () => {
     expect(fixture.scenario).toBe('D-01 ⑧');
 
     // 验证用户输入
-    expect(fixture.userInput).toContain('不用开 Spec');
+    expect(fixture.userInput).toContain('不建 Spec');
 
     // 验证 decision_context
     expect(fixture.expectedDecisionContext!.strength).toBe('explicit');

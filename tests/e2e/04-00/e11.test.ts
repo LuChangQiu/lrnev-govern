@@ -17,7 +17,7 @@ describe('E-11: other 协议', () => {
     expect(fixture.scenario).toBe('other 协议');
 
     // 验证用户输入
-    expect(fixture.userInput).toContain('不用开 Spec/Scene');
+    expect(fixture.userInput).toContain('分析');
 
     // 验证 decision_context
     expect(fixture.expectedDecisionContext!.strength).toBe('explicit');
@@ -46,8 +46,8 @@ describe('E-11: other 协议', () => {
     const fixture = E11_OtherProtocol;
 
     // 验证决策上下文
-    expect(fixture.decisionContext.scene).toBe('global');
-    expect(fixture.decisionContext.user_intent).toContain('question only');
+    expect(fixture.decisionContext.scene).toBe('01-user-management');
+    expect(fixture.decisionContext.user_intent).toContain('analysis');
   });
 
   // B0 冒烟：验证证据采集链路

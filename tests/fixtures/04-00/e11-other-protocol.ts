@@ -14,12 +14,12 @@ export const E11_OtherProtocol: FixtureDefinition = {
   scenario: 'other 协议',
 
   // 用户原话
-  userInput: '不用开 Spec/Scene，直接回答问题：lrnev 的 Scene 是什么？',
+  userInput: '帮我分析一下现有的登录流程有什么问题',
 
   // 决策上下文（场景状态）
   decisionContext: {
-    scene: 'global',
-    user_intent: 'question only, no governance action'
+    scene: '01-user-management',
+    user_intent: 'analysis request, not organizational decision'
   },
 
   // 预期客户端传递的 decision_context
