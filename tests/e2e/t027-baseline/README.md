@@ -21,17 +21,19 @@ T-027 双 SHA 对照基建，用于验证 guidance 迁移（B0 → M2）的行�
 
 ```
 tests/e2e/t027-baseline/          # 入库版本（受控）
-├── wrapper.mts                   # MCP server wrapper
-├── smoke-test.mts                # 冒烟验证（真实 MCP 握手）
+├── wrapper.mjs                   # MCP server wrapper
+├── smoke-test.mjs                # 冒烟验证（真实 MCP 握手）
+├── mcp-entry.mjs                 # MCP 垫片入口
 ├── current-sha.txt               # 指针文件说明（真实文件在 .claude/）
 ├── claude-code-config.json       # Claude Code 配置
-├── codex-config.json             # Codex 配置（草稿）
-├── opencode-config.json          # OpenCode 配置（草稿）
+├── codex-config.toml             # Codex 配置（草稿）
+├── opencode-config.md            # OpenCode 配置（草稿）
 └── README.md                     # 本文档
 
 .claude/t027-worktrees/           # 运行时文件（gitignore 区）
 ├── sha-a/                        # SHA A worktree (45a86e15)
 ├── sha-b/                        # SHA B worktree (6383e99)
+├── mcp-entry.mjs                 # MCP 垫片入口（从入库版本自动复制）
 └── current-sha.txt               # SHA 指针文件（sha-a 或 sha-b）
 ```
 
@@ -77,13 +79,13 @@ echo "sha-b" > .claude/t027-worktrees/current-sha.txt
 
 ```bash
 # 从项目根目录运行
-tsx tests/e2e/t027-baseline/wrapper.mts
+node tests/e2e/t027-baseline/wrapper.mjs
 ```
 
 Wrapper 会：
 1. 读取 `.claude/t027-worktrees/current-sha.txt` 指针
 2. 切换到对应 worktree
-3. 启动 `src/mcp/server.ts`
+3. 通过垫片入口启动 MCP server（调用 startMcpServer()）
 
 ---
 
@@ -93,7 +95,7 @@ Wrapper 会：
 
 ```bash
 # 从项目根目录运行
-tsx tests/e2e/t027-baseline/smoke-test.mts
+node tests/e2e/t027-baseline/smoke-test.mjs
 ```
 
 **验证项**：
@@ -119,13 +121,14 @@ tsx tests/e2e/t027-baseline/smoke-test.mts
 
 **配置文件**：`claude-code-config.json`
 
-将内容合并到 Claude Code 配置文件：
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+将内容合并到 Claude Code CLI 配置文件：
+- 项目根目录：`.mcp.json`（推荐）
+- 或全局：`~/.config/claude/mcp.json`
 
 **注意**：
 - 使用独立实例名 `lrnev-t027`，不影响日常发布版配置
-- 需从项目根目录运行（wrapper 会自动查找项目根）
+- command 使用 node（无 PATH 依赖）
+- args 指向入库 wrapper.mjs 绝对路径
 
 ### Codex（草稿，待验证）
 
@@ -155,13 +158,12 @@ tsx tests/e2e/t027-baseline/smoke-test.mts
 | E-06b | 用户改变主意-提议时（变体） |
 | E-07 | 明确不建 Spec |
 | E-08 | 状态机保护（spec_update 非法状态转换） |
-| E-09 | 去伪约束验证（移除黑名单词汇后行为保持） |
+| E-09 | 旧 Spec 未更新：先读再建议（非去伪约束） |
 | E-10 | new_scene 协议 |
 | E-11 | other 协议 |
 
 **注意**：
-- E-08 描述已按 04-00 design 修正
-- E-09 描述已按 04-00 design 修正
+- E-08/E-09 描述已按 04-00 design D-01 修正
 
 ### 盲测原则
 

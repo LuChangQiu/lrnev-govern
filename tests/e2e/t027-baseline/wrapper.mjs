@@ -43,6 +43,14 @@ const worktreeBaseDir = resolve(projectRoot, '.claude/t027-worktrees');
 const currentShaPath = resolve(worktreeBaseDir, 'current-sha.txt');
 const mcpEntryPath = resolve(worktreeBaseDir, 'mcp-entry.mjs');
 
+// 如果 gitignore 区垫片不存在，从入库版本复制
+const inRepoEntryPath = resolve(projectRoot, 'tests/e2e/t027-baseline/mcp-entry.mjs');
+if (!existsSync(mcpEntryPath) && existsSync(inRepoEntryPath)) {
+  console.error(`⚠️  垫片不存在，从入库版本复制：${mcpEntryPath}`);
+  const { copyFileSync } = await import('node:fs');
+  copyFileSync(inRepoEntryPath, mcpEntryPath);
+}
+
 // 读取当前 SHA 指针
 if (!existsSync(currentShaPath)) {
   console.error(`❌ 指针文件不存在：${currentShaPath}`);
