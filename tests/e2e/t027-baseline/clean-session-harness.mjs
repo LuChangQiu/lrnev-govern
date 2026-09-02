@@ -262,13 +262,13 @@ class CleanSessionDriver {
    * 计算 fixture hash
    */
   private computeFixtureHash(fixture: any): string {
-    const { createHash } = require('node:crypto');
+    const crypto = await import('node:crypto');
     const content = JSON.stringify({
       id: fixture.id,
       userInput: fixture.userInput,
       expectedAction: fixture.expectedAction,
     });
-    return createHash('sha256').update(content).digest('hex').slice(0, 8);
+    return crypto.createHash('sha256').update(content).digest('hex').slice(0, 8);
   }
 }
 

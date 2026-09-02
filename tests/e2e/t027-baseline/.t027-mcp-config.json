@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "lrnev-t027": {
+      "command": "node",
+      "args": [
+        "E:\\project\\.lrnev\\lrnev-cli\\product\\lrnev-govern\\tests\\e2e\\t027-baseline\\wrapper.mjs"
+      ],
+      "disabled": false,
+      "alwaysAllow": []
+    }
+  }
+}
