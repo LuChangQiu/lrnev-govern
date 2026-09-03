@@ -14,6 +14,8 @@
 
 import * as z from 'zod/v4';
 
+import { LrnevGuidanceItemSchema } from './guidance-profile.js';
+
 /**
  * 响应信封版本（固定为 '1'）
  */
@@ -93,6 +95,24 @@ export function createToolOutputSchema<T extends z.ZodTypeAny>(dataSchema: T) {
     ai_followup: AiFollowupSchema.optional(),
     anchor_context: z.array(AnchorContextSchema).optional(),
     summary_context: SummaryContextSchema.optional(),
+  });
+}
+
+/**
+ * 带 Guidance Profile 的工具响应 schema 工厂（05-00-lrnev-guidance-profile T-004）。
+ *
+ * 仅 role 化四工具（assess_goal / scene_create / spec_create / task_create）使用；
+ * 在标准信封上附加顶层可选 `guidance`（数组项形状直接引用 LrnevGuidanceItemSchema，
+ * 与 mcp/types/guidance-profile.ts 的语义对象 zod 一致，避免二次声明漂移）。
+ *
+ * 裁决 Q1/Q5/Q6：
+ * - guidance 与 ai_followup 并列的顶层可选字段（不包装、不 bump response_version）；
+ * - schema 保留 enforcement 可选（不显式化、不创建硬约束）；
+ * - 非 role 化工具（spec_update/spec_get 等）不得使用本工厂。
+ */
+export function createGuidanceToolOutputSchema<T extends z.ZodTypeAny>(dataSchema: T) {
+  return createToolOutputSchema(dataSchema).extend({
+    guidance: z.array(LrnevGuidanceItemSchema).optional(),
   });
 }
 

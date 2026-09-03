@@ -15,6 +15,7 @@
 
 import type { ErrorCode } from '../../shared/errors.js';
 import type { AiFollowup, AnchorContext, SummaryContext } from '../../types/response.js';
+import type { LrnevGuidanceItem } from './guidance-profile.js';
 
 /**
  * lrnev MCP 响应信封版本。
@@ -78,6 +79,20 @@ export interface LrnevToolPayload<T = unknown> {
    * 用于写入类工具的自然推进，详见 types/response.ts。
    */
   ai_followup?: AiFollowup;
+
+  /**
+   * lrnev Guidance Profile v1 结构化 guidance（可选，05-00 T-004 挂载）。
+   *
+   * 与 ai_followup 等字段并列的顶层可选附加字段，不包装对象、向后兼容：
+   * - 通用 MCP 客户端忽略本字段仍可仅靠 ai_followup.instructions / content 文本
+   *   正确使用结果（F-07 保留 01 文本降级），故**不 bump response_version**；
+   * - 仅 role 化工具（assess_goal / scene_create / spec_create / task_create）携带，
+   *   且只在文本通道存在 ROLE_PREFIX 行（五角色前缀行）时由唯一构建源
+   *   buildGuidanceView 派生（见 mcp/helpers/tool-result-adapter.ts 单点挂载）；
+   * - 派生失败或 Profile/文本冲突时省略本字段 + 诊断日志，绝不翻 ok、
+   *   不影响 data/content/errors（D-06）。
+   */
+  guidance?: LrnevGuidanceItem[];
 
   /**
    * F-03 任务启动上下文：回填的锚点段落（可选）。

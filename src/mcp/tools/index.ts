@@ -45,6 +45,7 @@ import { GUIDE_TOPIC_VALUES, TOOL_DESCRIPTIONS, buildGuide } from '../guidance.j
 import { toMcpToolResult, toMcpToolResultFromData } from '../helpers/tool-result-adapter.js';
 import {
   createToolOutputSchema,
+  createGuidanceToolOutputSchema,
   SimpleConfirmationDataSchema,
   AgentDataSchema,
   AgentRegisterResultSchema,
@@ -289,7 +290,8 @@ function registerSceneTools(server: McpServer): void {
         intent: z.string().optional().describe('可选：业务意图一句话说明'),
         decision_context: decisionContextArgumentField,
       },
-      outputSchema: createToolOutputSchema(SceneDataSchema),
+      // 05-00 T-004：scene_create 为 role 化工具，response schema 声明顶层可选 guidance。
+      outputSchema: createGuidanceToolOutputSchema(SceneDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(
@@ -351,7 +353,8 @@ function registerSpecTools(server: McpServer): void {
         priority: z.enum(['P0', 'P1', 'P2', 'P3']).optional().describe('可选：优先级'),
         decision_context: decisionContextArgumentField,
       },
-      outputSchema: createToolOutputSchema(SpecDataSchema),
+      // 05-00 T-004：spec_create 为 role 化工具，response schema 声明顶层可选 guidance。
+      outputSchema: createGuidanceToolOutputSchema(SpecDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(
@@ -473,7 +476,8 @@ function registerTaskTools(server: McpServer): void {
         validates: z.array(z.string()).optional().describe('可选：需求/设计锚点，例如 F-01 或 D-02'),
         decision_context: decisionContextArgumentField,
       },
-      outputSchema: createToolOutputSchema(TaskDataSchema),
+      // 05-00 T-004：task_create 为 role 化工具，response schema 声明顶层可选 guidance。
+      outputSchema: createGuidanceToolOutputSchema(TaskDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(
@@ -662,7 +666,8 @@ function registerGoalTools(server: McpServer): void {
         goal: z.string().describe('用户目标描述'),
         decision_context: decisionContextArgumentField,
       },
-      outputSchema: createToolOutputSchema(GoalAssessmentDataSchema),
+      // 05-00 T-004：assess_goal 为 role 化工具，response schema 声明顶层可选 guidance。
+      outputSchema: createGuidanceToolOutputSchema(GoalAssessmentDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ goal, decision_context }) => toMcpToolResult(

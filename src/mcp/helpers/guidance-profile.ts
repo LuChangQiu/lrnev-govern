@@ -11,6 +11,9 @@
  * - diagnoseGuidance 冲突显式诊断：前缀与 role 冲突、EXECUTION_CONSTRAINT 缺 source_ref、
  *   RECOMMENDATION 带 server_enforced 等（F-03/F-06）。
  * - assertGuidancePublishable 在冲突时抛错：阻止发布该版本（F-03"冲突时显式诊断并阻止发布"）。
+ * - classifyInstructions（T-004 新增）：把"01 文本降级行"（ai_followup.instructions 里
+ *   的 ROLE_PREFIX 前缀行）分类为 SemanticGuidanceInput，供挂载单点（tool-result-adapter）
+ *   用 buildGuidanceView 派生结构化 guidance。
  *
  * 边界：本文件不 import 任何 envelope / renderer / tool / Manager（T-001 纯增量）；
  * 挂载到响应（挂载点、错误映射）留 T-004。
@@ -114,6 +117,36 @@ export function buildGuidanceView(input: readonly SemanticGuidanceInput[]): Guid
   }
 
   return { textLines, profileItems };
+}
+
+// ============================================================
+// classifyInstructions —— 文本降级行 → 语义输入（T-004 挂载前置）
+// ============================================================
+
+/**
+ * 把"01 文本降级行"列表（ai_followup.instructions）分类为 buildGuidanceView 的语义输入。
+ *
+ * 规则（T-004 裁决 Q4：仅五角色前缀行 → 派生；数据驱动）：
+ * - 行首命中某角色的 ROLE_PREFIX（【事实】/【建议】/【决策边界】/【执行约束】/【下一步】）
+ *   → 产出 { role: 该角色, text: 去掉行首前缀后的正文 }（text 不带前缀，避免 buildGuidanceView
+ *   强加重复前缀）；
+ * - 非五角色前缀行（普通待办文本、【重要】等非角色引导）→ 丢弃：Profile 不为其造结构化项，
+ *   它们仍只存在于文本通道（裁决 Q4"仅五角色前缀行"）。
+ *
+ * 与 buildGuidanceView 组合后即满足 D-06"同源一致"：guidance 项与文本行来自同一组语义行，
+ * 派生不改变原有 instructions（content 文本字节不变）。
+ *
+ * @param instructions 文本通道指令行（ai_followup.instructions 或等效源）
+ * @returns 按原行序排列的语义输入（仅含角色化行）
+ */
+export function classifyInstructions(instructions: readonly string[]): SemanticGuidanceInput[] {
+  const inputs: SemanticGuidanceInput[] = [];
+  for (const line of instructions) {
+    const role = roleFromLeadingPrefix(line);
+    if (role === undefined) continue;
+    inputs.push({ role, text: line.slice(ROLE_PREFIX[role].length) });
+  }
+  return inputs;
 }
 
 // ============================================================
