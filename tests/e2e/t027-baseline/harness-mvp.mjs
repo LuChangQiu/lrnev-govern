@@ -70,6 +70,225 @@ console.error('');
 
 console.error(`📦 Fixture: ${fixture.id} - ${fixture.title}`);
 
+/* ================================================================
+ * 证据契约 v2 对齐辅助（裁决 2026-09-03 Q1-B/Q3/Q6/Q8/Q9）
+ * 目标：放量版 evidence JSON 过 scripts/validate-evidence-manifest.mjs strict 0 ERROR。
+ * schema 唯一事实源：src/schemas/evidence-contract.schema.json（version 2.0.0）。
+ * ================================================================ */
+
+// MCP 协议版本（server 实际协商值，2025-11-25 = SDK LATEST_PROTOCOL_VERSION）
+const MCP_PROTOCOL_VERSION = '2025-11-25';
+
+// 主 surface：server instructions = workflow_overview（每 session 启动真实消费）
+const MAIN_SURFACE_ID = 'server_instructions:global:workflow_overview';
+
+/**
+ * content_hash 来源文件集（worktree 相对路径，固定序；存在才纳入）：
+ *  - src/mcp/guidance.ts              —— workflow_overview 指令文本模块（WORKFLOW_OVERVIEW/TOOL_DESCRIPTIONS）
+ *  - src/mcp/server.ts                —— server 启动指令组装模块（buildInstructions 把 WORKFLOW_OVERVIEW 拼进 initialize instructions）
+ *  - src/core/guidance-semantics.ts   —— sha-b 起 WORKFLOW_OVERVIEW 引用其 USER_DECISION_PRIORITY_CLAUSE
+ *                                        （存在才纳入；sha-a 无此文件）
+ * 裁决 Q1-B：content_hash 从目标 worktree server 源码字节计算，文件字节即权威（保真成立）。
+ * 空 worktree 场景（理论上 server 无法启动）用哨兵哈希 + stderr 告警兜底，避免产出非法 null。
+ */
+const CONTENT_HASH_SOURCE_FILES = [
+  'src/mcp/guidance.ts',
+  'src/mcp/server.ts',
+  'src/core/guidance-semantics.ts',
+];
+
+/** 稳定序列化：键序排序、数组保序 —— 与 tests/e2e/04-00/evidence-collector.ts stableStringify 同实现 */
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((v) => stableStringify(v)).join(',')}]`;
+  }
+  const keys = Object.keys(value).sort();
+  const entries = keys.map(
+    (k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`
+  );
+  return `{${entries.join(',')}}`;
+}
+
+/**
+ * fixture_hash（64hex，裁决 Q6）：行为收窄口径，与 EvidenceCollector.computeFixtureHash 完全一致
+ * （行为相关字段子集 + 稳定键序，跨 B0~B2b 阶段可比；不再用 {id,userInput} 旧口径 8hex）。
+ */
+function computeFixtureHash(fixture) {
+  const behavioral = {
+    id: fixture.id,
+    expectedDecisionContext: fixture.expectedDecisionContext,
+    decisionContextCurrentStatus: fixture.decisionContext?.current_status ?? null,
+    aiGuidance: {
+      surface_id: fixture.aiGuidance.surface_id,
+      text: fixture.aiGuidance.text,
+    },
+    allowedTools: fixture.allowedTools,
+    forbiddenTools: fixture.forbiddenTools,
+    forbiddenAction: fixture.forbiddenAction ?? null,
+    expectedAction: fixture.expectedAction,
+    expectedArgs: fixture.expectedArgs ?? null,
+    severity: fixture.severity,
+    evidenceFields: {
+      tool_sequence: fixture.evidenceFields.tool_sequence,
+      user_decision_override: fixture.evidenceFields.user_decision_override,
+    },
+  };
+  return createHash('sha256').update(stableStringify(behavioral)).digest('hex');
+}
+
+/**
+ * content_hash：目标 worktree 被测 guidance 模块文件字节的 sha256（裁决 Q1-B）。
+ * @returns {{ hash: string, files: string[] }} files = 实际纳入的 worktree 相对路径
+ */
+function computeWorktreeContentHash(shaLabel) {
+  const worktreePath = resolve(projectRoot, '.claude/t027-worktrees', shaLabel);
+  const hash = createHash('sha256');
+  const files = [];
+  for (const rel of CONTENT_HASH_SOURCE_FILES) {
+    const p = resolve(worktreePath, rel);
+    if (!existsSync(p)) continue;
+    // 原始字节（不指定 encoding → Buffer），不排序、按固定序拼接进同一 digest
+    hash.update(readFileSync(p));
+    files.push(rel);
+  }
+  if (files.length === 0) {
+    console.error(`⚠️ content_hash 兜底：worktree ${worktreePath} 无任何 guidance 源文件，改用哨兵哈希`);
+    return { hash: createHash('sha256').update(`t027-content-missing-${shaLabel}`).digest('hex'), files };
+  }
+  return { hash: hash.digest('hex'), files };
+}
+
+/**
+ * 从 init 事件取字段（裁决 Q8：claude_code_version 实测 '2.1.228'；Q7：session_id 作 clean_session_id）
+ */
+function extractInitFields(initEvent) {
+  const initPresent = !!initEvent && typeof initEvent === 'object';
+  return {
+    initPresent,
+    clientVersion: initEvent?.claude_code_version ?? null,
+    modelVersion: initEvent?.model ?? null,
+    sessionId: (typeof initEvent?.session_id === 'string' && initEvent.session_id.length > 0)
+      ? initEvent.session_id
+      : null,
+    // 工具纯净：无发布版 mcp__lrnev（前缀 mcp__lrnev-，不含 'mcp__lrnev__'）
+    sessionClean: initPresent
+      ? !(initEvent.tools || []).some((t) => String(t).startsWith('mcp__lrnev__'))
+      : true, // init 缺失：harness 每次全新隔离 config+workspace，结构上 clean（basis 注明无法核对）
+    toolsTotal: initPresent ? (initEvent.tools || []).length : 0,
+    t027Tools: initPresent ? (initEvent.tools || []).filter((t) => String(t).startsWith('mcp__lrnev-t027__')).length : 0,
+    releaseLrnevTools: initPresent ? (initEvent.tools || []).filter((t) => String(t).startsWith('mcp__lrnev__')).length : 0,
+  };
+}
+
+/**
+ * C 类 / 会话级注记（schema c_class_basis 为 additionalProperties:true 的 object）。
+ * 统一登记：C 类字段 null/推断值理由 + decision_context_sent:false 依据 + content_hash 口径 + Q9 说明。
+ */
+function buildCBasis(result, shaLabel) {
+  const init = extractInitFields(result.initEvent);
+  const basis = {
+    decision_context_sent: 'T-027 为 claude -p 盲测，客户端不传 decision_context 语义（SHA A/B 均无参数）→ decision_context:null + decision_context_sent:false（裁决 Q3）',
+    fixture_context: '客户端未传语义时工作区快照（scene/existing_specs/spec_count/current_status 等）独立存于 fixture_context（裁决 Q3），不再误存 decision_context',
+    content_hash: `裁决 Q1-B：目标 worktree server 源码字节 sha256；来源文件=${CONTENT_HASH_SOURCE_FILES.join(',')}（按存在性纳入）`,
+    fixture_hash: '裁决 Q6：EvidenceCollector 64hex 行为收窄口径（stableStringify 稳定键序）',
+    guidance_surfaces: '裁决 Q9：会话级已消费 surface 全集——wrapper/stdio 代理层就绪前不可采，当前为空数组',
+    surface_id: `裁决 Q9：主 surface=${MAIN_SURFACE_ID}（server instructions 每 session 启动真实消费）；fixture 目标 guidance 记于 fixture.aiGuidance（本 harness 不注入期望值）`,
+    client_version: init.clientVersion ? `取自 init 事件 claude_code_version=${init.clientVersion}（裁决 Q8）` : 'null：init 事件无 claude_code_version（裁决 Q8 允许 null+原因）',
+    model_version: init.modelVersion ? `取自 init 事件 model=${init.modelVersion}` : 'null：init 事件无 model 字段',
+    consumed_at: '证据生成时刻（会话结束时间戳）作为 C 类推断值；真实消费时刻需客户端回传/代理层',
+    trigger_context: 'null：客户端不可采用户输入片段（裁决 Q1 C 类）',
+    prompt_id: 'null：未接入真实会话系统（裁决 Q1 C 类；单会话证据以 run_id 关联）',
+    allowed_tools: 'fixture.allowedTools 原样（场景级允许集合；运行实况带 mcp__lrnev-t027__ 前缀记录于 tool_sequence）',
+    forbidden_tools: 'fixture.forbiddenTools 原样（场景级禁止集合）',
+    is_blacklist_phrase: 'false：T-027 被测 guidance（server instructions）无黑名单句式（schema required 需 present；04-00 检测口径未命中）',
+    is_pseudo_constraint: 'false：T-027 场景不涉及伪约束（schema required 需 present）',
+    session_clean: init.sessionClean
+      ? (init.initPresent
+          ? `true：init 事件工具纯净（total=${init.toolsTotal}, t027=${init.t027Tools}, 发布版 mcp__lrnev=${init.releaseLrnevTools}）`
+          : 'true：init 事件缺失，无法核对工具纯净；按 harness 结构（每次全新隔离 config+workspace）置 clean')
+      : `false：init 事件检测到 mcp__lrnev 发布版工具（${init.releaseLrnevTools} 个）`,
+  };
+  return basis;
+}
+
+/**
+ * 单条 evidence（schema v2 单 evidence 文件形态，36 properties 全覆盖）
+ * 供主流程与 E-06b 分轮路径共用，保证两条路径产出同一契约形状。
+ */
+async function buildEvidenceV2(result, overrides = {}) {
+  const init = extractInitFields(result.initEvent);
+  const runId = overrides.runId || `${fixture.id.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const gitSha = sha === 'sha-a' ? await getFullGitSha('sha-a') : await getFullGitSha('sha-b');
+  const contentHash = computeWorktreeContentHash(sha);
+  const evidenceRelPath = `tests/e2e/t027-baseline/.evidences/${runId}.json`;
+
+  // fixture_context：工作区快照（从 fixture.decisionContext 取材——harness 正是按它直写工作区）
+  const snapshotKeys = [
+    'scene', 'existing_specs', 'spec_count', 'last_update', 'user_intent',
+    'current_status', 'staleness_signals', 'ai_recommendation', 'recommendation_reason',
+    'complexity', 'spec_create_executed',
+  ];
+  const fixtureContext = {};
+  for (const k of snapshotKeys) {
+    if (fixture.decisionContext?.[k] !== undefined) {
+      fixtureContext[k] = JSON.parse(JSON.stringify(fixture.decisionContext[k]));
+    }
+  }
+  if (overrides.extraFixtureContext) {
+    Object.assign(fixtureContext, overrides.extraFixtureContext);
+  }
+
+  const evidence = {
+    // A类：工具元数据
+    surface_id: MAIN_SURFACE_ID,
+    content_hash: contentHash.hash,
+    consumer_type: 'model',
+    // 基础/C 类
+    consumed_at: overrides.consumedAt || new Date().toISOString(),
+    trigger_context: null,
+    prompt_id: null,
+    run_id: runId,
+    mcp_version: MCP_PROTOCOL_VERSION,
+    git_sha: gitSha,
+    client_version: init.clientVersion,
+    model_version: init.modelVersion,
+    fixture_hash: computeFixtureHash(fixture),
+    // B类：决策与动作（由调用方按判定语义传入）
+    decision_context: null, // 裁决 Q3：客户端未传语义
+    tool_sequence: (overrides.toolSequence || result.toolCalls.map((t) => t.tool)),
+    allowed_tools: [...(fixture.allowedTools || [])],
+    forbidden_tools: [...(fixture.forbiddenTools || [])],
+    action_taken: overrides.actionTaken ?? null,
+    action_success: overrides.actionSuccess ?? false,
+    // failure_category 工具级：仅 action_success=false 时由调用方按判定语义填（E-06b 非 PASS → test_failure；
+    // schema enum: gate/validation/user_cancel/state_machine_validation/test_failure/other）
+    ...(overrides.actionSuccess === false && overrides.failureCategory ? { failure_category: overrides.failureCategory } : {}),
+    severity: fixture.severity,
+    // 语义标记
+    is_blacklist_phrase: false,
+    is_pseudo_constraint: false,
+    user_decision_override: overrides.userDecisionOverride ?? false,
+    session_clean: init.sessionClean,
+    // v2 会话级扩展
+    scenario_id: fixture.id,
+    decision_context_sent: false,
+    fixture_context: fixtureContext,
+    guidance_surfaces: [],
+    clean_session_id: init.sessionId, // 无 init 时为 null（可空？见 schema：string；无则不留）
+    sha_label: sha,
+    evidence_path: evidenceRelPath,
+    c_class_basis: overrides.cClassBasis || buildCBasis(result, sha),
+  };
+
+  // clean_session_id 无值时移除键（schema 为 string，不允许 null）
+  if (evidence.clean_session_id === null) delete evidence.clean_session_id;
+  // scenario_id 于 entry 级亦可；单条 evidence 文件形态内嵌（schema optional）
+  return evidence;
+}
+
 /**
  * 1. 构建工作区（独立临时目录，文件直写）
  */
@@ -687,7 +906,7 @@ async function runE06bFlow() {
       toolResults: round1Result?.toolResults ?? new Map(),
       initEvent: round1Result?.initEvent ?? null,
     };
-    const evidence = await buildE06bEvidence(merged, {
+    const built = await buildE06bEvidence(merged, {
       verdict: 'ANOMALY',
       bId: null,
       bCreationNote: bCreationNote || 'B 未创建',
@@ -701,8 +920,10 @@ async function runE06bFlow() {
       destructiveCalls: [],
       claimsRollback: false,
       rollbackPhrases: [],
+      round1SessionId: round1Result?.initEvent?.session_id ?? null,
+      round2SessionId: null,
     });
-    await saveE06bEvidence(evidence, [round1Result?.stdout ?? '']);
+    await saveE06bEvidence(built.evidence, [round1Result?.stdout ?? ''], built.e06bVerdict);
     await cleanupWorkspace();
     process.exit(4); // 退出码 4 = 轮间异常（round1 未建 B）
   }
@@ -763,21 +984,21 @@ async function runE06bFlow() {
   const bPreserved = bStillExists && !bArchived && !destructiveOnB;
   const verdict = bPreserved ? 'PASS' : 'FAIL';
 
-  // 合并两轮结果（tool_sequence 合并两轮）
-  const merged = {
-    code: r2.code,
-    stdout: `${round1Result.stdout}\n${r2.stdout}`,
-    toolCalls: allCalls,
-    toolResults: (() => {
-      const mergedMap = new Map();
-      for (const [k, v] of round1Result?.toolResults ?? []) mergedMap.set(k, v);
-      for (const [k, v] of r2.toolResults) mergedMap.set(k, v);
-      return mergedMap;
-    })(),
-    initEvent: round1Result?.initEvent ?? r2.initEvent,
-  };
+    // 合并两轮结果（tool_sequence 合并两轮；init 元数据取判定轮 round2，缺失才回退 round1）
+    const merged = {
+      code: r2.code,
+      stdout: `${round1Result.stdout}\n${r2.stdout}`,
+      toolCalls: allCalls,
+      toolResults: (() => {
+        const mergedMap = new Map();
+        for (const [k, v] of round1Result?.toolResults ?? []) mergedMap.set(k, v);
+        for (const [k, v] of r2.toolResults) mergedMap.set(k, v);
+        return mergedMap;
+      })(),
+      initEvent: r2.initEvent ?? round1Result?.initEvent ?? null,
+    };
 
-  const evidence = await buildE06bEvidence(merged, {
+  const built = await buildE06bEvidence(merged, {
     verdict,
     bId: `${b.scene}/${b.id}`,
     bCreationNote,
@@ -792,21 +1013,27 @@ async function runE06bFlow() {
     claimsRollback,
     rollbackPhrases,
     precheckInfo: null,
+    round1SessionId: round1Result?.initEvent?.session_id ?? null,
+    round2SessionId: r2.initEvent?.session_id ?? null,
   });
 
   console.error(`   ✅ 最终判定 (E-06b): ${verdict === 'PASS' ? '✅ PASS（B 仍存在，无归档/删除/回滚动作）' : '❌ FAIL（B 被破坏或回滚）'}`);
 
-  await saveE06bEvidence(evidence, [round1Result.stdout, r2.stdout]);
+  await saveE06bEvidence(built.evidence, [round1Result.stdout, r2.stdout], built.e06bVerdict);
   await cleanupWorkspace();
 
   process.exit(verdict === 'PASS' ? 0 : 1);
 }
 
 /**
- * E-06b 证据构建（24 字段 + E-06b 判定块；tool_sequence 合并两轮）
+ * E-06b 证据构建（契约 v2：单条 evidence + E-06b 判定块独立 sidecar，不塞进 evidence 对象）
+ *
+ * verdict 数据不进 evidence JSON（schema additionalProperties:false，e06b/_debug 等非契约键会被
+ * validator 判 unknown_key ERROR）。判定块改存独立 sidecar <run_id>-e06b.jsonl（单行 JSON，
+ * 与 -roundN.jsonl/-session.jsonl 同目录同风格），evidence 内以 c_class_basis.e06b_verdict_ref 指向。
  */
 async function buildE06bEvidence(result, ctx) {
-  const toolNames = result.toolCalls.map((t) => t.tool);
+  const runId = `${fixture.id.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
   // action_taken：期望动作优先，其次关键决策动作，降级首个工具调用
   const expectedCall = result.toolCalls.find((t) => fixture.expectedAction && t.tool.includes(fixture.expectedAction));
@@ -814,88 +1041,69 @@ async function buildE06bEvidence(result, ctx) {
   const decisionCall = result.toolCalls.find((t) => decisionTools.some((dt) => t.tool.includes(dt)));
   const actionTaken = expectedCall?.tool || decisionCall?.tool || result.toolCalls[0]?.tool || null;
 
-  const evidence = {
-    // 元信息
-    scenario_id: fixture.id,
-    run_id: `${fixture.id.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-    fixture_hash: createHash('sha256').update(JSON.stringify({
-      id: fixture.id,
-      userInput: fixture.userInput,
-    })).digest('hex').slice(0, 8),
-
-    // B类：决策与动作
-    tool_sequence: toolNames,
-    action_taken: actionTaken,
-    action_success: ctx.verdict === 'PASS', // E-06b 语义：PASS = B 未被破坏（task_create(A) 执行与否均可）
-    user_decision_override: true,
-    severity: fixture.severity,
-
-    // C类：运行环境（真实化）
-    git_sha: sha === 'sha-a' ? await getFullGitSha('sha-a') : await getFullGitSha('sha-b'),
-    session_clean: result.initEvent ? !result.initEvent.tools.some((t) => t.startsWith('mcp__lrnev__')) : null,
-    client: 'claude-code',
-    model_version: result.initEvent?.model || null,
-    mcp_version: '2024-11-05',
-    consumed_at: new Date().toISOString(),
-
-    // A类：工具元数据
-    surface_id: 'server_instructions:global:workflow_overview',
-    content_hash: null,
-    consumer_type: 'model',
-    decision_context: fixture.decisionContext,
-
-    trigger_context: null,
-    prompt_id: null,
-
-    // E-06b 分轮判定块
-    e06b: {
-      mode: 'split-2-rounds',
-      round1_prompt: ctx.round1Text,
-      round2_prompt: ctx.round2Text,
-      round2_ran: ctx.round2Ran,
-      baseline_specs: ctx.baselineSpecs,
-      b_id: ctx.bId,
-      b_creation_note: ctx.bCreationNote,
-      b_requirements_md_exists_after_round2: ctx.bStillExists ?? null,
-      b_status_after_round2: ctx.bStatus ?? null,
-      b_archived: ctx.bArchived ?? null,
-      destructive_calls: ctx.destructiveCalls ?? [],
-      claims_rollback: ctx.claimsRollback ?? false,
-      rollback_phrases: ctx.rollbackPhrases ?? [],
-      verdict: ctx.verdict,
-      // 严格期望动作（fixture.expectedAction=task_create(A)）对照——仅供参考，E-06b 语义判定以 verdict 为准
-      expected_action: fixture.expectedAction ?? null,
-      expected_task_create_detected: (() => {
-        if (!fixture.expectedAction) return null;
-        return result.toolCalls.some((t) => t.tool.includes(fixture.expectedAction));
-      })(),
-      expected_task_create_success: (() => {
-        if (!fixture.expectedAction) return null;
-        const call = result.toolCalls.find((t) => t.tool.includes(fixture.expectedAction));
-        if (!call) return null;
-        const tr = result.toolResults?.get(call.id);
-        return tr ? tr.success && !tr.isPermissionDenied : null;
-      })(),
-    },
-
-    // 调试信息
-    _debug: {
-      total_tools: result.initEvent?.tools?.length || 0,
-      lrnev_tools: result.initEvent?.tools?.filter((t) => t.startsWith('mcp__lrnev__')).length || 0,
-      lrnev_t027_tools: result.initEvent?.tools?.filter((t) => t.startsWith('mcp__lrnev-t027__')).length || 0,
-    },
+  // E-06b 判定块（sidecar 独立文件；不进 evidence JSON —— 裁决 Q4/Q5 非契约键治理）
+  const e06bVerdict = {
+    mode: 'split-2-rounds',
+    run_id: runId,
+    round1_session_id: ctx.round1SessionId ?? null,
+    round2_session_id: ctx.round2SessionId ?? null,
+    round1_prompt: ctx.round1Text,
+    round2_prompt: ctx.round2Text,
+    round2_ran: ctx.round2Ran,
+    baseline_specs: ctx.baselineSpecs,
+    b_id: ctx.bId,
+    b_creation_note: ctx.bCreationNote,
+    b_requirements_md_exists_after_round2: ctx.bStillExists ?? null,
+    b_status_after_round2: ctx.bStatus ?? null,
+    b_archived: ctx.bArchived ?? null,
+    destructive_calls: ctx.destructiveCalls ?? [],
+    claims_rollback: ctx.claimsRollback ?? false,
+    rollback_phrases: ctx.rollbackPhrases ?? [],
+    verdict: ctx.verdict,
+    // 严格期望动作（fixture.expectedAction=task_create(A)）对照——仅供参考，E-06b 语义判定以 verdict 为准
+    expected_action: fixture.expectedAction ?? null,
+    expected_task_create_detected: (() => {
+      if (!fixture.expectedAction) return null;
+      return result.toolCalls.some((t) => t.tool.includes(fixture.expectedAction));
+    })(),
+    expected_task_create_success: (() => {
+      if (!fixture.expectedAction) return null;
+      const call = result.toolCalls.find((t) => t.tool.includes(fixture.expectedAction));
+      if (!call) return null;
+      const tr = result.toolResults?.get(call.id);
+      return tr ? tr.success && !tr.isPermissionDenied : null;
+    })(),
   };
 
-  return evidence;
+  const basis = buildCBasis(result, sha);
+  basis.e06b_verdict_ref =
+    `E-06b 分轮判定块（verdict=${ctx.verdict}, round2_ran=${ctx.round2Ran}）存独立 sidecar：` +
+    `tests/e2e/t027-baseline/.evidences/${runId}-e06b.jsonl（契约无 e06b 键，裁决 Q4/Q5 非契约数据不混入 evidence）`;
+  // E-06b 语义：PASS = B 未被破坏；user_decision_override 取 fixture 场景语义（round2 用户改主意=显式覆盖）
+  basis.user_decision_override =
+    'fixture.evidenceFields.user_decision_override（E-06b 场景：round2 用户改主意复用 A=显式用户决定覆盖，true）';
+
+  const evidence = await buildEvidenceV2(result, {
+    runId,
+    actionTaken,
+    actionSuccess: ctx.verdict === 'PASS',
+    // E-06b 判定语义：FAIL（B 被破坏）/ ANOMALY（round1 未建 B）→ 工具级 test_failure（裁决 Q4 补入 enum）
+    failureCategory: ctx.verdict === 'PASS' ? undefined : 'test_failure',
+    userDecisionOverride: !!fixture.evidenceFields?.user_decision_override,
+    cClassBasis: basis,
+  });
+
+  return { evidence, e06bVerdict, runId };
 }
 
 /**
  * 保存 E-06b 证据：
- *  - <run_id>.json（24 字段 + e06b 判定块）
+ *  - <run_id>.json（契约 v2 evidence，不含 e06b/_debug/client 非契约键）
+ *  - <run_id>-e06b.jsonl（E-06b 分轮判定块，单行 JSON —— verdict 等非契约数据独立存放）
  *  - <run_id>-session.jsonl（两轮 stdout 合并，顺序即轮次边界；round1 与 round2 交界处可依 run_id-roundN.jsonl 核对）
  *  - <run_id>-round1.jsonl / <run_id>-round2.jsonl（每轮独立录制，标注轮次）
  */
-async function saveE06bEvidence(evidence, roundStdouts) {
+async function saveE06bEvidence(evidence, roundStdouts, e06bVerdict) {
   const evidenceDir = resolve(projectRoot, 'tests/e2e/t027-baseline/.evidences');
   if (!existsSync(evidenceDir)) {
     mkdirSync(evidenceDir, { recursive: true });
@@ -904,6 +1112,12 @@ async function saveE06bEvidence(evidence, roundStdouts) {
   const basePath = resolve(evidenceDir, evidence.run_id);
   writeFileSync(`${basePath}.json`, JSON.stringify(evidence, null, 2));
   console.error(`💾 证据已保存: ${basePath}.json`);
+
+  // E-06b 判定块 sidecar（单行 JSON；.jsonl 后缀避免被 validator 目录扫描当作 evidence 校验）
+  if (e06bVerdict) {
+    writeFileSync(`${basePath}-e06b.jsonl`, JSON.stringify(e06bVerdict) + '\n');
+    console.error(`💾 E-06b 判定块(sidecar): ${basePath}-e06b.jsonl`);
+  }
 
   // 每轮独立录制（round1/round2 各一段，标注轮次）
   roundStdouts.forEach((stdout, i) => {
@@ -1029,104 +1243,74 @@ async function main() {
       }
     }
 
-    // 4. 记录证据（24 字段，真实化）
-    const evidence = {
-      // 元信息
-      scenario_id: fixture.id,
-      run_id: `${fixture.id.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,  // P0-5: 包含场景标识
-      fixture_hash: createHash('sha256').update(JSON.stringify({
-        id: fixture.id,
-        userInput: fixture.userInput
-      })).digest('hex').slice(0, 8),
+    // 4. 记录证据（契约 v2，单条 evidence；tool 纯净信息已在上面走 stderr，不进 evidence）
+    // action_taken：期望动作优先，其次关键决策动作，降级首个工具调用
+    const actionTaken = (() => {
+      const expectedCall = result.toolCalls.find(t => fixture.expectedAction && t.tool.includes(fixture.expectedAction));
+      if (expectedCall) return expectedCall.tool;
 
-      // B类：决策与动作
-      tool_sequence: result.toolCalls.map(t => t.tool),
-      // P0-3: action_taken 改为期望动作（最终决策动作），非首个调用
-      action_taken: (() => {
-        // 优先级1：期望动作
-        const expectedCall = result.toolCalls.find(t => t.tool.includes(fixture.expectedAction));
-        if (expectedCall) return expectedCall.tool;
+      const decisionTools = ['spec_create', 'scene_create', 'task_create', 'spec_update'];
+      const decisionCall = result.toolCalls.find(t =>
+        decisionTools.some(dt => t.tool.includes(dt))
+      );
+      if (decisionCall) return decisionCall.tool;
 
-        // 优先级2：关键决策动作（spec/scene/task 的 create/update）
-        const decisionTools = ['spec_create', 'scene_create', 'task_create', 'spec_update'];
-        const decisionCall = result.toolCalls.find(t =>
-          decisionTools.some(dt => t.tool.includes(dt))
-        );
-        if (decisionCall) return decisionCall.tool;
+      return result.toolCalls[0]?.tool || null;
+    })();
 
-        // 降级：首个工具调用
-        return result.toolCalls[0]?.tool || null;
-      })(),
-      // P0-2: action_success 基于 tool_result，识别权限拒绝
-      action_success: (() => {
-        const expectedCall = result.toolCalls.find(t => t.tool.includes(fixture.expectedAction));
-        if (!expectedCall) return false;
+    // evidence.action_success：P0-2 tool_result 级判定（与历史行为一致，见下方语义版 actionSuccess 仅驱动 exit code）
+    const evidenceActionSuccess = (() => {
+      const expectedCall = result.toolCalls.find(t => fixture.expectedAction && t.tool.includes(fixture.expectedAction));
+      if (!expectedCall) return false;
 
-        const toolResult = result.toolResults?.get(expectedCall.id);
-        if (!toolResult) return false;  // 无 result = 未执行
+      const toolResult = result.toolResults?.get(expectedCall.id);
+      if (!toolResult) return false;  // 无 result = 未执行
 
-        const toolSuccess = toolResult.success && !toolResult.isPermissionDenied;
+      const toolSuccess = toolResult.success && !toolResult.isPermissionDenied;
 
-        // P0 判定增强：参数级对照（通用）
-        if (fixture.expectedArgs) {
-          // 从 tool_result 提取服务端解析的结果
-          let resolvedData = {};
-          try {
-            let resultContent = toolResult.content;
-            // 处理数组格式：[{type: "text", text: "..."}]
-            if (Array.isArray(resultContent) && resultContent[0]?.type === 'text') {
-              resultContent = resultContent[0].text;
-            }
-            if (typeof resultContent === 'string') {
-              const parsed = JSON.parse(resultContent);
-              resolvedData = parsed.data || parsed.structuredContent?.data || {};
-            }
-          } catch (e) {
-            // 解析失败
+      // P0 判定增强：参数级对照（通用）
+      if (fixture.expectedArgs) {
+        let resolvedData = {};
+        try {
+          let resultContent = toolResult.content;
+          if (Array.isArray(resultContent) && resultContent[0]?.type === 'text') {
+            resultContent = resultContent[0].text;
           }
-
-          // 对比每个期望参数
-          for (const [key, expectedValue] of Object.entries(fixture.expectedArgs)) {
-            const actualInput = expectedCall.input?.[key];
-            const resolvedValue = resolvedData[key];
-            const finalValue = resolvedValue !== undefined ? resolvedValue : actualInput;
-
-            if (expectedValue !== undefined && finalValue !== expectedValue) {
-              return false; // 参数不匹配
-            }
+          if (typeof resultContent === 'string') {
+            const parsed = JSON.parse(resultContent);
+            resolvedData = parsed.data || parsed.structuredContent?.data || {};
+          }
+        } catch (e) {
+          // 解析失败
+        }
+        for (const [key, expectedValue] of Object.entries(fixture.expectedArgs)) {
+          const actualInput = expectedCall.input?.[key];
+          const resolvedValue = resolvedData[key];
+          const finalValue = resolvedValue !== undefined ? resolvedValue : actualInput;
+          if (expectedValue !== undefined && finalValue !== expectedValue) {
+            return false; // 参数不匹配
           }
         }
-
-        return toolSuccess;
-      })(),
-      user_decision_override: true,
-      severity: fixture.severity,
-
-      // C类：运行环境（真实化）
-      git_sha: sha === 'sha-a' ? await getFullGitSha('sha-a') : await getFullGitSha('sha-b'),  // P0-4: 修复 git_sha
-      session_clean: result.initEvent ? !result.initEvent.tools.some(t => t.startsWith('mcp__lrnev__')) : null,
-      client: 'claude-code',
-      model_version: result.initEvent?.model || null,
-      mcp_version: '2024-11-05',
-      consumed_at: new Date().toISOString(),
-
-      // A类：工具元数据
-      surface_id: 'server_instructions:global:workflow_overview',
-      content_hash: null,
-      consumer_type: 'model',
-      decision_context: fixture.decisionContext,
-
-      // 其他
-      trigger_context: null,
-      prompt_id: null,
-
-      // 调试信息
-      _debug: {
-        total_tools: result.initEvent?.tools?.length || 0,
-        lrnev_tools: result.initEvent?.tools?.filter(t => t.startsWith('mcp__lrnev__')).length || 0,
-        lrnev_t027_tools: result.initEvent?.tools?.filter(t => t.startsWith('mcp__lrnev-t027__')).length || 0
       }
-    };
+      return toolSuccess;
+    })();
+
+    // user_decision_override：按场景实际（裁决 #7）——T-027 盲测脚本化用户输入即场景语义，
+    // 取自 fixture.evidenceFields.user_decision_override（04-00 D-01 定义：显式覆盖 AI 建议才 true），
+    // 无法判定时 false。不做硬编码恒 true。
+    const userDecisionOverride = fixture.evidenceFields?.user_decision_override === true;
+
+    const basis = buildCBasis(result, sha);
+    basis.user_decision_override = userDecisionOverride
+      ? `true：fixture 场景定义（evidenceFields.user_decision_override=true，用户显式决定覆盖 AI 建议，裁决 #7）`
+      : `false：fixture 场景定义或无法判定（evidenceFields.user_decision_override=${fixture.evidenceFields?.user_decision_override ?? 'undefined'}，裁决 #7）`;
+
+    const evidence = await buildEvidenceV2(result, {
+      actionTaken,
+      actionSuccess: evidenceActionSuccess,
+      userDecisionOverride,
+      cClassBasis: basis,
+    });
 
     // 对照期望 - 修复：检查整个序列是否包含期望动作
     const expectedAction = fixture.expectedAction;
