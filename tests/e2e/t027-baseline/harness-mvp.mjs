@@ -186,6 +186,16 @@ async function precheck() {
   mkdirSync(resolve(projectRoot, '.claude/t027-worktrees'), { recursive: true });
   writeFileSync(shaPointerPath, sha);
 
+  // 多轮语义场景：只用第1轮内容做预检（avoid assess_goal 误判）
+  let precheckInput = fixture.userInput;
+  if (fixture.userInput.includes('第1轮：')) {
+    const match = fixture.userInput.match(/第1轮：[""]?([^""]+)[""]?/);
+    if (match) {
+      precheckInput = match[1].trim();
+      console.error(`   检测到多轮场景，预检使用第1轮: "${precheckInput}"`);
+    }
+  }
+
   const result = await new Promise((resolve, reject) => {
     const child = spawn('node', [wrapperPath], {
       cwd: tempWorkspace,
@@ -241,7 +251,7 @@ async function precheck() {
               params: {
                 name: 'assess_goal',
                 arguments: {
-                  goal: fixture.userInput
+                  goal: precheckInput
                 }
               }
             };
@@ -461,8 +471,17 @@ async function cleanupWorkspace() {
  */
 async function main() {
   try {
-    console.error('📦 Fixture: E-01 - 建议复用+明确新建');
+    console.error(`📦 Fixture: ${fixture.id} - ${fixture.title}`);
     console.error('');
+
+    // 多轮语义检查：E-06b 需要分轮注入（未实现），标注 skip
+    if (fixture.id === 'E-06b') {
+      console.error('⚠️  E-06b 需要分轮语义（监听 spec_create tool_result 后注入第二轮）');
+      console.error('   当前实现为单次注入模式，暂不支持分轮');
+      console.error('   标注: skip-待分轮实现');
+      console.error('');
+      process.exit(3); // 退出码 3 表示 skip（待实现）
+    }
 
     // 1. 构建工作区
     await buildWorkspace();
@@ -475,7 +494,7 @@ async function main() {
       process.exit(2); // 退出码 2 表示跳过
     }
 
-    // 3. 驱动客户端
+    // 3. 驱动客户端（单次注入模式：E-05/E-06a 传入完整 userInput，AI 自行解析多轮）
     const result = await driveClient(fixture.userInput);
 
     console.error('\n📊 执行结果:');
