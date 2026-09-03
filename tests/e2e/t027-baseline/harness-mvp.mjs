@@ -341,8 +341,6 @@ async function precheck() {
     console.error('   → 跳过本场景测试');
     return false;
   }
-    return false;
-  }
 
   console.error('✅ 预检通过（assess_goal 成功，粒度评估正确）');
   return true;
