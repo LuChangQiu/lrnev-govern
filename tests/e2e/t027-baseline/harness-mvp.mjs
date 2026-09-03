@@ -10,36 +10,31 @@
  * 3. 真实清理（删除临时工作区）
  * 4. 补充 --verbose
  * 5. 通过 wrapper 走 worktree（SHA A/B）
+ * 6. 方案 D：动态 import .ts 权威源（tsx loader 转译，零构建，防漂移）
  */
 
 import { spawn } from 'node:child_process';
 import { writeFileSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
-import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
 
 const projectRoot = process.cwd();
 const sha = process.env.T027_SHA || 'sha-a';
 const scenarioId = process.env.T027_SCENARIO || 'E-01';
 
-// 内联 fixture 定义（避免 TS 编译依赖）
-// 从 tests/fixtures/04-00/*.ts 手动提取核心字段
-const FIXTURES = {
-  'E-01': {
-    id: 'E-01',
-    title: '建议复用+明确新建',
-    userInput: '开新 Spec 做用户登录功能',
-    expectedAction: 'spec_create',
-    expectedArgs: { scene: '01-user-management' },
-    severity: 'high',
-    decisionContext: {
-      scene: '01-user-management',
-      existing_specs: ['00-introduction (in-progress)'],
-      spec_count: 1
-    }
-  },
-  // 其他场景待补充
-};
+// 方案 D：动态加载 .ts 权威源
+const fixturesIndexPath = resolve(projectRoot, 'tests/fixtures/04-00/index.ts');
+const fixturesModule = await import(pathToFileURL(fixturesIndexPath).href);
+
+// 构建 fixture 映射表（id → fixture）
+const FIXTURES = {};
+for (const key of Object.keys(fixturesModule)) {
+  const fixture = fixturesModule[key];
+  if (fixture && typeof fixture === 'object' && fixture.id) {
+    FIXTURES[fixture.id] = fixture;
+  }
+}
 
 const fixture = FIXTURES[scenarioId];
 if (!fixture) {
@@ -552,7 +547,11 @@ async function main() {
           // 从 tool_result 提取服务端解析的结果
           let resolvedData = {};
           try {
-            const resultContent = toolResult.content;
+            let resultContent = toolResult.content;
+            // 处理数组格式：[{type: "text", text: "..."}]
+            if (Array.isArray(resultContent) && resultContent[0]?.type === 'text') {
+              resultContent = resultContent[0].text;
+            }
             if (typeof resultContent === 'string') {
               const parsed = JSON.parse(resultContent);
               resolvedData = parsed.data || parsed.structuredContent?.data || {};
@@ -622,7 +621,11 @@ async function main() {
       // 从 tool_result 提取服务端解析的结果
       let resolvedData = {};
       try {
-        const resultContent = toolResult.content;
+        let resultContent = toolResult.content;
+        // 处理数组格式：[{type: "text", text: "..."}]
+        if (Array.isArray(resultContent) && resultContent[0]?.type === 'text') {
+          resultContent = resultContent[0].text;
+        }
         if (typeof resultContent === 'string') {
           const parsed = JSON.parse(resultContent);
           resolvedData = parsed.data || parsed.structuredContent?.data || {};
@@ -665,7 +668,11 @@ async function main() {
         // 从 tool_result 提取服务端解析的结果
         let resolvedData = {};
         try {
-          const resultContent = toolResult.content;
+          let resultContent = toolResult.content;
+          // 处理数组格式：[{type: "text", text: "..."}]
+          if (Array.isArray(resultContent) && resultContent[0]?.type === 'text') {
+            resultContent = resultContent[0].text;
+          }
           if (typeof resultContent === 'string') {
             const parsed = JSON.parse(resultContent);
             resolvedData = parsed.data || parsed.structuredContent?.data || {};
