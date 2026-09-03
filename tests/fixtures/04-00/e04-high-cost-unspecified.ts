@@ -60,6 +60,9 @@ export const E04_HighCostUnspecified: FixtureDefinition = {
     goal: '支付模块（微信、支付宝、银行卡）'
   },
 
+  // 预检预期：支付模块（多渠道）可能被评估为 multi-spec-program，合理
+  expectedAssessment: 'multi-spec-program',
+
   // 严重度
   severity: 'medium',
 

@@ -110,6 +110,13 @@ export interface FixtureDefinition {
    */
   expectFailure?: boolean;
 
+  /**
+   * 预检预期评估结果（E-04）
+   * 未指定时默认断言 single-spec
+   * E-04 等高复杂度场景可能是 multi-spec-program，需显式配置
+   */
+  expectedAssessment?: 'single-spec' | 'multi-spec-program' | 'research-program';
+
   severity: 'high' | 'medium' | 'low';
   measurementGoal: string;
 

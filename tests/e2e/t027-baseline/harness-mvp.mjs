@@ -334,9 +334,13 @@ async function precheck() {
     return true;
   }
 
-  if (kind !== 'single-spec') {
-    console.error(`⚠️  预检失败：粒度评估不符预期（期望 single-spec，实际 ${kind}）`);
+  // 按场景配置验证粒度（E-04 等高复杂度场景可能是 multi-spec-program）
+  const expectedKind = fixture.expectedAssessment || 'single-spec';
+  if (kind !== expectedKind) {
+    console.error(`⚠️  预检失败：粒度评估不符预期（期望 ${expectedKind}，实际 ${kind}）`);
     console.error('   → 跳过本场景测试');
+    return false;
+  }
     return false;
   }
 
