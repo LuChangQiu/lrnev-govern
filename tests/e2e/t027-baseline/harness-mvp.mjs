@@ -77,7 +77,7 @@ async function buildWorkspace() {
   const sceneContent = `---
 scene: 01-user-management
 number: 1
-created: ${new Date().toISOString().split('T')[0]}
+created: '${new Date().toISOString().split('T')[0]}'
 ---
 
 # 01 User Management
@@ -93,7 +93,7 @@ created: ${new Date().toISOString().split('T')[0]}
   const requirementsContent = `---
 spec: 01-00-introduction
 scene: 01-user-management
-created: ${new Date().toISOString().split('T')[0]}
+created: '${new Date().toISOString().split('T')[0]}'
 ---
 
 # 01-00 Introduction - 需求
@@ -511,7 +511,18 @@ async function main() {
         const toolResult = result.toolResults?.get(expectedCall.id);
         if (!toolResult) return false;  // 无 result = 未执行
 
-        return toolResult.success && !toolResult.isPermissionDenied;
+        const toolSuccess = toolResult.success && !toolResult.isPermissionDenied;
+
+        // P0 判定增强：参数级对照（spec_create 的 scene 必须匹配 fixture.scene）
+        if (e01Fixture.expectedAction === 'spec_create') {
+          const expectedScene = e01Fixture.decisionContext?.scene;
+          const actualScene = expectedCall.input?.scene;
+          if (expectedScene && actualScene !== expectedScene) {
+            return false; // scene 不匹配
+          }
+        }
+
+        return toolSuccess;
       })(),
       user_decision_override: true,
       severity: e01Fixture.severity,
@@ -550,7 +561,22 @@ async function main() {
 
     // P0-2: 获取 tool_result 证据
     const toolResult = expectedCall ? result.toolResults?.get(expectedCall.id) : null;
-    const actionSuccess = toolResult ? (toolResult.success && !toolResult.isPermissionDenied) : false;
+    const toolSuccess = toolResult ? (toolResult.success && !toolResult.isPermissionDenied) : false;
+
+    // P0 判定增强：参数级对照（spec_create 的 scene 必须匹配 fixture.scene）
+    let argsMatch = true;
+    let argsMismatch = null;
+    if (expectedCall && toolSuccess && expectedAction === 'spec_create') {
+      const expectedScene = e01Fixture.decisionContext?.scene; // '01-user-management'
+      const actualScene = expectedCall.input?.scene;
+
+      if (expectedScene && actualScene !== expectedScene) {
+        argsMatch = false;
+        argsMismatch = `scene 不匹配（期望 ${expectedScene}，实际 ${actualScene || '缺失'}）`;
+      }
+    }
+
+    const actionSuccess = toolSuccess && argsMatch;
 
     console.error('\n📋 期望对照:');
     console.error(`   期望动作: ${expectedAction}`);
@@ -563,6 +589,17 @@ async function main() {
       if (toolResult.isPermissionDenied) {
         console.error(`   权限拒绝: ❌ 是（${toolResult.content.substring(0, 60)}...）`);
       }
+
+      // 参数级对照输出
+      if (expectedAction === 'spec_create') {
+        const expectedScene = e01Fixture.decisionContext?.scene;
+        const actualScene = expectedCall.input?.scene;
+        console.error(`   参数对照: scene=${actualScene || '缺失'}${expectedScene ? ` (期望 ${expectedScene})` : ''}`);
+        if (!argsMatch) {
+          console.error(`   ⚠️  参数不匹配: ${argsMismatch}`);
+        }
+      }
+
       console.error(`   action_success: ${actionSuccess ? '✅ 真实成功' : '❌ 执行失败'}`);
     } else if (expectedCall) {
       console.error(`   tool_result: ⚠️  未找到（调用未完成）`);
