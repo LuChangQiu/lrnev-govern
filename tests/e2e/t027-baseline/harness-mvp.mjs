@@ -513,12 +513,24 @@ async function main() {
 
         const toolSuccess = toolResult.success && !toolResult.isPermissionDenied;
 
-        // P0 判定增强：参数级对照（spec_create 的 scene 必须匹配 fixture.scene）
+        // P0 判定增强：参数级对照（检查服务端解析后的结果）
         if (e01Fixture.expectedAction === 'spec_create') {
           const expectedScene = e01Fixture.decisionContext?.scene;
-          const actualScene = expectedCall.input?.scene;
-          if (expectedScene && actualScene !== expectedScene) {
-            return false; // scene 不匹配
+
+          // 从 tool_result 提取服务端解析的 scene
+          let resolvedScene = expectedCall.input?.scene;
+          try {
+            const resultContent = toolResult.content;
+            if (typeof resultContent === 'string') {
+              const parsed = JSON.parse(resultContent);
+              resolvedScene = parsed.data?.scene || parsed.structuredContent?.data?.scene || resolvedScene;
+            }
+          } catch (e) {
+            // 解析失败，使用原始输入
+          }
+
+          if (expectedScene && resolvedScene !== expectedScene) {
+            return false; // 服务端解析的 scene 不匹配
           }
         }
 
@@ -563,16 +575,28 @@ async function main() {
     const toolResult = expectedCall ? result.toolResults?.get(expectedCall.id) : null;
     const toolSuccess = toolResult ? (toolResult.success && !toolResult.isPermissionDenied) : false;
 
-    // P0 判定增强：参数级对照（spec_create 的 scene 必须匹配 fixture.scene）
+    // P0 判定增强：参数级对照（检查服务端解析后的结果，而非 AI 传入的原始参数）
     let argsMatch = true;
     let argsMismatch = null;
     if (expectedCall && toolSuccess && expectedAction === 'spec_create') {
       const expectedScene = e01Fixture.decisionContext?.scene; // '01-user-management'
-      const actualScene = expectedCall.input?.scene;
+      const actualInputScene = expectedCall.input?.scene; // AI 传入的参数（可能是纯名称）
 
-      if (expectedScene && actualScene !== expectedScene) {
+      // 从 tool_result 中提取服务端解析后的 scene
+      let resolvedScene = actualInputScene;
+      try {
+        const resultContent = toolResult.content;
+        if (typeof resultContent === 'string') {
+          const parsed = JSON.parse(resultContent);
+          resolvedScene = parsed.data?.scene || parsed.structuredContent?.data?.scene || actualInputScene;
+        }
+      } catch (e) {
+        // 解析失败，使用原始输入
+      }
+
+      if (expectedScene && resolvedScene !== expectedScene) {
         argsMatch = false;
-        argsMismatch = `scene 不匹配（期望 ${expectedScene}，实际 ${actualScene || '缺失'}）`;
+        argsMismatch = `scene 不匹配（期望 ${expectedScene}，AI 传入 ${actualInputScene}，服务端解析为 ${resolvedScene}）`;
       }
     }
 
@@ -593,8 +617,21 @@ async function main() {
       // 参数级对照输出
       if (expectedAction === 'spec_create') {
         const expectedScene = e01Fixture.decisionContext?.scene;
-        const actualScene = expectedCall.input?.scene;
-        console.error(`   参数对照: scene=${actualScene || '缺失'}${expectedScene ? ` (期望 ${expectedScene})` : ''}`);
+        const actualInputScene = expectedCall.input?.scene;
+
+        // 从 tool_result 提取服务端解析的 scene
+        let resolvedScene = actualInputScene;
+        try {
+          const resultContent = toolResult.content;
+          if (typeof resultContent === 'string') {
+            const parsed = JSON.parse(resultContent);
+            resolvedScene = parsed.data?.scene || parsed.structuredContent?.data?.scene || actualInputScene;
+          }
+        } catch (e) {
+          // 忽略
+        }
+
+        console.error(`   参数对照: AI 传入 scene=${actualInputScene || '缺失'}，服务端解析为 ${resolvedScene}${expectedScene ? ` (期望 ${expectedScene})` : ''}`);
         if (!argsMatch) {
           console.error(`   ⚠️  参数不匹配: ${argsMismatch}`);
         }
