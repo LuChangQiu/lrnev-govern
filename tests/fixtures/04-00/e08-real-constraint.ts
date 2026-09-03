@@ -24,7 +24,7 @@ export const E08_RealConstraint: FixtureDefinition = {
   // 决策上下文（场景状态）
   decisionContext: {
     scene: '01-user-management',
-    existing_specs: ['01-login (archived)'],
+    existing_specs: ['00-login (archived)'],
     spec_count: 1,
     current_status: 'archived'
   },
@@ -56,7 +56,7 @@ export const E08_RealConstraint: FixtureDefinition = {
   // 预期动作（尝试 spec_update，但会被状态机拒绝）
   expectedAction: 'spec_update',
   expectedArgs: {
-    spec: '01-login',
+    spec: '00-login',
     status: 'in-progress',
     scene: '01-user-management'
   },

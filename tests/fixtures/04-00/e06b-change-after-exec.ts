@@ -24,7 +24,7 @@ export const E06b_ChangeAfterExec: FixtureDefinition = {
   // 决策上下文（第 3 轮，改变主意后，B 已创建）
   decisionContext: {
     scene: '01-user-management',
-    existing_specs: ['01-00-user-login (in-progress)', 'user-login (draft)'],
+    existing_specs: ['00-user-login (in-progress)', 'user-login (draft)'],
     spec_count: 2,
     spec_create_executed: true
   },

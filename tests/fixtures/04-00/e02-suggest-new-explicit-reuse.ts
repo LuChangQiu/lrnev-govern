@@ -23,7 +23,7 @@ export const E02_SuggestNewExplicitReuse: FixtureDefinition = {
   // 决策上下文（Spec A 为 in-progress）
   decisionContext: {
     scene: '01-user-management',
-    existing_specs: ['01-00-user-login (in-progress)'],
+    existing_specs: ['00-user-login (in-progress)'],
     spec_count: 1,
     ai_recommendation: 'new_spec',
     recommendation_reason: '建议独立新建风控 Spec'
@@ -64,7 +64,7 @@ export const E02_SuggestNewExplicitReuse: FixtureDefinition = {
   expectedAction: 'task_create',
   expectedArgs: {
     scene: '01-user-management',
-    spec: '01-00-user-login',
+    spec: '00-user-login',
     title: '补充用户登录功能'
   },
 

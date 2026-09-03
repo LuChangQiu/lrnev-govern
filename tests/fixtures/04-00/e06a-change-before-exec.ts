@@ -24,7 +24,7 @@ export const E06a_ChangeBeforeExec: FixtureDefinition = {
   // 决策上下文（第 3 轮，改变主意后，Spec A 为 in-progress）
   decisionContext: {
     scene: '01-user-management',
-    existing_specs: ['01-00-user-login (in-progress)'],
+    existing_specs: ['00-user-login (in-progress)'],
     spec_count: 1
   },
 

@@ -24,7 +24,7 @@ export const E09_ContextCooldown: FixtureDefinition = {
   // 决策上下文（场景状态）
   decisionContext: {
     scene: '01-user-management',
-    existing_specs: ['01-login (completed, 2 months ago)'],
+    existing_specs: ['00-login (completed, 2 months ago)'],
     spec_count: 1,
     staleness_signals: ['long time since update', 'status=completed']
   },
@@ -54,7 +54,7 @@ export const E09_ContextCooldown: FixtureDefinition = {
   // 预期动作
   expectedAction: 'spec_get',
   expectedArgs: {
-    spec: '01-login',
+    spec: '00-login',
     scene: '01-user-management'
   },
 
