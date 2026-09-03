@@ -327,6 +327,13 @@ async function precheck() {
   }
 
   const kind = result.data.kind;
+
+  // E-07 等 no_spec 场景（expectedAction 为 null）：跳过粒度验证
+  if (!fixture.expectedAction) {
+    console.error(`✅ 预检通过（no_spec 场景，跳过粒度验证）`);
+    return true;
+  }
+
   if (kind !== 'single-spec') {
     console.error(`⚠️  预检失败：粒度评估不符预期（期望 single-spec，实际 ${kind}）`);
     console.error('   → 跳过本场景测试');
@@ -352,6 +359,10 @@ async function driveClient(prompt) {
     '--output-format', 'stream-json',
     '--verbose',
     '--allowedTools', 'mcp__lrnev-t027__*',  // 预授权所有测试工具
+    // 文件编辑权限（限定工作区路径，E-07 需要）
+    '--allowedTools', `Edit:${tempWorkspace}/**`,
+    '--allowedTools', `Write:${tempWorkspace}/**`,
+    '--allowedTools', `Read:${tempWorkspace}/**`,
     '-p', JSON.stringify(prompt)
   ];
 
@@ -668,13 +679,35 @@ async function main() {
       }
     }
 
-    const actionSuccess = toolSuccess && argsMatch;
+    // E-07 等 no_spec 场景：expectedAction 为 null，判定逻辑不同
+    let actionSuccess;
+    if (!expectedAction) {
+      // no_spec 场景：检查禁止工具未调用
+      const forbiddenCalled = fixture.forbiddenTools?.some(forbiddenTool =>
+        result.toolCalls.some(call => call.tool.includes(forbiddenTool))
+      ) || false;
+      actionSuccess = !forbiddenCalled;
+    } else {
+      // 正常场景：期望动作成功 + 参数匹配
+      actionSuccess = toolSuccess && argsMatch;
+    }
 
     console.error('\n📋 期望对照:');
-    console.error(`   期望动作: ${expectedAction}`);
+    console.error(`   期望动作: ${expectedAction || 'null (no_spec)'}`);
     console.error(`   首个动作: ${actualFirstAction || '无'}`);
     console.error(`   完整序列: ${result.toolCalls.map(t => t.tool.replace('mcp__lrnev-t027__', '')).join(' → ')}`);
-    console.error(`   期望动作出现: ${hasExpectedAction ? '✅ 是' : '❌ 否'}`);
+
+    // no_spec 场景：检查禁止工具
+    if (!expectedAction) {
+      const forbiddenCalled = fixture.forbiddenTools?.some(forbiddenTool =>
+        result.toolCalls.some(call => call.tool.includes(forbiddenTool))
+      ) || false;
+      console.error(`   禁止工具: ${fixture.forbiddenTools?.join(', ') || '无'}`);
+      console.error(`   禁止工具调用: ${forbiddenCalled ? '❌ 有' : '✅ 无'}`);
+      console.error(`   action_success: ${actionSuccess ? '✅ 真实成功' : '❌ 执行失败'}`);
+    } else {
+      console.error(`   期望动作出现: ${hasExpectedAction ? '✅ 是' : '❌ 否'}`);
+    }
 
     if (expectedCall && toolResult) {
       console.error(`   tool_result: ${toolResult.success ? '✅ 成功' : '❌ 失败'}`);
