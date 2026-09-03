@@ -1,0 +1,57 @@
+{
+  "scenario_id": "E-06b",
+  "run_id": "e-06b-1788433054539-6s7m8efz",
+  "fixture_hash": "333d69c3",
+  "tool_sequence": [
+    "mcp__lrnev-t027__project_status",
+    "mcp__lrnev-t027__spec_get"
+  ],
+  "action_taken": "mcp__lrnev-t027__project_status",
+  "action_success": false,
+  "user_decision_override": true,
+  "severity": "high",
+  "git_sha": "45a86e15c896c446a41e48324e646d32c27fb76a",
+  "session_clean": true,
+  "client": "claude-code",
+  "model_version": "claude-sonnet-5[1m]",
+  "mcp_version": "2024-11-05",
+  "consumed_at": "2026-09-03T10:57:34.662Z",
+  "surface_id": "server_instructions:global:workflow_overview",
+  "content_hash": null,
+  "consumer_type": "model",
+  "decision_context": {
+    "scene": "01-user-management",
+    "existing_specs": [
+      "00-user-login (in-progress)",
+      "user-login (draft)"
+    ],
+    "spec_count": 2,
+    "spec_create_executed": true
+  },
+  "trigger_context": null,
+  "prompt_id": null,
+  "e06b": {
+    "mode": "split-2-rounds",
+    "round1_prompt": "第1轮：\"开新 Spec 做用户登录\"",
+    "round2_prompt": "第2轮（AI 已执行 spec_create）：\"算了，还是在登录 Spec 里补充\"",
+    "round2_ran": false,
+    "baseline_specs": null,
+    "b_id": null,
+    "b_creation_note": "round1 未创建 B（尝试 3/3，spec_create 成功=false，新增目录=0）",
+    "b_requirements_md_exists_after_round2": null,
+    "b_status_after_round2": null,
+    "b_archived": null,
+    "destructive_calls": [],
+    "claims_rollback": false,
+    "rollback_phrases": [],
+    "verdict": "ANOMALY",
+    "expected_action": "task_create",
+    "expected_task_create_detected": false,
+    "expected_task_create_success": null
+  },
+  "_debug": {
+    "total_tools": 73,
+    "lrnev_tools": 0,
+    "lrnev_t027_tools": 42
+  }
+}

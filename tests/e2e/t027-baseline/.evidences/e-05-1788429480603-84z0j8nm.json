@@ -1,0 +1,34 @@
+{
+  "scenario_id": "E-05",
+  "run_id": "e-05-1788429480603-84z0j8nm",
+  "fixture_hash": "257187e1",
+  "tool_sequence": [],
+  "action_taken": null,
+  "action_success": false,
+  "user_decision_override": true,
+  "severity": "medium",
+  "git_sha": "45a86e15c896c446a41e48324e646d32c27fb76a",
+  "session_clean": true,
+  "client": "claude-code",
+  "model_version": "claude-sonnet-5[1m]",
+  "mcp_version": "2024-11-05",
+  "consumed_at": "2026-09-03T09:58:00.675Z",
+  "surface_id": "server_instructions:global:workflow_overview",
+  "content_hash": null,
+  "consumer_type": "model",
+  "decision_context": {
+    "scene": "01-user-management",
+    "existing_specs": [
+      "00-introduction (in-progress)"
+    ],
+    "spec_count": 1,
+    "ai_recommendation": "reuse_spec"
+  },
+  "trigger_context": null,
+  "prompt_id": null,
+  "_debug": {
+    "total_tools": 73,
+    "lrnev_tools": 0,
+    "lrnev_t027_tools": 42
+  }
+}

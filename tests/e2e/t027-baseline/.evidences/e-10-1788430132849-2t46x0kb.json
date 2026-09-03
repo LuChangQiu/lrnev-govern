@@ -1,0 +1,36 @@
+{
+  "scenario_id": "E-10",
+  "run_id": "e-10-1788430132849-2t46x0kb",
+  "fixture_hash": "e924411a",
+  "tool_sequence": [
+    "mcp__lrnev-t027__scene_list",
+    "mcp__lrnev-t027__scene_create",
+    "Read",
+    "Edit",
+    "Write"
+  ],
+  "action_taken": "mcp__lrnev-t027__scene_create",
+  "action_success": true,
+  "user_decision_override": true,
+  "severity": "low",
+  "git_sha": "45a86e15c896c446a41e48324e646d32c27fb76a",
+  "session_clean": true,
+  "client": "claude-code",
+  "model_version": "claude-sonnet-5[1m]",
+  "mcp_version": "2024-11-05",
+  "consumed_at": "2026-09-03T10:08:52.923Z",
+  "surface_id": "server_instructions:global:workflow_overview",
+  "content_hash": null,
+  "consumer_type": "model",
+  "decision_context": {
+    "scene": "global",
+    "user_intent": "create new scene for permission management"
+  },
+  "trigger_context": null,
+  "prompt_id": null,
+  "_debug": {
+    "total_tools": 73,
+    "lrnev_tools": 0,
+    "lrnev_t027_tools": 42
+  }
+}
