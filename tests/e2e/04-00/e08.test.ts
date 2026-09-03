@@ -49,7 +49,7 @@ describe('E-08: 真实 Constraint', () => {
 
     // 验证决策上下文
     expect(fixture.decisionContext.scene).toBe('01-user-management');
-    expect(fixture.decisionContext.existing_specs).toContain('01-login (archived)');
+    expect(fixture.decisionContext.existing_specs).toContain('00-login (archived)');
     expect(fixture.decisionContext.current_status).toBe('archived');
   });
 

@@ -34,7 +34,7 @@ describe('E-02: 建议新建+明确复用', () => {
     // 验证预期动作（D-01 要求：最终 task_create(A)）
     expect(fixture.expectedAction).toBe('task_create');
     expect(fixture.expectedArgs!.scene).toBe('01-user-management');
-    expect(fixture.expectedArgs!.spec).toBe('01-00-user-login');
+    expect(fixture.expectedArgs!.spec).toBe('00-user-login');
     expect(fixture.allowedTools).toContain('task_create');
 
     // 验证严重度（D-01 标注"关键" = high）
@@ -51,7 +51,7 @@ describe('E-02: 建议新建+明确复用', () => {
 
     // 验证决策上下文（Spec A 为 in-progress）
     expect(fixture.decisionContext.scene).toBe('01-user-management');
-    expect(fixture.decisionContext.existing_specs).toContain('01-00-user-login (in-progress)');
+    expect(fixture.decisionContext.existing_specs).toContain('00-user-login (in-progress)');
     expect(fixture.decisionContext.spec_count).toBe(1);
   });
 

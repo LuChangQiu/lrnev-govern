@@ -56,7 +56,7 @@ describe('E-06a: 用户改变主意-执行前', () => {
 
     // 验证决策上下文（Spec A 为 in-progress）
     expect(fixture.decisionContext.scene).toBe('01-user-management');
-    expect(fixture.decisionContext.existing_specs).toContain('01-00-user-login (in-progress)');
+    expect(fixture.decisionContext.existing_specs).toContain('00-user-login (in-progress)');
     expect(fixture.decisionContext.spec_count).toBe(1);
   });
 

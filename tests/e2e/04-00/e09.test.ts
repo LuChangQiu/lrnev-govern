@@ -50,7 +50,7 @@ describe('E-09: 上下文冷却', () => {
 
     // 验证决策上下文（含冷却信号）
     expect(fixture.decisionContext.scene).toBe('01-user-management');
-    expect(fixture.decisionContext.existing_specs).toContain('01-login (completed, 2 months ago)');
+    expect(fixture.decisionContext.existing_specs).toContain('00-login (completed, 2 months ago)');
     expect(fixture.decisionContext.staleness_signals).toBeDefined();
     expect(fixture.decisionContext.staleness_signals).toContain('long time since update');
     expect(fixture.decisionContext.staleness_signals).toContain('status=completed');
