@@ -33,6 +33,14 @@ import { AgentRegistry } from '../../core/AgentRegistry.js';
 import { MemoryCategory } from '../../types/memory.js';
 import { ErrorCode, LrnevError, isLrnevError } from '../../shared/errors.js';
 import type { AiFollowupResponse, Scope } from '../../types/response.js';
+import {
+  DECISION_CONTEXT_SOURCE_VALUES,
+  DECISION_CONTEXT_STRENGTH_VALUES,
+  DECISION_CONTEXT_DIRECTION_VALUES,
+  type DecisionContextInput,
+} from '../../types/decision-context.js';
+import { parseDecisionContextInput } from '../types/decision-context-schema.js';
+import { buildAssessContextLines, buildBoundaryLines } from '../../core/decision-context.js';
 import { GUIDE_TOPIC_VALUES, TOOL_DESCRIPTIONS, buildGuide } from '../guidance.js';
 import { toMcpToolResult, toMcpToolResultFromData } from '../helpers/tool-result-adapter.js';
 import {
@@ -70,6 +78,101 @@ type ToolResult = {
   content: Array<{ type: 'text'; text: string }>;
   isError?: boolean;
 };
+
+// ============================================================
+// 05-00 lrnev Guidance Profile - decision_context 接线（T-003）
+// ============================================================
+//
+// 裁决 Q2（错误表面 A）：inputSchema 广告层只带结构层基本类型 + 枚举校验
+// （让 SDK 拦类型级错误）；条件规则（explicit/preferred 必须带 direction、
+// unspecified 禁止 direction）在 handler 内用 parseDecisionContextInput 完整
+// 校验，失败抛 LrnevError(INVALID_INPUT, field='decision_context[.direction]'…)，
+// 错误走 canonical errors 数组信封（toMcpToolResult → handleToolError）。
+//
+// 纪律（T-003）：
+// - decision_context 只作为本次调用的客户端声明参与建议/边界渲染，绝不落盘
+//   （剥离后再调 Manager，见 decisionContextOrThrow / placementArgs 剥离）；
+// - 不一致只返回【决策边界】文本行（追加进 ai_followup.instructions，由 MVC
+//   renderer 投影），不解析 summary、不阻断、不重写、不自动回滚；
+// - 服务端不输出 USER_DECISION，不声称读取用户原话。
+
+/**
+ * decision_context 参数广告层（可选字段，v1 四工具共用）。
+ *
+ * 仅结构层：source literal、strength/direction 枚举、summary/target_ref/
+ * reported_user_quote 基本类型。条件规则（superRefine）不在此广告，
+ * 由 handler 层 parseDecisionContextInput 完整校验（裁决 Q2）。
+ */
+const decisionContextArgumentField = z
+  .object({
+    source: z
+      .enum(DECISION_CONTEXT_SOURCE_VALUES)
+      .describe('仅接受 client_asserted：只承载客户端声明来源，服务端不伪造 USER_DECISION'),
+    strength: z
+      .enum(DECISION_CONTEXT_STRENGTH_VALUES)
+      .describe('explicit | preferred | unspecified（explicit/preferred 必须提供 direction；unspecified 必须省略 direction）'),
+    summary: z.string().describe('对用户组织方式决定的简短概括；服务端不解析其语义、不持久化'),
+    direction: z
+      .enum(DECISION_CONTEXT_DIRECTION_VALUES)
+      .optional()
+      .describe('可选：new_scene | new_spec | reuse_spec | no_spec | other；条件必填/禁止规则由服务端完整校验'),
+    target_ref: z
+      .string()
+      .optional()
+      .describe('可选：客户端声明的具体 Scene/Spec 完整稳定引用，如 scene=01-user-management, spec=01-00-user-login'),
+    reported_user_quote: z
+      .string()
+      .optional()
+      .describe('可选：客户端转述的用户原话；服务端不可验证、不写入 Project Truth/memory'),
+  })
+  .optional()
+  .describe('可选：v1 客户端声明的决策上下文（缺失=未声明，不等同 strength=unspecified）');
+
+/**
+ * 校验 handler 收到的 decision_context 参数。
+ *
+ * - undefined（未传）→ 返回 null（“未声明”，调用方按无 context 处理）；
+ * - 传入 → 用 parseDecisionContextInput 完整校验（结构层 + superRefine 条件规则）；
+ * - 失败 → 抛 LrnevError(INVALID_INPUT, field='decision_context[.xxx]', hint)，
+ *   由 toMcpToolResult 的错误路径转换为 canonical errors 信封（裁决 Q2 表面 A）。
+ */
+function decisionContextOrThrow(raw: unknown): DecisionContextInput | null {
+  if (raw === undefined) return null;
+  const result = parseDecisionContextInput(raw);
+  if (result.ok) return result.data;
+  const issue = result.errors[0];
+  throw new LrnevError(
+    ErrorCode.INVALID_INPUT,
+    issue ? issue.message : 'decision_context 校验失败',
+    {
+      field: issue?.field,
+      hint: 'decision_context 条件规则：explicit/preferred 必须提供 direction（decision_context.direction）；unspecified 必须省略 direction。',
+    },
+  );
+}
+
+/**
+ * 把【决策边界】等行追加进响应 ai_followup.instructions（裁决 Q1 文本通道）。
+ *
+ * 纯投影：不解析/不回显 summary 或 reported_user_quote；ai_followup 缺失时
+ * 补齐（现有 Manager 写入响应均自带 ai_followup）。
+ */
+function appendFollowupInstructions<T>(response: AiFollowupResponse<T>, lines: string[]): AiFollowupResponse<T> {
+  if (lines.length === 0) return response;
+  return {
+    ...response,
+    ai_followup: {
+      ...response.ai_followup,
+      instructions: [...(response.ai_followup?.instructions ?? []), ...lines],
+    },
+  };
+}
+
+/** 剥离 decision_context 后再调 Manager：确保客户端声明绝不落盘/传入写入层。 */
+function withoutDecisionContext<A extends { decision_context?: unknown }>(args: A): Omit<A, 'decision_context'> {
+  const { decision_context: _stripped, ...placementArgs } = args;
+  return placementArgs;
+}
 
 export function registerTools(server: McpServer): void {
   registerWorkspaceTools(server);
@@ -184,11 +287,28 @@ function registerSceneTools(server: McpServer): void {
         name: z.string().describe('kebab-case 名称，例如 user-management'),
         number: z.number().int().positive().optional().describe('可选：手动指定 Scene 序号'),
         intent: z.string().optional().describe('可选：业务意图一句话说明'),
+        decision_context: decisionContextArgumentField,
       },
       outputSchema: createToolOutputSchema(SceneDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(getManagers().scenes.create(args), 'scene_create'),
+    async (args) => toMcpToolResult(
+      (async () => {
+        const context = decisionContextOrThrow(args.decision_context);
+        const placementArgs = withoutDecisionContext(args);
+        const response = await getManagers().scenes.create(placementArgs);
+        if (context === null) return response;
+        // T-003：写入成功后做 direction/工具类别与 target_ref 的枚举级单次核对，
+        // 不一致只追加【决策边界】文本行（不阻断、不解析 summary、不落盘）。
+        const lines = buildBoundaryLines({
+          toolName: 'scene_create',
+          context,
+          call: { name: args.name },
+        });
+        return appendFollowupInstructions(response, lines);
+      })(),
+      'scene_create',
+    ),
   );
 
   server.registerTool(
@@ -229,11 +349,27 @@ function registerSpecTools(server: McpServer): void {
         name: z.string().describe('kebab-case Spec 名称，例如 user-login'),
         version: z.number().int().min(0).max(99).optional().describe('可选：默认 0。小修小改直接编辑现有 requirements/design/tasks，不传 version；仅整体重写并想保留旧版对照时传 1/2/...'),
         priority: z.enum(['P0', 'P1', 'P2', 'P3']).optional().describe('可选：优先级'),
+        decision_context: decisionContextArgumentField,
       },
       outputSchema: createToolOutputSchema(SpecDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(getManagers().specs.create(args), 'spec_create'),
+    async (args) => toMcpToolResult(
+      (async () => {
+        const context = decisionContextOrThrow(args.decision_context);
+        const placementArgs = withoutDecisionContext(args);
+        const response = await getManagers().specs.create(placementArgs);
+        if (context === null) return response;
+        // T-003：写入成功后方向/工具类别 + target_ref 枚举级单次核对（不阻断）。
+        const lines = buildBoundaryLines({
+          toolName: 'spec_create',
+          context,
+          call: { scene: args.scene, name: args.name },
+        });
+        return appendFollowupInstructions(response, lines);
+      })(),
+      'spec_create',
+    ),
   );
 
   server.registerTool(
@@ -335,11 +471,27 @@ function registerTaskTools(server: McpServer): void {
         depends_on: z.array(z.string()).optional().describe('可选：依赖 Task ID 列表'),
         parent: z.string().optional().describe('可选：父 Task ID；把大执行项拆成可分别认领/验收的子任务时使用，例如 T-003'),
         validates: z.array(z.string()).optional().describe('可选：需求/设计锚点，例如 F-01 或 D-02'),
+        decision_context: decisionContextArgumentField,
       },
       outputSchema: createToolOutputSchema(TaskDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async (args) => toMcpToolResult(getManagers().tasks.create(args), 'task_create'),
+    async (args) => toMcpToolResult(
+      (async () => {
+        const context = decisionContextOrThrow(args.decision_context);
+        const placementArgs = withoutDecisionContext(args);
+        const response = await getManagers().tasks.create(placementArgs);
+        if (context === null) return response;
+        // T-003：写入成功后 direction/工具类别 + target_ref 枚举级单次核对（不阻断）。
+        const lines = buildBoundaryLines({
+          toolName: 'task_create',
+          context,
+          call: { scene: args.scene, spec: args.spec },
+        });
+        return appendFollowupInstructions(response, lines);
+      })(),
+      'task_create',
+    ),
   );
 
   server.registerTool(
@@ -508,11 +660,24 @@ function registerGoalTools(server: McpServer): void {
       description: TOOL_DESCRIPTIONS.assess_goal,
       inputSchema: {
         goal: z.string().describe('用户目标描述'),
+        decision_context: decisionContextArgumentField,
       },
       outputSchema: createToolOutputSchema(GoalAssessmentDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
-    async ({ goal }) => toMcpToolResult(Promise.resolve(new GoalAssessor().assess(goal)), 'assess_goal'),
+    async ({ goal, decision_context }) => toMcpToolResult(
+      (async () => {
+        // T-003：assess_goal 在写入前消费 context 组织 FACT/RECOMMENDATION/
+        // DECISION_BOUNDARY 建议文本（裁决 Q1/Q5：不做 IO 校验——真实存在性由
+        // 写入工具执行时校验，F-06 真实 Constraint 先行）。
+        const context = decisionContextOrThrow(decision_context);
+        const response = new GoalAssessor().assess(goal);
+        if (context === null) return response;
+        const lines = buildAssessContextLines(context);
+        return appendFollowupInstructions(response, lines);
+      })(),
+      'assess_goal',
+    ),
   );
 }
 
