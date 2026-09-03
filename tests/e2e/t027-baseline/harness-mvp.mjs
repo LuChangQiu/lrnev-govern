@@ -109,18 +109,25 @@ created: '${new Date().toISOString().split('T')[0]}'
   for (let i = 0; i < existing_specs.length; i++) {
     const specDesc = existing_specs[i];
     // 解析格式：'00-introduction (in-progress)' 或 '01-user-profile (completed)'
+    // 状态括号内可能带附加注解（如 E-09 '(completed, 2 months ago)'）：
+    // 取逗号前的主状态（completed），注解只进 tasks.md 正文，不进 frontmatter。
     const match = specDesc.match(/^(\d+)-([a-z-]+)\s*\(([^)]+)\)/);
     if (!match) continue;
 
-    const [, specNum, specName, specStatus] = match;
+    const [, specNum, specName, specStatusRaw] = match;
+    const specStatus = specStatusRaw.split(',')[0].trim();
     const specId = `${scene.split('-')[0]}-${specNum}-${specName}`;
     const specDir = resolve(lrnevDir, `scenes/${scene}/specs/${specId}`);
     mkdirSync(specDir, { recursive: true });
 
-    // frontmatter 引号规则：created 加引号
+    // 关键：服务端 spec 状态只从 requirements.md frontmatter 的 status 字段读取
+    // （SpecManager.get: status: parsed.frontmatter.status ?? 'draft'），
+    // spec.json / tasks.md 正文均不被服务端读取。status 必须写进 requirements.md。
+    // frontmatter 引号规则：created 加引号；status 为合法状态 token（如 in-progress/archived/completed），裸写即可。
     const requirementsContent = `---
 spec: ${specId}
 scene: ${scene}
+status: ${specStatus}
 created: '${new Date().toISOString().split('T')[0]}'
 ---
 
@@ -153,17 +160,19 @@ scene: ${scene}
 ## T-001 执行任务
 任务描述。
 
-**状态**: ${specStatus}
+**状态**: ${specStatusRaw}
 `;
     writeFileSync(resolve(specDir, 'tasks.md'), tasksContent);
 
     // spec.json 元信息（created 是字符串，不需要引号）
+    // 注：服务端不读 spec.json（状态权威在 requirements.md frontmatter），
+    // status 保留原始注解串（如 'completed, 2 months ago'），仅供人读/调试。
     const specMeta = {
       id: specId,
       scene: scene,
       number: parseInt(specNum),
       name: specName,
-      status: specStatus,
+      status: specStatusRaw,
       priority: 'P2',
       created: new Date().toISOString().split('T')[0]
     };
