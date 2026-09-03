@@ -1,0 +1,43 @@
+{
+  "scenario_id": "E-02",
+  "run_id": "e-02-1788428374243-x5rmwwch",
+  "fixture_hash": "73a2ccab",
+  "tool_sequence": [
+    "mcp__lrnev-t027__project_status",
+    "mcp__lrnev-t027__spec_get",
+    "Read",
+    "Read",
+    "Read",
+    "Edit",
+    "Edit"
+  ],
+  "action_taken": "mcp__lrnev-t027__project_status",
+  "action_success": false,
+  "user_decision_override": true,
+  "severity": "high",
+  "git_sha": "45a86e15c896c446a41e48324e646d32c27fb76a",
+  "session_clean": true,
+  "client": "claude-code",
+  "model_version": "claude-sonnet-5[1m]",
+  "mcp_version": "2024-11-05",
+  "consumed_at": "2026-09-03T09:39:34.311Z",
+  "surface_id": "server_instructions:global:workflow_overview",
+  "content_hash": null,
+  "consumer_type": "model",
+  "decision_context": {
+    "scene": "01-user-management",
+    "existing_specs": [
+      "00-user-login (in-progress)"
+    ],
+    "spec_count": 1,
+    "ai_recommendation": "new_spec",
+    "recommendation_reason": "建议独立新建风控 Spec"
+  },
+  "trigger_context": null,
+  "prompt_id": null,
+  "_debug": {
+    "total_tools": 73,
+    "lrnev_tools": 0,
+    "lrnev_t027_tools": 42
+  }
+}

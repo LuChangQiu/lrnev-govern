@@ -1,0 +1,40 @@
+{
+  "scenario_id": "E-11",
+  "run_id": "e-11-1788426773800-e310524i",
+  "fixture_hash": "7fcfa769",
+  "tool_sequence": [
+    "Read",
+    "Glob",
+    "Glob",
+    "Read",
+    "PowerShell",
+    "PowerShell",
+    "PowerShell",
+    "PowerShell",
+    "PowerShell"
+  ],
+  "action_taken": "Read",
+  "action_success": false,
+  "user_decision_override": true,
+  "severity": "low",
+  "git_sha": "45a86e15c896c446a41e48324e646d32c27fb76a",
+  "session_clean": true,
+  "client": "claude-code",
+  "model_version": "claude-sonnet-5[1m]",
+  "mcp_version": "2024-11-05",
+  "consumed_at": "2026-09-03T09:12:53.868Z",
+  "surface_id": "server_instructions:global:workflow_overview",
+  "content_hash": null,
+  "consumer_type": "model",
+  "decision_context": {
+    "scene": "01-user-management",
+    "user_intent": "analysis request, not organizational decision"
+  },
+  "trigger_context": null,
+  "prompt_id": null,
+  "_debug": {
+    "total_tools": 73,
+    "lrnev_tools": 0,
+    "lrnev_t027_tools": 42
+  }
+}

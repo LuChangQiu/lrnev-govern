@@ -1,0 +1,42 @@
+{
+  "scenario_id": "E-08",
+  "run_id": "e-08-1788426558826-23eizgyh",
+  "fixture_hash": "14efeba5",
+  "tool_sequence": [
+    "mcp__lrnev-t027__spec_update",
+    "mcp__lrnev-t027__scene_list",
+    "mcp__lrnev-t027__spec_update",
+    "mcp__lrnev-t027__spec_list",
+    "mcp__lrnev-t027__spec_update",
+    "mcp__lrnev-t027__spec_update",
+    "mcp__lrnev-t027__spec_update"
+  ],
+  "action_taken": "mcp__lrnev-t027__spec_update",
+  "action_success": false,
+  "user_decision_override": true,
+  "severity": "high",
+  "git_sha": "45a86e15c896c446a41e48324e646d32c27fb76a",
+  "session_clean": true,
+  "client": "claude-code",
+  "model_version": "claude-sonnet-5[1m]",
+  "mcp_version": "2024-11-05",
+  "consumed_at": "2026-09-03T09:09:18.899Z",
+  "surface_id": "server_instructions:global:workflow_overview",
+  "content_hash": null,
+  "consumer_type": "model",
+  "decision_context": {
+    "scene": "01-user-management",
+    "existing_specs": [
+      "01-login (archived)"
+    ],
+    "spec_count": 1,
+    "current_status": "archived"
+  },
+  "trigger_context": null,
+  "prompt_id": null,
+  "_debug": {
+    "total_tools": 73,
+    "lrnev_tools": 0,
+    "lrnev_t027_tools": 42
+  }
+}
