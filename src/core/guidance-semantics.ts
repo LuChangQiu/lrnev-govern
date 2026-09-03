@@ -1,14 +1,17 @@
 /**
- * 共享语义常量：Guidance 五角色边界定义
+ * 共享语义常量：Guidance 角色边界定义与 Guidance Profile 常量
  *
  * 用途：确保跨文件的 guidance 文案语义一致，明确区分 RECOMMENDATION（建议）与 EXECUTION_CONSTRAINT（规则）。
  *
- * 语义边界（见 01-00 语义权威模型）：
- * - RECOMMENDATION: 建议性指引，用户明确决定时可 override
- * - ACTION_HINT: 操作提示，不强制
+ * 服务端可输出角色 = 下列五角色（见 01-00 语义权威模型 §3、05-00 D-04）：
  * - FACT: 事实陈述，不含判断
+ * - RECOMMENDATION: 建议性指引，用户明确决定时可 override
+ * - DECISION_BOUNDARY: 客户端 AI 不得未经确认替用户改变明确目标（客户端行为边界）
  * - EXECUTION_CONSTRAINT: 真实系统约束（状态机/数据库唯一性/Git 冲突），不可 override
- * - USER_DECISION: 用户明确表达的决定（仅限 user_quote / client_asserted 来源）
+ * - ACTION_HINT: 操作提示（下一步），不强制
+ *
+ * USER_DECISION 不是服务端可输出角色：它只能来自客户端 user_quote / client_asserted 声明
+ * （01-00 F-03、05-00 requirements"服务端不生成 USER_DECISION"），故不进入服务端输出集常量。
  */
 
 /**
@@ -96,3 +99,76 @@ export const GOAL_ASSESSOR_OVERRIDE_CLAUSE = `
 注意：以上 suggested_next_step 是基于启发式的建议，不是强制步骤。
 若用户已明确要求独立 Spec（如"帮我新建一个 Spec"），可直接调用 spec_create，无需等待 assess_goal 结果。
 `.trim();
+
+// ============================================================
+// Guidance Profile 常量（05-00-lrnev-guidance-profile T-001）
+// ============================================================
+//
+// Profile 是 lrnev 的应用层语义契约，独立于：
+// - MCP transport protocolVersion（由 @modelcontextprotocol/sdk 协商）
+// - response envelope 的 response_version（见 src/mcp/types/response-envelope.ts，当前 '1'）
+//
+// 它不宣称为 MCP 标准；只供显式适配 Profile 的客户端消费，通用 MCP 客户端回退 01 文本语义。
+// 门禁说明（05-00 F-01/D-02，04 逐字段门禁默认 off）：source_ref / enforcement 是可选项，
+// 只有在 04 出现对应失败证据或客户端适配收益后才应被启用/收紧；本文件不预加格式约束。
+
+/**
+ * Guidance Profile 名称（F-02/D-02）。
+ *
+ * 独立标识 lrnev 的应用层 guidance 语义，不冒充 MCP 标准。
+ * 客户端通过该名称显式声明或经已验证适配器消费 Profile。
+ */
+export const GUIDANCE_PROFILE_ID = 'lrnev.guidance';
+
+/**
+ * Guidance Profile 版本（F-02/D-02）。
+ *
+ * 独立于 MCP protocolVersion 与 response envelope 的 response_version。
+ * 语义变更必须升版本（如 'v2'），不能静默改 v1 语义。
+ */
+export const GUIDANCE_PROFILE_VERSION = 'v1';
+
+/**
+ * 服务端可输出的五种 guidance 角色（01-00 §3 / 05-00 D-04）。
+ *
+ * 序列化输出统一 UPPER_SNAKE（裁决 Q4）。USER_DECISION 不在其中：
+ * 它不是服务端可输出角色，只能来自客户端 user_quote / client_asserted 声明。
+ */
+export const GUIDANCE_ROLES = [
+  'FACT',
+  'RECOMMENDATION',
+  'DECISION_BOUNDARY',
+  'EXECUTION_CONSTRAINT',
+  'ACTION_HINT',
+] as const;
+
+/** 服务端可输出的 guidance 角色类型（UPPER_SNAKE）。 */
+export type GuidRole = (typeof GUIDANCE_ROLES)[number];
+
+/**
+ * 角色对应的 01 文本前缀（与 01-00 现有文案前缀一致）。
+ *
+ * 注意：ACTION_HINT 的前缀是【下一步】（见 01-00 semantic-authority-model 冻结表），
+ * 【操作提示】只描述角色含义、不是实际前缀。FACT=【事实】 RECOMMENDATION=【建议】
+ * DECISION_BOUNDARY=【决策边界】 EXECUTION_CONSTRAINT=【执行约束】。
+ */
+export const ROLE_PREFIX: Record<GuidRole, string> = {
+  FACT: '【事实】',
+  RECOMMENDATION: '【建议】',
+  DECISION_BOUNDARY: '【决策边界】',
+  EXECUTION_CONSTRAINT: '【执行约束】',
+  ACTION_HINT: '【下一步】',
+};
+
+/**
+ * Profile 序列化 enforcement 值域（05-00 F-06 / 裁决 Q8）。
+ *
+ * 三维分析框架里的 'none' 不序列化：无执行强度 = 省略 enforcement 字段。
+ * RECOMMENDATION/DECISION_BOUNDARY 隐含 client_boundary；EXECUTION_CONSTRAINT 隐含 server_enforced；
+ * 出现 enforcement 字段时取值仅限二者。
+ * （门禁 off：字段是否需要更多取值由 04 证据决定，见本文件门禁说明。）
+ */
+export const ENFORCEMENT_VALUES = ['client_boundary', 'server_enforced'] as const;
+
+/** Profile 中可序列化的 enforcement 值。 */
+export type Enforcement = (typeof ENFORCEMENT_VALUES)[number];
