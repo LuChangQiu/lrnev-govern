@@ -224,11 +224,20 @@ async function precheck() {
             assessReceived = true;
             clearTimeout(timer);
 
-            // 提取 structuredContent
-            const content = msg.result.content?.[0];
-            if (content?.type === 'text') {
-              const data = JSON.parse(content.text);
-              const structuredContent = data.structuredContent || data;
+            // 提取 structuredContent（兼容 sha-a 和 sha-b 格式）
+            let structuredContent;
+
+            // sha-b 格式：result.structuredContent 在顶层
+            if (msg.result.structuredContent) {
+              structuredContent = msg.result.structuredContent;
+            }
+            // sha-a 格式：result.content[0].text 是 JSON 字符串
+            else if (msg.result.content?.[0]?.type === 'text') {
+              const data = JSON.parse(msg.result.content[0].text);
+              structuredContent = data.structuredContent || data;
+            }
+
+            if (structuredContent) {
               child.kill();
               resolve(structuredContent);
               return;
