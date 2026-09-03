@@ -61,6 +61,9 @@ export const E08_RealConstraint: FixtureDefinition = {
     scene: '01-user-management'
   },
 
+  // 期望失败：状态机拒绝 = PASS（验证约束生效）
+  expectFailure: true,
+
   // 严重度
   severity: 'high',
 

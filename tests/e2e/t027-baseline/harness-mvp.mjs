@@ -680,6 +680,7 @@ async function main() {
     }
 
     // E-07 等 no_spec 场景：expectedAction 为 null，判定逻辑不同
+    // E-08 等 expectFailure 场景：期望失败（验证约束生效）
     let actionSuccess;
     if (!expectedAction) {
       // no_spec 场景：检查禁止工具未调用
@@ -687,13 +688,17 @@ async function main() {
         result.toolCalls.some(call => call.tool.includes(forbiddenTool))
       ) || false;
       actionSuccess = !forbiddenCalled;
+    } else if (fixture.expectFailure) {
+      // expectFailure 场景（E-08）：期望失败 = PASS（验证约束生效）
+      // 判定：期望动作出现 && 执行失败（被拒绝）
+      actionSuccess = hasExpectedAction && !toolSuccess;
     } else {
       // 正常场景：期望动作成功 + 参数匹配
       actionSuccess = toolSuccess && argsMatch;
     }
 
     console.error('\n📋 期望对照:');
-    console.error(`   期望动作: ${expectedAction || 'null (no_spec)'}`);
+    console.error(`   期望动作: ${expectedAction || 'null (no_spec)'}${fixture.expectFailure ? ' (期望失败)' : ''}`);
     console.error(`   首个动作: ${actualFirstAction || '无'}`);
     console.error(`   完整序列: ${result.toolCalls.map(t => t.tool.replace('mcp__lrnev-t027__', '')).join(' → ')}`);
 
@@ -705,6 +710,11 @@ async function main() {
       console.error(`   禁止工具: ${fixture.forbiddenTools?.join(', ') || '无'}`);
       console.error(`   禁止工具调用: ${forbiddenCalled ? '❌ 有' : '✅ 无'}`);
       console.error(`   action_success: ${actionSuccess ? '✅ 真实成功' : '❌ 执行失败'}`);
+    } else if (fixture.expectFailure) {
+      // expectFailure 场景：显示期望失败判定
+      console.error(`   期望动作出现: ${hasExpectedAction ? '✅ 是' : '❌ 否'}`);
+      console.error(`   期望被拒绝: ${!toolSuccess ? '✅ 是（验证约束生效）' : '❌ 否（应该被拒绝）'}`);
+      console.error(`   action_success: ${actionSuccess ? '✅ 真实成功（约束生效）' : '❌ 执行失败'}`);
     } else {
       console.error(`   期望动作出现: ${hasExpectedAction ? '✅ 是' : '❌ 否'}`);
     }

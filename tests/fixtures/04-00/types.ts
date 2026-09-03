@@ -104,6 +104,12 @@ export interface FixtureDefinition {
   expectedAction: string | null;
   expectedArgs?: Record<string, any>;
 
+  /**
+   * 期望失败场景（E-08）：验证约束生效
+   * true: action_success: false 判为 PASS（状态机拒绝是正确行为）
+   */
+  expectFailure?: boolean;
+
   severity: 'high' | 'medium' | 'low';
   measurementGoal: string;
 
