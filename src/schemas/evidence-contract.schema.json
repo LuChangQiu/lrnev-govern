@@ -2,7 +2,9 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://lrnev.dev/schemas/evidence-contract.json",
   "title": "Evidence Contract",
-  "description": "运行时证据数据契约 - 用于采集 guidance 消费证据",
+  "description": "运行时证据数据契约 - 用于采集 guidance 消费证据（v2：容纳 T-027 会话级扩展，裁决 2026-09-03 Q2/Q3/Q4/Q6/Q7/Q9）",
+  "version": "2.0.0",
+  "$comment": "v2 (2026-09-03 DeepSeek 裁决 Q2/Q3/Q4/Q6/Q7/Q9，T-027 放量前置)。只增不改删 v1 字段：1) decision_context 加入 required（present 可 null，裁决 Q7）；2) C 类可空字段（consumed_at/trigger_context/prompt_id/client_version/model_version）允许 null，与 src/types/evidence-contract.ts 接口对齐（裁决 Q1/Q8：客户端不可采 → 显式 null + c_class_basis 注明）；3) failure_category enum 补 'test_failure'（裁决 Q4，历史产出合规化）；4) fixture_hash 注明 64hex 收窄口径（裁决 Q6；存量 8hex 历史 evidence 标注 legacy，不回溯修改）；5) 新增 optional 扩展字段：B1/B2a/B2b 历史字段（content_hash_legacy/structured_content_present/content_channel）+ 会话级字段（decision_context_sent/fixture_context/guidance_surfaces/clean_session_id/c_class_basis/sha_label/scenario_id/evidence_path/failure_class，裁决 Q3/Q4/Q7/Q9）。additionalProperties 保持 false：properties 已覆盖 B0~B2b 存量扩展字段与上述会话级扩展字段。",
   "type": "object",
   "required": [
     "surface_id",
@@ -17,6 +19,7 @@
     "client_version",
     "model_version",
     "fixture_hash",
+    "decision_context",
     "tool_sequence",
     "allowed_tools",
     "forbidden_tools",
@@ -31,23 +34,23 @@
   "properties": {
     "surface_id": {
       "type": "string",
-      "description": "被消费的 surface ID，格式：channel:category:name",
+      "description": "主 surface ID，格式：channel:category:name（裁决 Q9：主 surface——该 session 每轮真实消费的 guidance；会话内其余已消费 surface 记入 guidance_surfaces[]）",
       "pattern": "^[a-z_]+:[a-z_]+:[a-z0-9_-]+$",
       "examples": ["server_instructions:global:workflow_overview"]
     },
     "content_hash": {
       "type": "string",
-      "description": "内容 SHA256 hash（64 字符十六进制）",
+      "description": "内容 SHA256 hash（64 字符十六进制；裁决 Q1 口径：从目标 worktree server 源码字节计算——guidance/instructions 模块在 worktree 内，文件字节即权威。服务端可采，须为真实值，不得恒 null）",
       "pattern": "^[a-f0-9]{64}$"
     },
     "consumed_at": {
-      "type": "string",
-      "description": "消费时间戳（ISO 8601）",
+      "type": ["string", "null"],
+      "description": "消费时间戳（ISO 8601；C 类：null=未采集，推断值须在 c_class_basis 注明）",
       "format": "date-time"
     },
     "trigger_context": {
-      "type": "string",
-      "description": "触发上下文（用户输入片段）",
+      "type": ["string", "null"],
+      "description": "触发上下文（用户输入片段；C 类：null=未采集）",
       "minLength": 1
     },
     "consumer_type": {
@@ -56,8 +59,8 @@
       "enum": ["model", "client"]
     },
     "prompt_id": {
-      "type": "string",
-      "description": "对话 ID / Prompt ID",
+      "type": ["string", "null"],
+      "description": "对话 ID / Prompt ID（C 类：null=未采集；未接入真实会话系统时等于 run_id，须在 c_class_basis 注明）",
       "minLength": 1
     },
     "run_id": {
@@ -73,26 +76,26 @@
     },
     "git_sha": {
       "type": "string",
-      "description": "Git commit hash（40 字符十六进制）",
+      "description": "Git commit hash（40 字符十六进制；裁决 Q2/Q5：T-027 放量 sha=40hex 即此字段，别名 server_sha=git_sha）",
       "pattern": "^[a-f0-9]{40}$"
     },
     "client_version": {
-      "type": "string",
-      "description": "客户端版本",
+      "type": ["string", "null"],
+      "description": "客户端版本（裁决 Q8：CLI 预取版本如 claude --version/codex --version/opencode --version 或 init 事件字段并记录来源；未验证允许 null + 原因须在 c_class_basis 注明）",
       "minLength": 1
     },
     "model_version": {
-      "type": "string",
-      "description": "模型版本",
+      "type": ["string", "null"],
+      "description": "模型版本（C 类：null=未采集）",
       "minLength": 1
     },
     "fixture_hash": {
       "type": "string",
-      "description": "Fixture 内容 hash（SHA256）",
+      "description": "Fixture 内容 hash（SHA256，64 字符十六进制；裁决 Q6：统一 EvidenceCollector 64hex 收窄口径，与 B0~B2b 跨阶段可比。存量 8hex 历史 evidence 属 legacy，标注不回溯修改）",
       "pattern": "^[a-f0-9]{64}$"
     },
     "decision_context": {
-      "description": "决策上下文（客户端传递的意图信号），null 表示未传递",
+      "description": "决策上下文（客户端传递的意图信号）。裁决 Q3：客户端未传语义 → null + decision_context_sent:false；工作区快照不得塞入本字段，须存独立字段 fixture_context。本字段 required 且 present 可 null",
       "oneOf": [
         {
           "type": "null"
@@ -155,8 +158,8 @@
     },
     "failure_category": {
       "type": "string",
-      "description": "失败分类（仅在 action_success=false 时填写）",
-      "enum": ["gate", "validation", "user_cancel", "state_machine_validation", "other"]
+      "description": "失败分类（schema enum 为工具级，仅在 action_success=false 时填写；裁决 Q4：enum 补 'test_failure' 使历史产出合规。聚合分析层观测类 failure_class 由 DeepSeek 事后填，不进 harness）",
+      "enum": ["gate", "validation", "user_cancel", "state_machine_validation", "test_failure", "other"]
     },
     "severity": {
       "type": "string",
@@ -178,6 +181,63 @@
     "session_clean": {
       "type": "boolean",
       "description": "是否为 clean session（盲测用）"
+    },
+    "content_hash_legacy": {
+      "type": "string",
+      "description": "历史字段（B1/B2a/B2b 存量）：legacy 口径 content hash。裁决 Q6 收窄后不再产出；存量保留，标注 legacy",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "structured_content_present": {
+      "type": "boolean",
+      "description": "历史字段（B2a 存量）：结构化传输（structuredContent）是否可用"
+    },
+    "content_channel": {
+      "type": "string",
+      "description": "历史字段（B2a 存量）：内容通道，如 legacy / text_v1 / structured"
+    },
+    "scenario_id": {
+      "type": "string",
+      "description": "场景标识（E-01..E-11 / E-06a 等）。manifest 形态下位于 entry 级；单条 evidence 文件形态下内嵌于本对象（optional，两者取一即可）",
+      "minLength": 1
+    },
+    "decision_context_sent": {
+      "type": "boolean",
+      "description": "会话级扩展（裁决 Q3）：客户端是否传递 decision_context。false=客户端未传语义，此时 decision_context 须为 null",
+      "default": false
+    },
+    "fixture_context": {
+      "type": "object",
+      "description": "会话级扩展（裁决 Q3）：工作区快照（scene/existing_specs/spec_count/current_status 等）的独立字段——客户端未传语义时存放工作区状态，与 decision_context 分离，不得再误存于 decision_context"
+    },
+    "guidance_surfaces": {
+      "type": "array",
+      "description": "会话级扩展（裁决 Q9）：会话级已消费 surface 全集（含主 surface 之外的其余 guidance）。wrapper/stdio 代理层就绪后由代理层填充；当前阶段可空数组 + c_class_basis 注明",
+      "items": {
+        "type": "string"
+      }
+    },
+    "clean_session_id": {
+      "type": "string",
+      "description": "会话级扩展（裁决 Q7）：clean session 标识，用于区分同一 run 下的多次 clean session"
+    },
+    "c_class_basis": {
+      "type": "object",
+      "description": "会话级扩展（裁决 Q7/Q1/Q8）：C 类字段（consumed_at/trigger_context/prompt_id/client_version/model_version 等）取值依据注记（null/推断值的理由）。manifest 形态下亦见于 entry 级",
+      "additionalProperties": true
+    },
+    "sha_label": {
+      "type": "string",
+      "description": "会话级扩展（裁决 Q2）：清单基线标签 sha-a（B0-s 基线文本 45a86e15）/ sha-b（M2+ 收尾文本 6383e99）；40hex sha 记于 git_sha",
+      "enum": ["sha-a", "sha-b"]
+    },
+    "evidence_path": {
+      "type": "string",
+      "description": "会话级扩展（F-06 证据引用契约）：本证据文件相对仓库根的路径，供 run_id/evidence_path 引用",
+      "minLength": 1
+    },
+    "failure_class": {
+      "type": "string",
+      "description": "聚合分析层字段（裁决 Q4）：F-04 A-E 观测类，由 DeepSeek 复审时事后填写，不进 harness（区别于工具级 failure_category）"
     }
   },
   "additionalProperties": false

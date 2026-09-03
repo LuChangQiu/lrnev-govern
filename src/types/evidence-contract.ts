@@ -1,15 +1,25 @@
 /**
  * 04-00 Agent E2E Observability - 证据数据契约（B0-pre）
  *
- * 定义运行时证据的完整数据契约（24 字段）。
+ * 定义运行时证据的完整数据契约（24 基字段）。
  * 用于采集 B0/B1/B2a/B2b/B3 各阶段的 guidance 消费证据。
  *
+ * 与 src/schemas/evidence-contract.schema.json v2.0.0（2026-09-03 裁决
+ * Q1/Q2/Q3/Q4/Q6/Q7/Q8/Q9）对齐：另含 12 个 optional 扩展字段
+ * （B1/B2a/B2b 历史字段 + T-027 会话级字段），本接口合计 36 properties。
+ * 只增不改删 v1 字段。
+ *
  * Spec: 04-00-agent-e2e-observability
- * Task: T-013
+ * Task: T-013（v1）/ T-027（v2 会话级扩展）
  */
 
 /**
- * Decision Context - 决策上下文
+ * Decision Context - 决策上下文（04 观测形状）
+ *
+ * ⚠️ 本类型是 04-00 evidence 记录所用的观测形状（客户端传什么记录什么，
+ * 服务端不据此产语义）。与 05-00 输入契约 DecisionContextInput
+ * （src/types/decision-context.ts，另一任务定义）不同源、不同形状——
+ * 本类型不随输入契约演化，勿将两者混用。
  */
 export interface DecisionContext {
   strength: 'explicit' | 'preferred' | 'unspecified';
@@ -19,7 +29,12 @@ export interface DecisionContext {
 }
 
 /**
- * Evidence Contract - 证据数据契约（完整 24 字段）
+ * Evidence Contract - 证据数据契约（schema v2.0.0，36 properties）
+ *
+ * 24 基字段（其中 required 23：decision_context 进 required 且 present 可 null；
+ * C 类字段 consumed_at/trigger_context/prompt_id/client_version/model_version
+ * 放宽为可 null；failure_category 为 optional）
+ * + 12 个 optional v2 扩展字段（见文件末尾「v2 扩展字段」区，与 schema 对齐）。
  */
 export interface EvidenceContract {
   // ============================================================
@@ -216,6 +231,89 @@ export interface EvidenceContract {
    * false: 可能受之前对话影响的会话
    */
   session_clean: boolean;
+
+  // ============================================================
+  // v2 扩展字段（schema v2.0.0 新增 optional，12 个）
+  // 对齐 src/schemas/evidence-contract.schema.json v2（裁决 Q2/Q3/Q4/Q6/Q7/Q9）
+  // ============================================================
+
+  /**
+   * 历史字段（B1/B2a/B2b 存量）：legacy 口径 content hash
+   * 裁决 Q6 收窄（64hex）后不再产出；存量 evidence 保留并标注 legacy
+   */
+  content_hash_legacy?: string;
+
+  /**
+   * 历史字段（B2a 存量）：结构化传输（structuredContent）是否可用
+   */
+  structured_content_present?: boolean;
+
+  /**
+   * 历史字段（B2a 存量）：内容通道，如 legacy / text_v1 / structured
+   */
+  content_channel?: string;
+
+  /**
+   * 会话级扩展（T-027）：场景标识（E-01..E-11 / E-06a 等）
+   * manifest 形态下位于 entry 级；单条 evidence 文件形态下内嵌于本对象
+   * （optional，两者取一即可）
+   */
+  scenario_id?: string;
+
+  /**
+   * 会话级扩展（裁决 Q3）：客户端是否传递 decision_context
+   * false=客户端未传语义，此时 decision_context 须为 null
+   */
+  decision_context_sent?: boolean;
+
+  /**
+   * 会话级扩展（裁决 Q3）：工作区快照
+   * （scene/existing_specs/spec_count/current_status 等）的独立字段——
+   * 客户端未传语义时存放工作区状态，与 decision_context 分离，
+   * 不得再误存于 decision_context
+   */
+  fixture_context?: Record<string, unknown>;
+
+  /**
+   * 会话级扩展（裁决 Q9）：会话级已消费 surface 全集
+   * （含主 surface_id 之外的其余 guidance，形如 channel:category:name）
+   * wrapper/stdio 代理层就绪后由代理层填充；当前阶段可空数组 + c_class_basis 注明
+   */
+  guidance_surfaces?: string[];
+
+  /**
+   * 会话级扩展（裁决 Q7）：clean session 标识
+   * 用于区分同一 run 下的多次 clean session
+   */
+  clean_session_id?: string;
+
+  /**
+   * 会话级扩展（裁决 Q7/Q1/Q8）：C 类字段取值依据注记
+   * （consumed_at/trigger_context/prompt_id/client_version/model_version 等
+   * null/推断值的理由）；manifest 形态下亦见于 entry 级
+   */
+  c_class_basis?: Record<string, unknown>;
+
+  /**
+   * 会话级扩展（裁决 Q2）：清单基线标签
+   * - sha-a: B0-s 基线文本 45a86e15
+   * - sha-b: M2+ 收尾文本 6383e99
+   * 40hex sha 记于 git_sha
+   */
+  sha_label?: 'sha-a' | 'sha-b';
+
+  /**
+   * 会话级扩展（F-06 证据引用契约）：本证据文件相对仓库根的路径
+   * 供 run_id/evidence_path 引用
+   */
+  evidence_path?: string;
+
+  /**
+   * 聚合分析层字段（裁决 Q4）：F-04 A-E 观测类
+   * 由 DeepSeek 复审时事后填写，不进 harness
+   * （区别于工具级 failure_category）
+   */
+  failure_class?: string;
 }
 
 /**
