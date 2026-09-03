@@ -44,7 +44,7 @@ describe('E-06b: 用户改变主意-执行后', () => {
 
     // 验证禁止动作（不得自动归档 B）
     expect(fixture.forbiddenAction!.tool).toBe('spec_update');
-    expect(fixture.forbiddenAction!.args!.spec).toBe('user-login');
+    expect(fixture.forbiddenAction!.args!.spec).toBe('login-risk');
     expect(fixture.forbiddenAction!.args!.status).toBe('archived');
 
     // 验证证据字段
@@ -59,7 +59,7 @@ describe('E-06b: 用户改变主意-执行后', () => {
     // 验证决策上下文（A 和 B 都存在）
     expect(fixture.decisionContext.scene).toBe('01-user-management');
     expect(fixture.decisionContext.existing_specs).toContain('00-user-login (in-progress)');
-    expect(fixture.decisionContext.existing_specs).toContain('user-login (draft)');
+    expect(fixture.decisionContext.existing_specs).toContain('login-risk (draft)');
     expect(fixture.decisionContext.spec_count).toBe(2);
     expect(fixture.decisionContext.spec_create_executed).toBe(true);
   });

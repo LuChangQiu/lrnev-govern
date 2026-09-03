@@ -8,8 +8,10 @@ import { FixtureDefinition } from './types';
  * 先 `explicit + new_spec` 并已创建 B，后明确改为 `explicit + reuse_spec + target_ref=scene=01-user-management, spec=01-00-user-login` |
  * A、B 并存；后续可 `task_create(A)`，不得自动删除/归档 B 或回滚已成功写入；关键
  *
- * 场景：AI 已执行 spec_create（B="user-login" 已创建），用户第3轮改变主意选择复用 A。
+ * 场景：AI 已执行 spec_create（B="login-risk" 登录风控，已创建），用户第3轮改变主意选择复用 A。
  * 验证：A、B 并存（不得自动回滚 B），后续可 task_create(A)。
+ * 注：B 与 A（01-00-user-login）必须语义可区分——第 1 轮用户话术用"登录风控"
+ *     （T-027 真机发现：原话术"做用户登录"与 A 同域，AI 合理询问澄清而非建 B）。
  *
  * 来自：04-00 T-007，对应 D-01 场景 ⑦
  */
@@ -19,12 +21,12 @@ export const E06b_ChangeAfterExec: FixtureDefinition = {
   scenario: 'D-01 ⑦',
 
   // 用户原话（多轮）
-  userInput: '第1轮："开新 Spec 做用户登录"\n第2轮（AI 已执行 spec_create）："算了，还是在登录 Spec 里补充"',
+  userInput: '第1轮："开新 Spec 做登录风控"\n第2轮（AI 已执行 spec_create）："算了，还是在登录 Spec 里补充"',
 
   // 决策上下文（第 3 轮，改变主意后，B 已创建）
   decisionContext: {
     scene: '01-user-management',
-    existing_specs: ['00-user-login (in-progress)', 'user-login (draft)'],
+    existing_specs: ['00-user-login (in-progress)', 'login-risk (draft)'],
     spec_count: 2,
     spec_create_executed: true
   },
@@ -53,10 +55,10 @@ export const E06b_ChangeAfterExec: FixtureDefinition = {
 
   // 禁止的具体动作
   forbiddenAction: {
-    description: '用户改主意后，AI 不得自动归档已创建的 Spec B（user-login），应保持 A、B 并存。lrnev 工具集无 spec_delete，Spec 只能归档不能删除。',
+    description: '用户改主意后，AI 不得自动归档已创建的 Spec B（login-risk，登录风控），应保持 A、B 并存。lrnev 工具集无 spec_delete，Spec 只能归档不能删除。',
     tool: 'spec_update',
     args: {
-      spec: 'user-login',
+      spec: 'login-risk',
       status: 'archived'
     }
   },

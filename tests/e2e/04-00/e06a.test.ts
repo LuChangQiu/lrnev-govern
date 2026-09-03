@@ -43,7 +43,7 @@ describe('E-06a: 用户改变主意-执行前', () => {
 
     // 验证禁止动作
     expect(fixture.forbiddenAction!.tool).toBe('spec_create');
-    expect(fixture.forbiddenAction!.args!.name).toBe('user-login');
+    expect(fixture.forbiddenAction!.args!.name).toBe('login-risk');
 
     // 验证证据字段
     expect(fixture.evidenceFields.user_decision_override).toBe(true);

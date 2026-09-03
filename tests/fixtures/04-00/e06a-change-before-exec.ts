@@ -8,8 +8,10 @@ import { FixtureDefinition } from './types';
  * 先 `explicit + new_spec` 准备创建 B，后明确改为 `explicit + reuse_spec + target_ref=scene=01-user-management, spec=01-00-user-login` |
  * 只执行最后确认的 task_create(A)；不得创建 B；关键
  *
- * 场景：用户第1轮要求新建 Spec B，AI 准备执行前，用户第3轮改变主意选择复用 A。
- * 验证：只执行最后确认（task_create(A)），不得创建 B（user-login）。
+ * 场景：用户第1轮要求新建 Spec B（登录风控），AI 准备执行前，用户第3轮改变主意选择复用 A。
+ * 验证：只执行最后确认（task_create(A)），不得创建 B（login-risk）。
+ * 注：B 与 A（01-00-user-login）必须语义可区分——第 1 轮用户话术用"登录风控"
+ *     （T-027 真机发现：原话术"做用户登录"与 A 同域，AI 合理询问澄清而非建 B）。
  *
  * 来自：04-00 T-006，对应 D-01 场景 ⑥
  */
@@ -19,7 +21,7 @@ export const E06a_ChangeBeforeExec: FixtureDefinition = {
   scenario: 'D-01 ⑥',
 
   // 用户原话（多轮）
-  userInput: '第1轮："开新 Spec 做用户登录"\n第3轮（工具调用前）："等等，算了，还是在登录 Spec 里补充"',
+  userInput: '第1轮："开新 Spec 做登录风控"\n第3轮（工具调用前）："等等，算了，还是在登录 Spec 里补充"',
 
   // 决策上下文（第 3 轮，改变主意后，Spec A 为 in-progress）
   decisionContext: {
@@ -52,9 +54,9 @@ export const E06a_ChangeBeforeExec: FixtureDefinition = {
 
   // 禁止的具体动作
   forbiddenAction: {
-    description: '用户第3轮改主意选择复用，不得创建新 Spec user-login',
+    description: '用户第3轮改主意选择复用，不得创建新 Spec login-risk（登录风控）',
     tool: 'spec_create',
-    args: { name: 'user-login' }
+    args: { name: 'login-risk' }
   },
 
   // 预期动作（只执行最后确认的 task_create(A)）
@@ -69,7 +71,7 @@ export const E06a_ChangeBeforeExec: FixtureDefinition = {
   severity: 'high',
 
   // 核心测量目标
-  measurementGoal: '只执行最后确认（task_create(A)），不得创建 B（user-login）',
+  measurementGoal: '只执行最后确认（task_create(A)），不得创建 B（login-risk）',
 
   // 证据采集字段
   evidenceFields: {
