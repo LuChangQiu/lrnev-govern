@@ -20,6 +20,33 @@ import { tmpdir } from 'node:os';
 
 const projectRoot = process.cwd();
 const sha = process.env.T027_SHA || 'sha-a';
+const scenarioId = process.env.T027_SCENARIO || 'E-01';
+
+// 内联 fixture 定义（避免 TS 编译依赖）
+// 从 tests/fixtures/04-00/*.ts 手动提取核心字段
+const FIXTURES = {
+  'E-01': {
+    id: 'E-01',
+    title: '建议复用+明确新建',
+    userInput: '开新 Spec 做用户登录功能',
+    expectedAction: 'spec_create',
+    expectedArgs: { scene: '01-user-management' },
+    severity: 'high',
+    decisionContext: {
+      scene: '01-user-management',
+      existing_specs: ['00-introduction (in-progress)'],
+      spec_count: 1
+    }
+  },
+  // 其他场景待补充
+};
+
+const fixture = FIXTURES[scenarioId];
+if (!fixture) {
+  console.error(`❌ 未知场景: ${scenarioId}`);
+  console.error(`可用场景: ${Object.keys(FIXTURES).join(', ')}`);
+  process.exit(1);
+}
 
 // 修正 P0-1: 使用项目子目录 + 临时 CLAUDE_CONFIG_DIR 隔离
 const tempWorkspace = resolve(projectRoot, '.claude/t027-harness-workspace', `run-${Date.now()}`);
@@ -46,100 +73,107 @@ console.error(`🗂️  独立工作区: ${tempWorkspace}`);
 console.error(`⚙️  隔离配置: ${tempConfigDir}`);
 console.error('');
 
-// E-01 fixture（硬编码，先跑通）
-const e01Fixture = {
-  id: 'E-01',
-  title: '建议复用+明确新建',
-  userInput: '开新 Spec 做用户登录功能',
-  expectedAction: 'spec_create',
-  severity: 'high',
-  decisionContext: {
-    scene: '01-user-management',
-    existing_specs: ['00-introduction (in-progress)'],
-    spec_count: 1
-  }
-};
+console.error(`📦 Fixture: ${fixture.id} - ${fixture.title}`);
 
 /**
  * 1. 构建工作区（独立临时目录，文件直写）
  */
+/**
+ * 工作区构建器 - 从 fixture.decisionContext 驱动
+ */
 async function buildWorkspace() {
   console.error('🏗️  构建工作区（独立临时目录）...');
 
+  const { scene, existing_specs = [], spec_count = 0 } = fixture.decisionContext;
+
   // 初始化 .lrnev 结构
   const lrnevDir = resolve(tempWorkspace, '.lrnev');
-  mkdirSync(resolve(lrnevDir, 'scenes/01-user-management/specs'), { recursive: true });
+  mkdirSync(resolve(lrnevDir, `scenes/${scene}/specs`), { recursive: true });
   mkdirSync(resolve(lrnevDir, 'memory'), { recursive: true });
   mkdirSync(resolve(lrnevDir, 'agents'), { recursive: true });
   mkdirSync(resolve(lrnevDir, 'tasks'), { recursive: true });
 
-  // 创建 scene.md
+  // 创建 scene.md（frontmatter 引号规则内置）
+  const sceneNumber = scene.split('-')[0];
+  const sceneName = scene.split('-').slice(1).join('-');
+  const sceneDisplayName = sceneName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
   const sceneContent = `---
-scene: 01-user-management
-number: 1
+scene: ${scene}
+number: ${sceneNumber}
 created: '${new Date().toISOString().split('T')[0]}'
 ---
 
-# 01 User Management
+# ${sceneNumber} ${sceneDisplayName}
 
-用户管理业务域。
+业务域描述。
 `;
-  writeFileSync(resolve(lrnevDir, 'scenes/01-user-management/scene.md'), sceneContent);
+  writeFileSync(resolve(lrnevDir, `scenes/${scene}/scene.md`), sceneContent);
 
-  // 创建 existing spec (00-introduction, in-progress)
-  const specDir = resolve(lrnevDir, 'scenes/01-user-management/specs/01-00-introduction');
-  mkdirSync(specDir, { recursive: true });
+  // 创建 existing specs（解析 spec 描述）
+  for (let i = 0; i < existing_specs.length; i++) {
+    const specDesc = existing_specs[i];
+    // 解析格式：'00-introduction (in-progress)' 或 '01-user-profile (completed)'
+    const match = specDesc.match(/^(\d+)-([a-z-]+)\s*\(([^)]+)\)/);
+    if (!match) continue;
 
-  const requirementsContent = `---
-spec: 01-00-introduction
-scene: 01-user-management
+    const [, specNum, specName, specStatus] = match;
+    const specId = `${scene.split('-')[0]}-${specNum}-${specName}`;
+    const specDir = resolve(lrnevDir, `scenes/${scene}/specs/${specId}`);
+    mkdirSync(specDir, { recursive: true });
+
+    // frontmatter 引号规则：created 加引号
+    const requirementsContent = `---
+spec: ${specId}
+scene: ${scene}
 created: '${new Date().toISOString().split('T')[0]}'
 ---
 
-# 01-00 Introduction - 需求
+# ${specId} - 需求
 
-## F-01 基础介绍
-用户管理介绍文档。
+## F-01 基础需求
+需求描述。
 `;
-  writeFileSync(resolve(specDir, 'requirements.md'), requirementsContent);
+    writeFileSync(resolve(specDir, 'requirements.md'), requirementsContent);
 
-  const designContent = `---
-spec: 01-00-introduction
-scene: 01-user-management
+    const designContent = `---
+spec: ${specId}
+scene: ${scene}
 ---
 
-# 01-00 Introduction - 设计
+# ${specId} - 设计
 
-## D-01 文档结构
-基础文档结构。
+## D-01 设计方案
+设计描述。
 `;
-  writeFileSync(resolve(specDir, 'design.md'), designContent);
+    writeFileSync(resolve(specDir, 'design.md'), designContent);
 
-  const tasksContent = `---
-spec: 01-00-introduction
-scene: 01-user-management
+    const tasksContent = `---
+spec: ${specId}
+scene: ${scene}
 ---
 
-# 01-00 Introduction - 任务
+# ${specId} - 任务
 
-## T-001 完成文档
-撰写介绍文档。
+## T-001 执行任务
+任务描述。
 
-**状态**: in-progress
+**状态**: ${specStatus}
 `;
-  writeFileSync(resolve(specDir, 'tasks.md'), tasksContent);
+    writeFileSync(resolve(specDir, 'tasks.md'), tasksContent);
 
-  // 创建 spec.json（元信息）
-  const specMeta = {
-    id: '01-00-introduction',
-    scene: '01-user-management',
-    number: 0,
-    name: 'introduction',
-    status: 'in-progress',
-    priority: 'P2',
-    created: new Date().toISOString().split('T')[0]
-  };
-  writeFileSync(resolve(specDir, 'spec.json'), JSON.stringify(specMeta, null, 2));
+    // spec.json 元信息（created 是字符串，不需要引号）
+    const specMeta = {
+      id: specId,
+      scene: scene,
+      number: parseInt(specNum),
+      name: specName,
+      status: specStatus,
+      priority: 'P2',
+      created: new Date().toISOString().split('T')[0]
+    };
+    writeFileSync(resolve(specDir, 'spec.json'), JSON.stringify(specMeta, null, 2));
+  }
 
   console.error('✅ 工作区构建完成（文件直写）');
 }
@@ -212,7 +246,7 @@ async function precheck() {
               params: {
                 name: 'assess_goal',
                 arguments: {
-                  goal: e01Fixture.userInput
+                  goal: fixture.userInput
                 }
               }
             };
@@ -447,7 +481,7 @@ async function main() {
     }
 
     // 3. 驱动客户端
-    const result = await driveClient(e01Fixture.userInput);
+    const result = await driveClient(fixture.userInput);
 
     console.error('\n📊 执行结果:');
     console.error(`   退出码: ${result.code}`);
@@ -478,11 +512,11 @@ async function main() {
     // 4. 记录证据（24 字段，真实化）
     const evidence = {
       // 元信息
-      scenario_id: e01Fixture.id,
-      run_id: `${e01Fixture.id.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,  // P0-5: 包含场景标识
+      scenario_id: fixture.id,
+      run_id: `${fixture.id.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,  // P0-5: 包含场景标识
       fixture_hash: createHash('sha256').update(JSON.stringify({
-        id: e01Fixture.id,
-        userInput: e01Fixture.userInput
+        id: fixture.id,
+        userInput: fixture.userInput
       })).digest('hex').slice(0, 8),
 
       // B类：决策与动作
@@ -490,7 +524,7 @@ async function main() {
       // P0-3: action_taken 改为期望动作（最终决策动作），非首个调用
       action_taken: (() => {
         // 优先级1：期望动作
-        const expectedCall = result.toolCalls.find(t => t.tool.includes(e01Fixture.expectedAction));
+        const expectedCall = result.toolCalls.find(t => t.tool.includes(fixture.expectedAction));
         if (expectedCall) return expectedCall.tool;
 
         // 优先级2：关键决策动作（spec/scene/task 的 create/update）
@@ -505,7 +539,7 @@ async function main() {
       })(),
       // P0-2: action_success 基于 tool_result，识别权限拒绝
       action_success: (() => {
-        const expectedCall = result.toolCalls.find(t => t.tool.includes(e01Fixture.expectedAction));
+        const expectedCall = result.toolCalls.find(t => t.tool.includes(fixture.expectedAction));
         if (!expectedCall) return false;
 
         const toolResult = result.toolResults?.get(expectedCall.id);
@@ -513,31 +547,36 @@ async function main() {
 
         const toolSuccess = toolResult.success && !toolResult.isPermissionDenied;
 
-        // P0 判定增强：参数级对照（检查服务端解析后的结果）
-        if (e01Fixture.expectedAction === 'spec_create') {
-          const expectedScene = e01Fixture.decisionContext?.scene;
-
-          // 从 tool_result 提取服务端解析的 scene
-          let resolvedScene = expectedCall.input?.scene;
+        // P0 判定增强：参数级对照（通用）
+        if (fixture.expectedArgs) {
+          // 从 tool_result 提取服务端解析的结果
+          let resolvedData = {};
           try {
             const resultContent = toolResult.content;
             if (typeof resultContent === 'string') {
               const parsed = JSON.parse(resultContent);
-              resolvedScene = parsed.data?.scene || parsed.structuredContent?.data?.scene || resolvedScene;
+              resolvedData = parsed.data || parsed.structuredContent?.data || {};
             }
           } catch (e) {
-            // 解析失败，使用原始输入
+            // 解析失败
           }
 
-          if (expectedScene && resolvedScene !== expectedScene) {
-            return false; // 服务端解析的 scene 不匹配
+          // 对比每个期望参数
+          for (const [key, expectedValue] of Object.entries(fixture.expectedArgs)) {
+            const actualInput = expectedCall.input?.[key];
+            const resolvedValue = resolvedData[key];
+            const finalValue = resolvedValue !== undefined ? resolvedValue : actualInput;
+
+            if (expectedValue !== undefined && finalValue !== expectedValue) {
+              return false; // 参数不匹配
+            }
           }
         }
 
         return toolSuccess;
       })(),
       user_decision_override: true,
-      severity: e01Fixture.severity,
+      severity: fixture.severity,
 
       // C类：运行环境（真实化）
       git_sha: sha === 'sha-a' ? await getFullGitSha('sha-a') : await getFullGitSha('sha-b'),  // P0-4: 修复 git_sha
@@ -551,7 +590,7 @@ async function main() {
       surface_id: 'server_instructions:global:workflow_overview',
       content_hash: null,
       consumer_type: 'model',
-      decision_context: e01Fixture.decisionContext,
+      decision_context: fixture.decisionContext,
 
       // 其他
       trigger_context: null,
@@ -566,7 +605,7 @@ async function main() {
     };
 
     // 对照期望 - 修复：检查整个序列是否包含期望动作
-    const expectedAction = e01Fixture.expectedAction;
+    const expectedAction = fixture.expectedAction;
     const expectedCall = result.toolCalls.find(t => t.tool.includes(expectedAction));
     const actualFirstAction = result.toolCalls[0]?.tool || null;
     const hasExpectedAction = !!expectedCall;
@@ -575,28 +614,35 @@ async function main() {
     const toolResult = expectedCall ? result.toolResults?.get(expectedCall.id) : null;
     const toolSuccess = toolResult ? (toolResult.success && !toolResult.isPermissionDenied) : false;
 
-    // P0 判定增强：参数级对照（检查服务端解析后的结果，而非 AI 传入的原始参数）
+    // P0 判定增强：参数级对照（通用，支持所有 expectedArgs）
     let argsMatch = true;
-    let argsMismatch = null;
-    if (expectedCall && toolSuccess && expectedAction === 'spec_create') {
-      const expectedScene = e01Fixture.decisionContext?.scene; // '01-user-management'
-      const actualInputScene = expectedCall.input?.scene; // AI 传入的参数（可能是纯名称）
+    let argsMismatch = [];
 
-      // 从 tool_result 中提取服务端解析后的 scene
-      let resolvedScene = actualInputScene;
+    if (expectedCall && toolSuccess && fixture.expectedArgs) {
+      // 从 tool_result 提取服务端解析的结果
+      let resolvedData = {};
       try {
         const resultContent = toolResult.content;
         if (typeof resultContent === 'string') {
           const parsed = JSON.parse(resultContent);
-          resolvedScene = parsed.data?.scene || parsed.structuredContent?.data?.scene || actualInputScene;
+          resolvedData = parsed.data || parsed.structuredContent?.data || {};
         }
       } catch (e) {
-        // 解析失败，使用原始输入
+        // 解析失败，使用空对象
       }
 
-      if (expectedScene && resolvedScene !== expectedScene) {
-        argsMatch = false;
-        argsMismatch = `scene 不匹配（期望 ${expectedScene}，AI 传入 ${actualInputScene}，服务端解析为 ${resolvedScene}）`;
+      // 对比每个期望参数
+      for (const [key, expectedValue] of Object.entries(fixture.expectedArgs)) {
+        const actualInput = expectedCall.input?.[key];
+        const resolvedValue = resolvedData[key];
+
+        // 使用服务端解析结果（如果有），否则使用 AI 输入
+        const finalValue = resolvedValue !== undefined ? resolvedValue : actualInput;
+
+        if (expectedValue !== undefined && finalValue !== expectedValue) {
+          argsMatch = false;
+          argsMismatch.push(`${key} 不匹配（期望 ${expectedValue}，AI 传入 ${actualInput}，服务端解析为 ${resolvedValue}）`);
+        }
       }
     }
 
@@ -614,26 +660,30 @@ async function main() {
         console.error(`   权限拒绝: ❌ 是（${toolResult.content.substring(0, 60)}...）`);
       }
 
-      // 参数级对照输出
-      if (expectedAction === 'spec_create') {
-        const expectedScene = e01Fixture.decisionContext?.scene;
-        const actualInputScene = expectedCall.input?.scene;
-
-        // 从 tool_result 提取服务端解析的 scene
-        let resolvedScene = actualInputScene;
+      // 参数级对照输出（通用）
+      if (fixture.expectedArgs && Object.keys(fixture.expectedArgs).length > 0) {
+        // 从 tool_result 提取服务端解析的结果
+        let resolvedData = {};
         try {
           const resultContent = toolResult.content;
           if (typeof resultContent === 'string') {
             const parsed = JSON.parse(resultContent);
-            resolvedScene = parsed.data?.scene || parsed.structuredContent?.data?.scene || actualInputScene;
+            resolvedData = parsed.data || parsed.structuredContent?.data || {};
           }
         } catch (e) {
           // 忽略
         }
 
-        console.error(`   参数对照: AI 传入 scene=${actualInputScene || '缺失'}，服务端解析为 ${resolvedScene}${expectedScene ? ` (期望 ${expectedScene})` : ''}`);
-        if (!argsMatch) {
-          console.error(`   ⚠️  参数不匹配: ${argsMismatch}`);
+        for (const [key, expectedValue] of Object.entries(fixture.expectedArgs)) {
+          const actualInput = expectedCall.input?.[key];
+          const resolvedValue = resolvedData[key];
+          const match = (resolvedValue !== undefined ? resolvedValue : actualInput) === expectedValue;
+
+          console.error(`   参数对照 [${key}]: AI 传入 ${actualInput || '缺失'}，服务端解析为 ${resolvedValue || actualInput}${expectedValue !== undefined ? ` (期望 ${expectedValue})` : ''} ${match ? '✅' : '❌'}`);
+        }
+
+        if (argsMismatch.length > 0) {
+          console.error(`   ⚠️  参数不匹配: ${argsMismatch.join('; ')}`);
         }
       }
 
