@@ -40,9 +40,15 @@ export const USER_DECISION_PRIORITY_CLAUSE = `
  *
  * 场景：spec_create 成功后，AI 可能怀疑"是不是做错了"，试图撤销。
  * 修复：明确"创建成功后不得擅自撤销"，提供后续步骤建议（context_search / 问用户）。
+ *
+ * 扩展（G5，2026-09-04，T-027 E-06a/b 观测）：用户后续改主意（如决定改用旧 Spec）
+ * 也不构成自动归档依据——archived 是状态机终态，归档决定权在用户。
  */
 export const SPEC_CREATION_SUCCESS_FOLLOWUP = `
 Spec 创建成功后，不得擅自撤销或回退。
+用户后续改变主意（例如决定改用旧 Spec、放弃本 Spec）时，同样不要自动归档或删除本 Spec：
+归档（status=archived）是状态机终态动作，只在用户明确要求归档时才用 spec_update 执行；
+改主意时可以先向用户说明取舍、询问是否归档，由用户决定。
 建议下一步：调用 context_search 查找相关需求，或问用户该 Spec 的具体范围。
 `.trim();
 

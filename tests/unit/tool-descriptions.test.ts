@@ -121,8 +121,9 @@ describe('MCP 工具自描述审计', () => {
     ]) {
       expect(WORKFLOW_OVERVIEW).toContain(keyword);
     }
-    // 预算护栏：v2.3 扩容（+批量创建/治理地图/report 心智模型），上限 480→600；08-00 语义边界修复后 600→800；内容准确性优先于凑字数
-    expect([...WORKFLOW_OVERVIEW].length).toBeLessThanOrEqual(800);
+    // 预算护栏：v2.3 扩容（+批量创建/治理地图/report 心智模型），上限 480→600；08-00 语义边界修复后 600→800；
+    // G5 归档边界句（2026-09-04，T-027 E-06a/b 观测）后 800→900——语义准确性优先于凑字数，护栏为内容留余量
+    expect([...WORKFLOW_OVERVIEW].length).toBeLessThanOrEqual(900);
   });
 
   it('所有注册工具 description 都来自 guidance 且包含何时用', async () => {
