@@ -287,11 +287,35 @@ command = "${nodePosix}"
 args = ["${wrapperPosix}"]
 `;
 
+/** TOML 基础字符串（转义 `\` 与 `"`；调用方已尽量 toPosix，此处双保险） */
+function tomlString(v) {
+  return `"${String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
 /**
- * codex exec 单轮：隔离 CODEX_HOME → config.toml（§7 推荐片段）→ 复制 auth 与
- * 模型目录 → spawn `codex exec --json --skip-git-repo-check --sandbox
- * workspace-write -C <workspace> <prompt>` → 解析 JSONL 事件。
+ * codex config env 注入表（隔离修复，2026-09-04）：
+ * codex 0.150.0 spawn MCP server 时不透传 ambient 进程环境变量（仅 config 内
+ * `[mcp_servers.<name>.env]` 子表声明的才会注入 wrapper/server 进程）——
+ * 根因实验见 .claude/t027-codex-reasoning-exp/REPORT.md §2：LRNEV_WORKSPACE/T027_SHA
+ * 放 codex 进程 env（探针 A）wrapper 收不到 → server 回退治理共享 worktree .lrnev；
+ * 写 config env 表（探针 B）proxy 日志确认 shaSource=env 生效。
+ * 每 session 的 LRNEV_WORKSPACE/T027_SHA 必须经此表注入，隔离才真实成立。
+ */
+function CODEX_MCP_ENV_TABLE(vars) {
+  const rows = Object.entries(vars)
+    .map(([k, v]) => `  ${k} = ${tomlString(v)}`)
+    .join('\n');
+  return `[mcp_servers.lrnev-t027.env]\n${rows}\n`;
+}
+
+/**
+ * codex exec 单轮：隔离 CODEX_HOME → config.toml（§7 推荐片段 + env 注入表）→
+ * 复制 auth 与模型目录 → spawn `codex exec --json --skip-git-repo-check
+ * --sandbox workspace-write -C <workspace> <prompt>` → 解析 JSONL 事件。
  * 429 检测：≥60s 退避重试 ≤2 次。
+ * 隔离断言（硬失败闸）：config env 表同时开启 wrapper 代理录制（LRNEV_T027_PROXY/
+ * LRNEV_T027_LOG），session 结束后读录制 session_start，断言治理根 == fixture 临时
+ * 工作区；不匹配即抛错拒收证据（隔离失效从"静默污染"变成硬失败）。
  */
 async function driveCodex(prompt, ctx) {
   const client = 'codex';
@@ -327,16 +351,35 @@ async function driveCodex(prompt, ctx) {
     console.error(`   ⚠️  ~/.codex/${CODEX_CATALOG_FILENAME} 不存在——模型目录缺失`);
   }
 
-  // 3. config.toml（§7 推荐片段 + wrapper 绝对路径）
+  // 3. config.toml（§7 推荐片段 + wrapper 绝对路径 + env 注入表）
   const wrapperAbs = wrapperPathFor(ctx.projectRoot);
+  // 隔离断言默认开：config env 表额外注入 wrapper 代理录制开关，session 后读录制
+  // session_start 断言治理根 == ctx.tempWorkspace（可用 T027_CODEX_SKIP_ISO_CHECK=1 关闭）。
+  const isoCheckDisabled = process.env.T027_CODEX_SKIP_ISO_CHECK === '1';
+  const isoLogPath = isoCheckDisabled
+    ? null
+    : resolve(tmpdir(), `t027-codex-iso-${Date.now()}-${rand()}.jsonl`);
+  const mcpEnvVars = {
+    // 隔离修复核心：LRNEV_WORKSPACE（server 治理根 = 本 session fixture 临时工作区）
+    // + T027_SHA（wrapper 双 SHA 选择），从进程 env 移到 config env 表。
+    LRNEV_WORKSPACE: toPosix(ctx.tempWorkspace),
+    T027_SHA: ctx.sha,
+  };
+  if (isoLogPath) {
+    mcpEnvVars.LRNEV_T027_PROXY = '1';
+    mcpEnvVars.LRNEV_T027_LOG = toPosix(isoLogPath);
+  }
   const configToml =
     CODEX_CONFIG_HEAD({ model, baseUrl }) +
-    CODEX_MCP_TABLE(toPosix(wrapperAbs), toPosix(process.execPath));
+    CODEX_MCP_TABLE(toPosix(wrapperAbs), toPosix(process.execPath)) +
+    CODEX_MCP_ENV_TABLE(mcpEnvVars);
   writeFileSyncSafe(resolve(codexHome, 'config.toml'), configToml);
 
   console.error('   [codex] 隔离 CODEX_HOME: ' + codexHome);
   console.error(`   [codex] model=${model} base_url=${baseUrl}（T027_CODEX_MODEL/T027_CODEX_BASE_URL 可覆盖）`);
   console.error(`   [codex] 复制到隔离 home: ${copied.join(', ')}`);
+  console.error(`   [codex] MCP config env: LRNEV_WORKSPACE=${toPosix(ctx.tempWorkspace)} T027_SHA=${ctx.sha}` +
+    (isoLogPath ? '（+ 隔离断言代理录制）' : '（T027_CODEX_SKIP_ISO_CHECK=1 关闭隔离断言）'));
 
   const env = {
     ...buildBaseEnv(ctx.sha, ctx.tempWorkspace),
@@ -402,6 +445,26 @@ async function driveCodex(prompt, ctx) {
   }
 
   try {
+    // 5b. 隔离断言（硬失败闸）：session 若真实调用过 lrnev-t027 工具，治理根必须 == fixture ws。
+    //     代理录制日志由 wrapper 写（config env 注入），读 session_start 断言
+    //     workspace/sha/shaSource；不匹配抛错 → 无证据产出 → 编排方按环境失败/调查处理，
+    //     杜绝"隔离失效仍入库"的静默污染。
+    const lrnevT027CallCount = parsed.toolCalls.filter((t) =>
+      t.tool.startsWith('mcp__lrnev-t027__')
+    ).length;
+    const iso = verifyCodexIsolation({
+      isoLogPath,
+      expectedWorkspace: toPosix(ctx.tempWorkspace),
+      expectedSha: ctx.sha,
+      hadLrnevCalls: lrnevT027CallCount > 0,
+    });
+    console.error(`   [codex] 隔离断言: ${iso.ok ? '✅ 通过' : '❌ 失败'}（${iso.detail}）`);
+    if (!iso.ok) {
+      throw new Error(
+        `codex 会话隔离断言失败，拒绝入库（LRNEV env 未达 wrapper/server 或治理根错位）: ${iso.detail}`
+      );
+    }
+
     return buildResultShape({
       code: lastRes.code,
       stdout: lastRes.stdout,
@@ -419,7 +482,76 @@ async function driveCodex(prompt, ctx) {
     });
   } finally {
     removeDirRobust(codexHome, 'codex 隔离 home');
+    if (isoLogPath) {
+      removeDirRobust(isoLogPath, 'codex 隔离断言录制');
+    }
   }
+}
+
+/**
+ * codex 隔离断言：读 wrapper 代理录制（LRNEV_T027_PROXY=1 + LRNEV_T027_LOG）的
+ * sys/session_start 记录，断言 server 实际治理根 == fixture 临时工作区。
+ *
+ * 判定规则：
+ * - 无 session_start（wrapper 代理未启动 = config env 未达 wrapper）：
+ *   若 session 真实调用了 lrnev-t027 工具 → 隔离状态不可证，判失败（此前正是这种
+ *   静默失效导致共享 worktree 被污染）；若零 lrnev-t027 调用 → 无治理状态可写，放行。
+ * - 有 session_start：逐条比对 workspace（== tempWorkspace posix）、sha（== 期望 sha）、
+ *   shaSource（== env，证明不是指针文件回退）；任一不符判失败。
+ */
+function verifyCodexIsolation({ isoLogPath, expectedWorkspace, expectedSha, hadLrnevCalls }) {
+  const norm = (p) => (p == null ? '' : String(p).replace(/\\/g, '/'));
+  if (!isoLogPath) {
+    return { ok: true, detail: '隔离断言已禁用（T027_CODEX_SKIP_ISO_CHECK=1）' };
+  }
+  const starts = [];
+  try {
+    const text = existsSync(isoLogPath) ? readFileSync(isoLogPath, 'utf8') : '';
+    for (const rawLine of text.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      try {
+        const rec = JSON.parse(line);
+        if (rec && typeof rec === 'object' && rec.dir === 'sys' && rec.ev === 'session_start') {
+          starts.push(rec);
+        }
+      } catch {
+        // 忽略非 JSON 行（旁路录制可能混入空行/截断）
+      }
+    }
+  } catch (err) {
+    return { ok: false, detail: `隔离录制读取失败: ${err.message}` };
+  }
+  if (starts.length === 0) {
+    if (hadLrnevCalls) {
+      return {
+        ok: false,
+        detail:
+          `session 调用了 ${hadLrnevCalls} 次 lrnev-t027 工具但 wrapper 代理未启动（无 session_start）` +
+          `——LRNEV_T027_PROXY/LRNEV_T027_LOG 未达 wrapper，隔离状态不可证`,
+      };
+    }
+    return { ok: true, detail: 'session 无 lrnev-t027 工具调用且 wrapper 未启动（无治理状态可写，放行）' };
+  }
+  const mismatches = [];
+  for (const s of starts) {
+    if (norm(s.workspace) !== norm(expectedWorkspace)) {
+      mismatches.push(`workspace=${s.workspace ?? '(缺失)'}（期望 ${expectedWorkspace}）`);
+    }
+    if (String(s.sha ?? '') !== String(expectedSha)) {
+      mismatches.push(`sha=${s.sha ?? '(缺失)'}（期望 ${expectedSha}）`);
+    }
+    if (s.shaSource && s.shaSource !== 'env') {
+      mismatches.push(`shaSource=${s.shaSource}（期望 env，现为指针文件回退）`);
+    }
+  }
+  if (mismatches.length > 0) {
+    return { ok: false, detail: `session_start ${starts.length} 条不匹配：${mismatches.join('；')}` };
+  }
+  return {
+    ok: true,
+    detail: `session_start ${starts.length} 条全部命中 fixture（workspace=${expectedWorkspace}, sha=${expectedSha}, shaSource=env）`,
+  };
 }
 
 /** codex --json JSONL 事件解析（item.completed mcp_tool_call / agent_message / turn.completed / error） */
