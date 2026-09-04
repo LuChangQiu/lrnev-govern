@@ -23,6 +23,11 @@ const projectRoot = process.cwd();
 const sha = process.env.T027_SHA || 'sha-a';
 const scenarioId = process.env.T027_SCENARIO || 'E-01';
 
+// 客户端分流（裁决 2026-09-03：三客户端矩阵 claude-code 主 / codex 补 / opencode 第三）。
+// claude-code = 保留本文件 driveClient 原生路径（零改动）；codex|opencode = 分流到
+// 独立文件 client-drivers.mjs（driveClient 内部 switch，调用点零改动）。
+const client = (process.env.T027_CLIENT || 'claude-code').trim().toLowerCase();
+
 // 方案 D：动态加载 .ts 权威源
 const fixturesIndexPath = resolve(projectRoot, 'tests/fixtures/04-00/index.ts');
 const fixturesModule = await import(pathToFileURL(fixturesIndexPath).href);
@@ -63,6 +68,7 @@ writeFileSync(mcpConfigPath, JSON.stringify({
 }, null, 2));
 
 console.error('🚀 T-027 Clean Session Harness (MVP)');
+console.error(`🤖 Client: ${client}（T027_CLIENT，claude-code|codex|opencode）`);
 console.error(`📍 SHA: ${sha}`);
 console.error(`🗂️  独立工作区: ${tempWorkspace}`);
 console.error(`⚙️  隔离配置: ${tempConfigDir}`);
@@ -163,23 +169,46 @@ function computeWorktreeContentHash(shaLabel) {
 
 /**
  * 从 init 事件取字段（裁决 Q8：claude_code_version 实测 '2.1.228'；Q7：session_id 作 clean_session_id）
+ *
+ * 客户端分流（2026-09-03）：codex/opencode 无 claude 式 init 事件，由 client-drivers.mjs
+ * 合成 initEvent 并携带自报纯净字段（sessionClean/toolsTotal/t027Tools/releaseLrnevTools/
+ * purityNote，见文件头契约）。检测到 initEvent.sessionClean 为 boolean 即视为"驱动自报口径"
+ * （claude init 事件无这些字段 → 走原工具列表前缀口径，行为不变）。
  */
 function extractInitFields(initEvent) {
   const initPresent = !!initEvent && typeof initEvent === 'object';
+  const driverProvided = initPresent && typeof initEvent.sessionClean === 'boolean';
+  const tools = initPresent ? (initEvent.tools || []) : [];
+  const driverNum = (v, fallback) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  };
   return {
     initPresent,
-    clientVersion: initEvent?.claude_code_version ?? null,
+    clientVersion: initEvent?.claude_code_version ?? initEvent?.client_version ?? null,
+    clientVersionKey: initEvent?.claude_code_version != null
+      ? 'claude_code_version'
+      : (initEvent?.client_version != null ? 'client_version' : null),
     modelVersion: initEvent?.model ?? null,
     sessionId: (typeof initEvent?.session_id === 'string' && initEvent.session_id.length > 0)
       ? initEvent.session_id
       : null,
     // 工具纯净：无发布版 mcp__lrnev（前缀 mcp__lrnev-，不含 'mcp__lrnev__'）
-    sessionClean: initPresent
-      ? !(initEvent.tools || []).some((t) => String(t).startsWith('mcp__lrnev__'))
-      : true, // init 缺失：harness 每次全新隔离 config+workspace，结构上 clean（basis 注明无法核对）
-    toolsTotal: initPresent ? (initEvent.tools || []).length : 0,
-    t027Tools: initPresent ? (initEvent.tools || []).filter((t) => String(t).startsWith('mcp__lrnev-t027__')).length : 0,
-    releaseLrnevTools: initPresent ? (initEvent.tools || []).filter((t) => String(t).startsWith('mcp__lrnev__')).length : 0,
+    sessionClean: driverProvided
+      ? !!initEvent.sessionClean
+      : initPresent
+        ? !tools.some((t) => String(t).startsWith('mcp__lrnev__'))
+        : true, // init 缺失：harness 每次全新隔离 config+workspace，结构上 clean（basis 注明无法核对）
+    toolsTotal: driverProvided
+      ? driverNum(initEvent.toolsTotal, tools.length)
+      : initPresent ? tools.length : 0,
+    t027Tools: driverProvided
+      ? driverNum(initEvent.t027Tools, tools.filter((t) => String(t).startsWith('mcp__lrnev-t027__')).length)
+      : initPresent ? tools.filter((t) => String(t).startsWith('mcp__lrnev-t027__')).length : 0,
+    releaseLrnevTools: driverProvided
+      ? driverNum(initEvent.releaseLrnevTools, tools.filter((t) => String(t).startsWith('mcp__lrnev__')).length)
+      : initPresent ? tools.filter((t) => String(t).startsWith('mcp__lrnev__')).length : 0,
+    driverProvided,
   };
 }
 
@@ -196,7 +225,11 @@ function buildCBasis(result, shaLabel) {
     fixture_hash: '裁决 Q6：EvidenceCollector 64hex 行为收窄口径（stableStringify 稳定键序）',
     guidance_surfaces: '裁决 Q9：会话级已消费 surface 全集——wrapper/stdio 代理层就绪前不可采，当前为空数组',
     surface_id: `裁决 Q9：主 surface=${MAIN_SURFACE_ID}（server instructions 每 session 启动真实消费）；fixture 目标 guidance 记于 fixture.aiGuidance（本 harness 不注入期望值）`,
-    client_version: init.clientVersion ? `取自 init 事件 claude_code_version=${init.clientVersion}（裁决 Q8）` : 'null：init 事件无 claude_code_version（裁决 Q8 允许 null+原因）',
+    client_version: init.clientVersion
+      ? (init.clientVersionKey === 'claude_code_version'
+          ? `取自 init 事件 claude_code_version=${init.clientVersion}（裁决 Q8）`
+          : `取自驱动自报版本 client_version=${init.clientVersion}（非 claude 客户端：init 无 claude_code_version，由 client-drivers.mjs 注入）`)
+      : 'null：init 事件无客户端版本字段（裁决 Q8 允许 null+原因）',
     model_version: init.modelVersion ? `取自 init 事件 model=${init.modelVersion}` : 'null：init 事件无 model 字段',
     consumed_at: '证据生成时刻（会话结束时间戳）作为 C 类推断值；真实消费时刻需客户端回传/代理层',
     trigger_context: 'null：客户端不可采用户输入片段（裁决 Q1 C 类）',
@@ -205,11 +238,13 @@ function buildCBasis(result, shaLabel) {
     forbidden_tools: 'fixture.forbiddenTools 原样（场景级禁止集合）',
     is_blacklist_phrase: 'false：T-027 被测 guidance（server instructions）无黑名单句式（schema required 需 present；04-00 检测口径未命中）',
     is_pseudo_constraint: 'false：T-027 场景不涉及伪约束（schema required 需 present）',
-    session_clean: init.sessionClean
-      ? (init.initPresent
-          ? `true：init 事件工具纯净（total=${init.toolsTotal}, t027=${init.t027Tools}, 发布版 mcp__lrnev=${init.releaseLrnevTools}）`
-          : 'true：init 事件缺失，无法核对工具纯净；按 harness 结构（每次全新隔离 config+workspace）置 clean')
-      : `false：init 事件检测到 mcp__lrnev 发布版工具（${init.releaseLrnevTools} 个）`,
+    session_clean: init.initPresent
+      ? (init.driverProvided
+          ? `${init.sessionClean ? 'true' : 'false'}：${result.initEvent?.purityNote ?? `客户端驱动自报口径（t027 工具 ${init.t027Tools}，发布版 mcp__lrnev ${init.releaseLrnevTools}）`}`
+          : (init.sessionClean
+              ? `true：init 事件工具纯净（total=${init.toolsTotal}, t027=${init.t027Tools}, 发布版 mcp__lrnev=${init.releaseLrnevTools}）`
+              : `false：init 事件检测到 mcp__lrnev 发布版工具（${init.releaseLrnevTools} 个）`))
+      : 'true：init 事件缺失，无法核对工具纯净；按 harness 结构（每次全新隔离 config+workspace）置 clean',
   };
   return basis;
 }
@@ -601,6 +636,20 @@ async function precheck() {
  *    harness 以此核验续接真实性——两轮 session_id 一致 = 同一会话续接成功）。
  */
 async function driveClient(prompt, options = {}) {
+  // 客户端分流（2026-09-03，最小改动）：T027_CLIENT=codex|opencode → 驱动逻辑在独立文件
+  // client-drivers.mjs（同目录，动态 import 惰性加载）；claude-code 保留下方原生路径零改动。
+  // 返回结构与 claude 路径同构（code/stdout/stderr/toolCalls/toolResults/initEvent），
+  // 判定/证据代码无需感知客户端差异；tool 名已归一化为 mcp__lrnev-t027__<tool>。
+  if (client !== 'claude-code') {
+    const { driveClientFor } = await import('./client-drivers.mjs');
+    return driveClientFor({
+      client,
+      prompt,
+      options, // persist/resumeSessionId 仅 claude 支持——driveClientFor 内部打警告忽略
+      ctx: { projectRoot, tempWorkspace, tempConfigDir, sha },
+    });
+  }
+
   const resumeSessionId = options.resumeSessionId ?? null;
   const persist = resumeSessionId !== null || options.persist === true;
   console.error('🤖 驱动客户端执行...');
@@ -1917,6 +1966,21 @@ async function main() {
   try {
     console.error(`📦 Fixture: ${fixture.id} - ${fixture.title}`);
     console.error('');
+
+    // 客户端×场景支持矩阵（2026-09-03，T-027 分流一期）：
+    // codex/opencode 一期只保证单次路径场景 E-01~E-04 / E-07~E-11 可用；多轮语义场景
+    // （E-06b 分轮注入 / E-05·E-06a 真实续接双轮 --resume）依赖 claude 会话机制
+    // （resume/persist、stream-json init session_id），当前仅 claude-code 支持——
+    // 其它客户端跑这些场景输出 unsupported 并跳过（exit 9），不伪造证据。
+    const requiresClaudeOnlyFlow =
+      (fixture.id === 'E-06b' && isMultiRoundUserInput(fixture.userInput)) ||
+      ((fixture.id === 'E-05' || fixture.id === 'E-06a') && isContinuationFlowUserInput(fixture.userInput));
+    if (client !== 'claude-code' && requiresClaudeOnlyFlow) {
+      console.error(`⚠️  ${fixture.id} 为多轮语义场景（E-06b 分轮注入 / E-05·E-06a --resume 续接双轮），驱动依赖 claude 会话机制；`);
+      console.error(`   T027_CLIENT=${client} 一期不支持（单次路径场景 E-01~E-04/E-07~E-11 可用）→ 标注 unsupported，跳过（exit 9）`);
+      await cleanupWorkspace();
+      process.exit(9); // 退出码 9 = unsupported client×scenario（不产出 evidence）
+    }
 
     // 多轮语义检查（裁决 2026-09-04 续接双轮定稿）：
     // - E-06b（含"AI 已执行"标注的已执行后改主意场景）→ 专用分轮（runE06bFlow：round1→轮间 B 验证→round2）。
