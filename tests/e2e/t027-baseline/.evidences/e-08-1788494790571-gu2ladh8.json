@@ -1,0 +1,73 @@
+{
+  "surface_id": "server_instructions:global:workflow_overview",
+  "content_hash": "5c4dff008ba7c79e9acb6b68bcafd707759f57c8881a1f4d8f982e360c391a83",
+  "consumer_type": "model",
+  "consumed_at": "2026-09-04T04:06:30.676Z",
+  "trigger_context": null,
+  "prompt_id": null,
+  "run_id": "e-08-1788494790571-gu2ladh8",
+  "mcp_version": "2025-11-25",
+  "git_sha": "45a86e15c896c446a41e48324e646d32c27fb76a",
+  "client_version": "0.150.0",
+  "model_version": "gpt-5.5",
+  "fixture_hash": "28178fc1133948be35cdf39dc889f06d2a60c15a76ae073200f2f6e4d43d163f",
+  "decision_context": null,
+  "tool_sequence": [
+    "mcp__lrnev-t027__project_status",
+    "mcp__codex__list_mcp_resources",
+    "mcp__codex__list_mcp_resource_templates",
+    "mcp__lrnev-t027__scene_list",
+    "mcp__lrnev-t027__spec_list",
+    "mcp__lrnev-t027__spec_list",
+    "mcp__lrnev-t027__spec_list",
+    "mcp__lrnev-t027__spec_list",
+    "mcp__lrnev-t027__list_mcp_resources",
+    "mcp__lrnev-t027__spec_get",
+    "mcp__lrnev-t027__list_mcp_resources",
+    "mcp__lrnev-t027__context_search"
+  ],
+  "allowed_tools": [
+    "spec_update",
+    "spec_get"
+  ],
+  "forbidden_tools": [],
+  "action_taken": "mcp__lrnev-t027__project_status",
+  "action_success": false,
+  "severity": "high",
+  "is_blacklist_phrase": false,
+  "is_pseudo_constraint": false,
+  "user_decision_override": false,
+  "session_clean": false,
+  "scenario_id": "E-08",
+  "decision_context_sent": false,
+  "fixture_context": {
+    "scene": "01-user-management",
+    "existing_specs": [
+      "00-login (archived)"
+    ],
+    "spec_count": 1,
+    "current_status": "archived"
+  },
+  "guidance_surfaces": [],
+  "sha_label": "sha-a",
+  "evidence_path": "tests/e2e/t027-baseline/.evidences/e-08-1788494790571-gu2ladh8.json",
+  "c_class_basis": {
+    "decision_context_sent": "T-027 为 claude -p 盲测，客户端不传 decision_context 语义（SHA A/B 均无参数）→ decision_context:null + decision_context_sent:false（裁决 Q3）",
+    "fixture_context": "客户端未传语义时工作区快照（scene/existing_specs/spec_count/current_status 等）独立存于 fixture_context（裁决 Q3），不再误存 decision_context",
+    "content_hash": "裁决 Q1-B：目标 worktree server 源码字节 sha256；来源文件=src/mcp/guidance.ts,src/mcp/server.ts,src/core/guidance-semantics.ts（按存在性纳入）",
+    "fixture_hash": "裁决 Q6：EvidenceCollector 64hex 行为收窄口径（stableStringify 稳定键序）",
+    "guidance_surfaces": "裁决 Q9：会话级已消费 surface 全集——wrapper/stdio 代理层就绪前不可采，当前为空数组",
+    "surface_id": "裁决 Q9：主 surface=server_instructions:global:workflow_overview（server instructions 每 session 启动真实消费）；fixture 目标 guidance 记于 fixture.aiGuidance（本 harness 不注入期望值）",
+    "client_version": "取自驱动自报版本 client_version=0.150.0（非 claude 客户端：init 无 claude_code_version，由 client-drivers.mjs 注入）",
+    "model_version": "取自 init 事件 model=gpt-5.5",
+    "consumed_at": "证据生成时刻（会话结束时间戳）作为 C 类推断值；真实消费时刻需客户端回传/代理层",
+    "trigger_context": "null：客户端不可采用户输入片段（裁决 Q1 C 类）",
+    "prompt_id": "null：未接入真实会话系统（裁决 Q1 C 类；单会话证据以 run_id 关联）",
+    "allowed_tools": "fixture.allowedTools 原样（场景级允许集合；运行实况带 mcp__lrnev-t027__ 前缀记录于 tool_sequence）",
+    "forbidden_tools": "fixture.forbiddenTools 原样（场景级禁止集合）",
+    "is_blacklist_phrase": "false：T-027 被测 guidance（server instructions）无黑名单句式（schema required 需 present；04-00 检测口径未命中）",
+    "is_pseudo_constraint": "false：T-027 场景不涉及伪约束（schema required 需 present）",
+    "session_clean": "false：codex（0.150.0）口径：CODEX_HOME 隔离仅注册 lrnev-t027（config.toml mcp_servers 仅一项） + exec 事件流 mcp_tool_call server 全集 [\"lrnev-t027\",\"codex\"]（⚠️ 非 lrnev-t027 server: codex）；tools 列表=会话观测到的 MCP 工具归一化名 8 个（codex 客户端不枚举全部工具，非完整清单）",
+    "user_decision_override": "false：fixture 场景定义或无法判定（evidenceFields.user_decision_override=false，裁决 #7）"
+  }
+}
