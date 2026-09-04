@@ -298,9 +298,10 @@ export interface EvidenceContract {
    * 会话级扩展（裁决 Q2）：清单基线标签
    * - sha-a: B0-s 基线文本 45a86e15
    * - sha-b: M2+ 收尾文本 6383e99
+   * - sha-c: B3 修复后快照 918581e（2026-09-04 对照新增，schema 2.0.1）
    * 40hex sha 记于 git_sha
    */
-  sha_label?: 'sha-a' | 'sha-b';
+  sha_label?: 'sha-a' | 'sha-b' | 'sha-c';
 
   /**
    * 会话级扩展（F-06 证据引用契约）：本证据文件相对仓库根的路径
