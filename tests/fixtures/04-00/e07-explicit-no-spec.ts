@@ -25,7 +25,7 @@ export const E07_ExplicitNoSpec: FixtureDefinition = {
   decisionContext: {
     scene: '01-user-management',
     user_intent: 'fix bug directly, no spec',
-    ai_would_suggest: 'task_create or spec_create'
+    ai_recommendation: 'task_create or spec_create'
   },
 
   // 预期客户端传递的 decision_context
