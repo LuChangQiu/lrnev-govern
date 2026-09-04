@@ -3,7 +3,7 @@
   "$id": "https://lrnev.dev/schemas/evidence-contract.json",
   "title": "Evidence Contract",
   "description": "运行时证据数据契约 - 用于采集 guidance 消费证据（v2：容纳 T-027 会话级扩展，裁决 2026-09-03 Q2/Q3/Q4/Q6/Q7/Q9）",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "$comment": "v2 (2026-09-03 DeepSeek 裁决 Q2/Q3/Q4/Q6/Q7/Q9，T-027 放量前置)。只增不改删 v1 字段：1) decision_context 加入 required（present 可 null，裁决 Q7）；2) C 类可空字段（consumed_at/trigger_context/prompt_id/client_version/model_version）允许 null，与 src/types/evidence-contract.ts 接口对齐（裁决 Q1/Q8：客户端不可采 → 显式 null + c_class_basis 注明）；3) failure_category enum 补 'test_failure'（裁决 Q4，历史产出合规化）；4) fixture_hash 注明 64hex 收窄口径（裁决 Q6；存量 8hex 历史 evidence 标注 legacy，不回溯修改）；5) 新增 optional 扩展字段：B1/B2a/B2b 历史字段（content_hash_legacy/structured_content_present/content_channel）+ 会话级字段（decision_context_sent/fixture_context/guidance_surfaces/clean_session_id/c_class_basis/sha_label/scenario_id/evidence_path/failure_class，裁决 Q3/Q4/Q7/Q9）。additionalProperties 保持 false：properties 已覆盖 B0~B2b 存量扩展字段与上述会话级扩展字段。",
   "type": "object",
   "required": [
@@ -227,8 +227,8 @@
     },
     "sha_label": {
       "type": "string",
-      "description": "会话级扩展（裁决 Q2）：清单基线标签 sha-a（B0-s 基线文本 45a86e15）/ sha-b（M2+ 收尾文本 6383e99）；40hex sha 记于 git_sha",
-      "enum": ["sha-a", "sha-b"]
+      "description": "会话级扩展（裁决 Q2）：清单基线标签 sha-a（B0-s 基线文本 45a86e15）/ sha-b（M2+ 收尾文本 6383e99）/ sha-c（B3 修复后快照 918581e，2026-09-04 B3 对照新增）；40hex sha 记于 git_sha",
+      "enum": ["sha-a", "sha-b", "sha-c"]
     },
     "evidence_path": {
       "type": "string",
