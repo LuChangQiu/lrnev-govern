@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * T-027 F-04 判定统计脚本（v1）
+ * T-027 F-04 判定统计脚本（v1.1：E-01 scene/spec 归一终判扩展，16950f9）
  * ===========================================
  * 对 T-027 放量 evidence（契约 v2，tests/e2e/t027-baseline/.evidences/e-<scenario>-<ts>-<rand>.json）
  * 做 F-04 门禁判定所需的统计：
@@ -8,6 +8,8 @@
  *   b. 消费率方差（布尔口径 action 成功率 mean / std / std-mean 比，<10% 门槛标记）
  *   c. FAIL session 的 F-04 A-E 候选分类提示（启发式，非最终 failure_class）
  *   d. 双 SHA 对照表（sha-a vs sha-b 同场景 action 分布差异）
+ *   e. E-01 归一终判记录（e01NormalizationFlips / [4b]）：scene/spec 前缀序号剥离归一
+ *      复核命中的 FAIL→PASS 翻盘清单（16950f9 fix 语义；evidence 文件不改写）
  *
  * 判定语义要点（先读 tasks.md T-027 L806-868 与 fixture 权威源后固化的规则表，
  * 见下方 SCENARIO_RULES 及 RULES_REFERENCE —— 判定来源逐条注明，不静默发明）：
@@ -67,8 +69,18 @@ const SCENARIO_RULES = {
     title: '建议复用+明确新建',
     expected: 'spec_create',
     forbidden: ['task_create'],
-    ruleSource: 'fixtures/04-00/e01-suggest-reuse-explicit-new.ts (expectedAction=spec_create; forbidden task_create) + harness-mvp.mjs tool_result 判定; R1 报告 §1.1',
-    passCondition: 'tool_sequence 含 spec_create 且 action_success=true 且未调用 forbidden(task_create)',
+    // 归一终判（16950f9 fix，2026-09-04）：参数级判定对 scene/spec 做前缀序号剥离归一
+    // （服务端 resolveId 接受全 id/短 id/纯名；opencode 文本输出无结构化解析值时 fallback
+    // 到 AI 输入，可能是 scene 短名 'user-management' vs 期望 '01-user-management' → 旧
+    // harness 字面比较误判 FAIL）。统计对历史 evidence（action_success=false 的 E-01）读
+    // sibling session JSONL 复核首个 spec_create：服务端成功且 scene/name 归一命中期望 →
+    // 计 PASS（同 E-02 v2 复核模式，evidence 文件不改写）。错误/缺失 scene（如 00-default、
+    // scene 缺省回退）不被归一救援 → 维持 FAIL。
+    e01ExpectedScene: '01-user-management',
+    e01ExpectedName: 'user-login',
+    e01ForbiddenASpecName: 'introduction', // E-01 禁止动作=在既有 Spec A（00-introduction）建 Task；新 Spec B 内 task_create 不属禁止
+    ruleSource: 'fixtures/04-00/e01-suggest-reuse-explicit-new.ts (expectedAction=spec_create; forbidden task_create 于 A=00-introduction) + harness-mvp.mjs 16950f9 参数级 scene/spec 归一比较; E-01 sha-b opencode 短名误判修复（spec_create 实际成功）',
+    passCondition: 'tool_sequence 含 spec_create 且 action_success=true 且未调用 forbidden(task_create 于 A)；scene 短名/别名与期望前缀 id 归一命中即 PASS（16950f9）',
   },
   'E-02': {
     group: 'explicit',
@@ -180,6 +192,7 @@ const SCENARIO_RULES = {
 const RULES_REFERENCE = `判定规则来源（F-04 门禁语义）：
   - explicit 门禁组（E-01/E-02/E-06a/E-06b/E-07/E-08）：主判定场景，走 tasks.md L818-853 语义。
   - E-02 判定口径 v2（裁决 2026-09-04 裁决 1）：task_create 单条 或 task_create_many 命中目标 A（01-user-management/01-00-user-login，服务端解析后）成功登记 = PASS；历史 v1 evidence 的 many 行由 sibling session JSONL 复核（详见 [1] E-02 规则与 [7] 备注）。
+  - E-01 归一终判（16950f9 fix，2026-09-04）：参数级判定对 scene/spec 字段做前缀序号剥离归一（服务端 resolveId 接受全 id/短 id/纯名；opencode 文本输出无结构化解析值时 fallback AI 输入可能是 scene 短名 'user-management' vs 期望 '01-user-management'）。历史 evidence 的 action_success=false 若是该字面比较 artifact（spec_create 服务端实际成功落位期望 scene/name）→ 读 sibling session JSONL 复核首个 spec_create 归一命中 → 计 PASS；错误/缺失 scene（00-default/缺省回退）不被归一救援 → 维持 FAIL。
   - E-06a 维持原单条 task_create 口径（裁决范围只含 E-02），E-01/E-06b/E-07/E-08 判定不动。
   - preferred/unspecified 记录组（E-03/E-04/E-05/E-09/E-10/E-11）：tasks.md L820/L854-856 单独观察，不入 F-04 门禁计数。
   - 关键失败 = A(explicit 用户目标被覆盖) / C(意图传递失败) / E(服务端执行缺陷)。
@@ -447,6 +460,146 @@ function loadE02SessionHitA(file, runId, targetA) {
 }
 
 /* ------------------------------------------------------------------ */
+/* E-01 归一复核（16950f9 fix，2026-09-04）                             */
+/* 历史 E-01 evidence（v1 harness 参数级字面比较）的 action_success=false   */
+/* 可能是 scene 短名/别名（'user-management'）vs 期望全 id                 */
+/* （'01-user-management'）的字面不匹配 artifact：服务端 resolveId 实际已   */
+/* 将短名解析到期望 scene 并成功创建 spec（spec 名 user-login 在 scene 内    */
+/* 唯一）。统计不重写 evidence，只对 action_success=false 的 E-01 读 sibling */
+/* session JSONL 复核：首个 spec_create 调用服务端结果 ok 且 scene/name 归一  */
+/* 命中期望（stripNum 前缀序号后相等）→ 计 PASS（归一）。错误/缺失 scene      */
+/* （00-default / scene 缺省）不被救援（strip 后 'default'≠'user-management'），*/
+/* 维持 FAIL。                                                           */
+/* ------------------------------------------------------------------ */
+
+/** 循环剥离开头 NN- 前缀序号段（同 harness-mvp.mjs 16950f9 stripNum） */
+function stripNumPrefix(s) {
+  if (typeof s !== 'string') return s;
+  let p;
+  do { p = s; s = s.replace(/^\d+-/, ''); } while (s !== p);
+  return s;
+}
+
+/**
+ * E-01 归一复核：读 sibling session JSONL，取【首个 spec_create 调用】（与 harness
+ * expectedCall=首个期望工具调用语义一致；wt9lnjl8 场景中首个调用落在 00-default 失败、
+ * 后续自纠不翻盘）。判定该调用：服务端 ok 且 scene/name 归一命中期望（stripNum 前缀后
+ * 相等；服务端结构化解析出的 scene 优先，渲染文本无解析值时回退 AI 输入短名）。
+ * 同时扫描会话内 task_create/_many 是否落在禁止对象 A（00-introduction 名 introduction）
+ * ——命中 A 则属真实 forbidden，不做归一翻盘（防把"转向禁止工具"误救）。
+ * 返回 { hit, detail, forbiddenA, scene, name }：
+ *   hit=true → 首个 spec_create 服务端成功且 scene/name 归一命中期望（归一翻盘候选）；
+ *   返回 null = 无 session / 无 spec_create / 首调服务端失败 / scene 错误或缺失（00-default/缺省）。
+ * 兼容 opencode / claude / codex 三种会话录制形态（复用 E-02 扫描遍历）。
+ */
+function loadE01SessionNormalizedHit(file, runId, expectedScene, expectedName) {
+  if (!runId || !expectedScene || !expectedName) return null;
+  const sessionPath = path.join(path.dirname(file), `${runId}-session.jsonl`);
+  if (!fs.existsSync(sessionPath)) return null;
+  let text;
+  try { text = fs.readFileSync(sessionPath, 'utf-8'); } catch { return null; }
+
+  /** 摘出 spec_create / task_create 家族调用（首个 spec_create 判 scene，task 判是否打 A） */
+  const specCreateCalls = [];
+  const taskCalls = [];
+  const toolResultsById = {}; // claude tool_result 形态：tool_use_id -> text
+
+  const visit = (node) => {
+    if (node === null || typeof node !== 'object') return;
+    const pushCall = (list, tool, id, inp, outStr) => {
+      list.push({ callId: id || null, tool, scene: inp.scene, spec: inp.spec, name: inp.name, resultText: outStr });
+    };
+    // opencode/通用形态
+    if (typeof node.tool === 'string' && (node.tool.includes('spec_create') || node.tool.includes('task_create'))) {
+      const inp = (node.input && typeof node.input === 'object') ? node.input
+        : (node.state?.input && typeof node.state?.input === 'object') ? node.state.input
+          : (node.part?.state?.input && typeof node.part?.state?.input === 'object') ? node.part.state.input : {};
+      const outStr = (() => {
+        const raw = (typeof node.output === 'string' && node.output)
+          || (typeof node.state?.output === 'string' && node.state.output)
+          || (typeof node.part?.state?.output === 'string' && node.part.state.output);
+        return raw || null;
+      })();
+      if (node.tool.includes('spec_create')) pushCall(specCreateCalls, node.tool, node.id, inp, outStr);
+      else pushCall(taskCalls, node.tool, node.id, inp, outStr);
+    }
+    // codex 形态
+    if (node.item && typeof node.item === 'object' && typeof node.item.tool === 'string'
+      && (node.item.tool.includes('spec_create') || node.item.tool.includes('task_create'))) {
+      const args = (node.item.arguments && typeof node.item.arguments === 'object') ? node.item.arguments : {};
+      const res = node.item.result;
+      const resText = (() => {
+        if (!res) return null;
+        if (typeof res === 'string') return res;
+        if (Array.isArray(res.content)) return res.content.map((c) => (c && typeof c === 'object' ? (c.text || String(c)) : String(c))).join('');
+        return null;
+      })();
+      if (node.item.tool.includes('spec_create')) pushCall(specCreateCalls, node.item.tool, node.item.id, args, resText);
+      else pushCall(taskCalls, node.item.tool, node.item.id, args, resText);
+    }
+    // claude 形态：tool_use → 登记；tool_result → 回填
+    if (node.type === 'tool_use' && typeof node.name === 'string'
+      && (node.name.includes('spec_create') || node.name.includes('task_create'))) {
+      const inp = (node.input && typeof node.input === 'object') ? node.input : {};
+      if (node.name.includes('spec_create')) pushCall(specCreateCalls, node.name, node.id, inp, null);
+      else pushCall(taskCalls, node.name, node.id, inp, null);
+    }
+    if (node.type === 'tool_result' && node.tool_use_id) {
+      const content = Array.isArray(node.content)
+        ? node.content.map((c) => (c && typeof c === 'object' ? (c.text || String(c)) : String(c))).join('')
+        : String(node.content || '');
+      toolResultsById[node.tool_use_id] = content;
+    }
+    for (const v of Object.values(node)) visit(v);
+  };
+  for (const raw of text.split('\n')) {
+    if (!raw.trim()) continue;
+    try { visit(JSON.parse(raw)); } catch { /* 单行解析失败跳过 */ }
+  }
+  for (const c of specCreateCalls) {
+    if (c.callId && toolResultsById[c.callId] && !c.resultText) c.resultText = toolResultsById[c.callId];
+  }
+  for (const c of taskCalls) {
+    if (c.callId && toolResultsById[c.callId] && !c.resultText) c.resultText = toolResultsById[c.callId];
+  }
+
+  // 首个 spec_create 调用（harness expectedCall 语义）
+  const first = specCreateCalls.length ? specCreateCalls[0] : null;
+  if (!first) return null;
+  if (!first.resultText) return null;
+  const rt = first.resultText;
+  // 服务端 ok：文本含 '"ok": true' / '✅ 已创建 Spec'（opencode 渲染） / JSON 解析 created
+  const serverOk = rt.includes('"ok": true') || rt.includes("'ok': true") || /已创建 Spec/.test(rt);
+  if (!serverOk) return null;
+
+  // scene：结构化解析出的 scene 优先（claude JSON data.scene / codex）；否则 AI 输入短名
+  let resolvedScene = null; let resolvedName = null;
+  try {
+    const parsed = JSON.parse(rt);
+    if (parsed?.data) { resolvedScene = parsed.data.scene ?? null; resolvedName = parsed.data.name ?? null; }
+  } catch { /* 渲染文本无结构化解析值 */ }
+  const sceneVal = resolvedScene ?? first.scene;
+  const nameVal = resolvedName ?? first.name;
+  if (stripNumPrefix(sceneVal) !== stripNumPrefix(expectedScene)) return null;
+  if (stripNumPrefix(nameVal) !== stripNumPrefix(expectedName)) return null;
+
+  // 禁止动作检查：task_create/_many 落在 A（introduction 名 / 00-introduction 系）→ 真实 forbidden
+  const forbiddenA = taskCalls.some((t) => {
+    const s = t.spec;
+    if (s === undefined || s === null) return false;
+    const strip = String(stripNumPrefix(s));
+    return strip === 'introduction' || /^0*-introduction$/.test(strip) || strip === '00-introduction';
+  });
+  return {
+    hit: true, forbiddenA,
+    detail: `session 复核首个 spec_create 命中期望（scene=${sceneVal} 归一=${expectedScene}, name=${nameVal}）且服务端成功`,
+    scene: sceneVal, name: nameVal,
+  };
+}
+
+
+
+/* ------------------------------------------------------------------ */
 /* 判定（单 session）：返回 { verdict, detail, artifact, candidates }   */
 /* candidates: [{ class:'A'|'B'|'C'|'D'|'E', reason, hint:true }]      */
 /* 注意：A-E 候选仅在 explicit 门禁组给出（F-04 A-E 分类定义于六 explicit */
@@ -462,6 +615,7 @@ function judgeSession(ev, rule, sidecar, sid, ctx = {}) {
   const success = ev.action_success === true;
   const candidates = [];
   let verdict; let detail; let artifact = null;
+  let e01NormFlip = false; // E-01 scene/spec 归一复核命中（FAIL→PASS 终判标注）
   const isGate = rule.group === 'explicit';
 
   const gateCand = (cls, reason) => { if (isGate) candidates.push({ class: cls, hint: true, reason }); };
@@ -474,6 +628,7 @@ function judgeSession(ev, rule, sidecar, sid, ctx = {}) {
       //   - 历史 v1 evidence 记录 action_success=false（v1 把 many 当非期望工具 / title
       //     参数对照不适用批量形态）→ 读 sibling session JSONL 复核命中 A 后 PASS（口径 v2）。
       const isE02 = sid === 'E-02' && rule.e02ManyV2 === true;
+      const isE01 = sid === 'E-01';
       const familySeen = isE02
         ? seq.some((t) => ['task_create', 'task_create_many'].includes(baseTool(t)))
         : hasExpectedTool(seq, rule.expected);
@@ -493,6 +648,26 @@ function judgeSession(ev, rule, sidecar, sid, ctx = {}) {
           verdict = 'FAIL';
           detail = 'task_create 家族已调用但 session 复核未见命中目标 A（或未成功登记）→ 仍 FAIL（幻构/错误对象或未登记）';
           gateCand('A', `E-02 task_create 家族已调用但未命中目标 A 或未成功登记（${rule.targetA.scene}/${rule.targetA.spec}），用户明确复用意图未达成`);
+        }
+      } else if (isE01 && familySeen && !success && ctx.file && ctx.runId && rule.e01ExpectedScene) {
+        // E-01 归一复核（16950f9 fix，2026-09-04）：参数级 scene/spec 前缀序号剥离归一。
+        // 历史 evidence 的 action_success=false 可能是 scene 短名/别名（'user-management'）vs
+        // 期望全 id（'01-user-management'）的字面比较 artifact——服务端 resolveId 实际已把短名
+        // 解析到期望 scene 并成功创建 spec（name=user-login）。读 sibling session JSONL 复核
+        // 首个 spec_create：服务端成功且 scene/name 归一命中 → PASS（同 E-02 v2 复核模式）。
+        const normHit = loadE01SessionNormalizedHit(ctx.file, ctx.runId, rule.e01ExpectedScene, rule.e01ExpectedName);
+        if (normHit && normHit.hit && !normHit.forbiddenA) {
+          verdict = 'PASS';
+          e01NormFlip = true;
+          detail = `spec_create 服务端成功且 scene/name 归一命中期望（${normHit.detail}）`;
+          artifact = '归一终判（16950f9 参数级 scene/spec 前缀序号剥离归一比较）：evidence 的 action_success=false 为旧 harness 对 scene 短名/别名（如 user-management）与期望全 id（01-user-management）的字面比较 artifact，服务端 resolveId 实际已解析落位期望 scene/name → session 复核计 PASS；evidence 文件未改写，仅统计输出按归一规则';
+        } else {
+          verdict = 'FAIL';
+          detail = normHit && normHit.forbiddenA
+            ? 'spec_create 命中期望形态但 task_create 家族落在禁止对象 A（00-introduction）——真实 forbidden，归一不救'
+            : 'spec_create 已调用但 session 归一复核未见命中期望 scene/name（scene 错误/缺失或服务端失败）→ 仍 FAIL（归一仅救别名/短名，不救错误/缺失 scene）';
+          gateCand('A', `E-01 spec_create 未落位期望（scene=${rule.e01ExpectedScene}/name=${rule.e01ExpectedName}），用户明确新建意图未达成`);
+          gateCand('D', '调用失败若因 scene 缺失/错误场景或工具结果失败，可能 capability 或参数级问题；需查 session 区分 D/E');
         }
       } else {
         verdict = 'FAIL';
@@ -613,7 +788,7 @@ function judgeSession(ev, rule, sidecar, sid, ctx = {}) {
       verdict = 'UNKNOWN';
       detail = '未注册判定规则';
   }
-  return { verdict, detail, artifact, candidates };
+  return { verdict, detail, artifact, candidates, e01NormFlip };
 }
 
 /* ------------------------------------------------------------------ */
@@ -708,6 +883,16 @@ function buildHumanReport(ctx) {
     }
   }
   L.push('  注: candidates 为启发式提示（hint），非最终 failure_class；DeepSeek 需结合 session JSONL 文本复审后填 evidence.failure_class');
+
+  // ---- E-01 归一终判翻盘（16950f9）----
+  if (ctx.e01NormFlips && ctx.e01NormFlips.length) {
+    L.push('\n[4b] E-01 归一终判（16950f9 scene/spec 前缀序号剥离归一：scene 短名/别名→期望前缀 id 命中即 PASS）');
+    L.push('  原 evidence action_success=false 为旧 harness 字面比较 artifact，服务端实际已解析落位并成功；统计读 session 复核后翻盘如下（evidence 文件未改写）:');
+    for (const f of ctx.e01NormFlips) {
+      L.push(`  - [${f.sha}/${f.client}] ${f.run_id}（evidence action_success=${f.evidence_action_success}）→ PASS：${f.detail}`);
+    }
+    L.push('  注: 仅记录归一复核把 FAIL→PASS 的 session；错误/缺失 scene（00-default/缺省回退）不被归一救援，仍 FAIL。');
+  }
 
   // ---- 双 SHA 对照 ----
   L.push('\n[5] 双 SHA 行为对照（sha-a vs sha-b 同场景 action 分布 / 判定分布）');
@@ -845,6 +1030,20 @@ function main() {
     });
   }
 
+  // ---- E-01 归一复核翻盘记录（16950f9：scene/spec 前缀序号剥离归一）----
+  // 仅记录 judgeSession 中归一复核把 FAIL→PASS 的 session（evidence 字段未改写，
+  // artifact 标注归一口径；供 F-04 终版汇总直接引用）。
+  const e01NormFlips = [];
+  for (const s of allSessions) {
+    if (s.sid === 'E-01' && s.e01NormFlip === true && s.verdict === 'PASS') {
+      e01NormFlips.push({
+        scenario_id: s.sid, sha: s.sha, client: s.client, clientFamily: s.clientFamily,
+        run_id: s.runId, action_taken: s.actionTaken, evidence_action_success: s.successRaw,
+        detail: s.detail, artifact: s.artifact || null,
+      });
+    }
+  }
+
   // ---- 双 SHA 对照 ----
   const byScenario = new Map();
   for (const s of allSessions) {
@@ -908,7 +1107,8 @@ function main() {
       const keySessions = failSessions.filter((s) => s.candidates.some((c) => ['A', 'C', 'E'].includes(c.class)));
       const eImmediate = failSessions.some((s) => s.candidates.some((c) => c.class === 'E'));
       let twoClientTrigger = false;
-      if (mainClientList.length >= 2) {
+      // 两主力客户端各 >=1/5：本行客户端自身须有 ≥1 关键失败，且另有主力客户端 ≥1
+      if (mainClientList.length >= 2 && keySessions.length >= 1) {
         for (const other of mainClientList) {
           if (other === clientFamily) continue;
           const otherSessions = allSessions.filter((s) => s.sid === sid && s.sha === sha && s.clientFamily === other && (s.verdict === 'PASS' || s.verdict === 'FAIL'));
@@ -937,11 +1137,15 @@ function main() {
   // 裁决 2026-09-04 裁决 1：E-02 判定口径 v2（统计对历史 evidence 按新规则输出时注明口径 v2）
   notes.push('口径 v2（裁决 2026-09-04 裁决 1）：E-02 PASS = task_create 单条 或 task_create_many 成功在目标 A（01-user-management/01-00-user-login，服务端解析后）登记任务；v1 harness 对批量工具记的 action_success=false 为单条工具字面判定 artifact——历史 evidence 文件不改写，统计对 many 命中 A 的 session 读 sibling session JSONL 复核后按 v2 计 PASS（证据见 [4] 无 FAIL / [5] topActions task_create_many）。');
   notes.push('口径 v2 边界：仅 E-02 场景放宽到 task_create_many 批量形态；E-06a（同为 task_create 期望）维持原单条口径不变（裁决范围只含 E-02）；E-01/E-06b/E-07/E-08 判定不动。');
+  if (e01NormFlips.length) {
+    notes.push(`归一终判（16950f9 fix，2026-09-04）：E-01 ${e01NormFlips.length} 个 session 原 evidence action_success=false 为 scene 短名/别名（user-management）vs 期望前缀 id（01-user-management）的字面比较 artifact——服务端 resolveId 实际已解析落位期望 scene 并成功创建（session JSONL 复核命中）→ 按参数级 scene/spec 归一比较计 PASS（evidence 文件未改写，详见 e01NormalizationFlips / 输出说明）。错误/缺失 scene（00-default 或缺省回退）不被归一救援，维持 FAIL。`);
+  }
+  notes.push('归一终判适用范围：仅 E-01 的 scene/spec 前缀序号剥离归一（16950f9 修复点：resume rounds 与 callArgsMatch）；E-02 判定（taskCreateHitsTargetA）本就有形态宽容、不受影响，其余场景判定不动。');
 
   const ctx = {
     inputs: files, sessionCount: allSessions.length, fileErrors: fileErrors.length, fileErrorMsgs: fileErrors,
     filters: { scenarios: (opts.scenarios || []).join(',') || 'all', sha: opts.sha || 'all', client: opts.client || 'all', clientFamily: opts.clientFamily || 'all' },
-    scenariosSeen, perScenarioRows, varianceRows, failRows, dualShaRows, gateRows, notes,
+    scenariosSeen, perScenarioRows, varianceRows, failRows, dualShaRows, gateRows, e01NormFlips, notes,
   };
 
   if (isJson) {
@@ -954,6 +1158,7 @@ function main() {
       perScenario: perScenarioRows.map((r) => ({ ...r, counts: r.c })),
       variance: varianceRows.map((v) => ({ scenario_id: v.scenario_id, sha: v.sha, client: v.client, n: v.stats.n, mean: v.stats.mean, std: v.stats.std, stdMeanRatio: v.stats.ratio, under10pctGate: v.under10, note: v.note || null })),
       failSessions: failRows.map((f) => ({ ...f, candidates: f.candidates.map((c) => ({ ...c, final: false })) })),
+      e01NormalizationFlips: e01NormFlips,
       dualSha: dualShaRows,
       gate: gateRows,
       notes,
