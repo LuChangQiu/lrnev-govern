@@ -10,6 +10,7 @@ import { memorySearchRenderer } from '../../../src/mcp/helpers/renderers/memory-
 import type { LrnevToolPayload } from '../../../src/mcp/types/response-envelope.js';
 import type { ErrorEntry } from '../../../src/types/errorbook.js';
 import type { Memory } from '../../../src/types/memory.js';
+import { renderModelVisibleContent } from '../../../src/mcp/helpers/model-visible-contract.js';
 
 describe('M2 第 3 批渲染器 - 选择/歧义/搜索类', () => {
   describe('error_search 渲染器', () => {
@@ -44,7 +45,7 @@ describe('M2 第 3 批渲染器 - 选择/歧义/搜索类', () => {
       expect(content).toContain('ready gate 缺 headings');
     });
 
-    it('必须逃逸用户文本中的框架标记', () => {
+    it('用户文本保持未逃逸输出，最终由 MVC 统一转义口转义', () => {
       const payload: LrnevToolPayload<ErrorEntry[]> = {
         response_version: '1',
         ok: true,
@@ -69,10 +70,19 @@ describe('M2 第 3 批渲染器 - 选择/歧义/搜索类', () => {
 
       const content = errorSearchRenderer.render(payload);
 
-      // 验证转义生效：</ → <\/
-      expect(content).toContain('<\\/tag>');
-      expect(content).toContain('<\\/script>');
-      expect(content).toContain('<\\/div>');
+      // 新契约：渲染器返回未逃逸文本，用户文本中的 </...> 原样保留
+      expect(content).toContain('</tag>');
+      expect(content).toContain('</script>');
+      expect(content).toContain('</div>');
+
+      // 最终转义由 MVC 统一转义口（renderModelVisibleContent）保证：</ → <\/
+      const mvcContent = renderModelVisibleContent('error_search', payload);
+      expect(mvcContent).toContain('<\\/tag>');
+      expect(mvcContent).toContain('<\\/script>');
+      expect(mvcContent).toContain('<\\/div>');
+      expect(mvcContent).not.toContain('</tag>');
+      expect(mvcContent).not.toContain('</script>');
+      expect(mvcContent).not.toContain('</div>');
     });
   });
 
@@ -102,7 +112,7 @@ describe('M2 第 3 批渲染器 - 选择/歧义/搜索类', () => {
       expect(content).toContain('用户偏好使用 TypeScript');
     });
 
-    it('必须逃逸用户文本中的框架标记', () => {
+    it('用户文本保持未逃逸输出，最终由 MVC 统一转义口转义', () => {
       const payload: LrnevToolPayload<Memory[]> = {
         response_version: '1',
         ok: true,
@@ -122,8 +132,13 @@ describe('M2 第 3 批渲染器 - 选择/歧义/搜索类', () => {
 
       const content = memorySearchRenderer.render(payload);
 
-      // 验证转义生效：</ → <\/
-      expect(content).toContain('<\\/component>');
+      // 新契约：渲染器返回未逃逸文本，用户文本中的 </component> 原样保留
+      expect(content).toContain('</component>');
+
+      // 最终转义由 MVC 统一转义口（renderModelVisibleContent）保证：</ → <\/
+      const mvcContent = renderModelVisibleContent('memory_search', payload);
+      expect(mvcContent).toContain('<\\/component>');
+      expect(mvcContent).not.toContain('</component>');
     });
   });
 });

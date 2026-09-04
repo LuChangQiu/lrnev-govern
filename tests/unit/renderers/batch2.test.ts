@@ -5,7 +5,7 @@
  * 1. 投影 canonical payload，不创作 guidance 文本
  * 2. 禁止硬编码 paraphrase
  * 3. MVC required 字段完整呈现（D-04 分类）
- * 4. 逃逸用户文本
+ * 4. 用户文本由 MVC 统一转义口（renderModelVisibleContent）转义
  * 5. 注册到 initializeRenderers
  * 6. 单元测试（required 字段 + 无 paraphrase + ai_followup 投影）
  * 7. legacyRawFormat 已弃用
@@ -30,6 +30,7 @@ import { lrnevInitRenderer } from '../../../src/mcp/helpers/renderers/lrnev-init
 import { taskCreateManyRenderer } from '../../../src/mcp/helpers/renderers/task-create-many.js';
 import { taskUpdateRenderer } from '../../../src/mcp/helpers/renderers/task-update.js';
 import type { LrnevToolPayload } from '../../../src/mcp/types/response-envelope.js';
+import { renderModelVisibleContent } from '../../../src/mcp/helpers/model-visible-contract.js';
 
 describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
   describe('task_release 渲染器', () => {
@@ -90,7 +91,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
   });
 
   describe('memory_save 渲染器', () => {
-    it('必须渲染 id/category/content/path（content 由 escapeFrameworkMarkers 逃逸）', () => {
+    it('必须渲染 id/category/content/path（content 为用户文本：渲染器返回未逃逸，由 MVC 统一转义口转义）', () => {
       const payload: LrnevToolPayload<{
         id: string;
         category: string;
@@ -112,9 +113,14 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
       expect(content).toContain('mem-001');
       expect(content).toContain('preferences');
       expect(content).toContain('用户偏好使用 TypeScript');
-      // 渲染器调用 escapeFrameworkMarkers，所以应该包含逃逸后的内容
-      expect(content).toContain('<\\/script>');
+      // 新契约：渲染器返回未逃逸文本，用户文本中的 </script> 原样保留
+      expect(content).toContain('</script>');
       expect(content).toContain('.lrnev/memory/preferences/mem-001.md');
+
+      // 最终转义由 MVC 统一转义口（renderModelVisibleContent）保证：</ → <\/
+      const mvcContent = renderModelVisibleContent('memory_save', payload);
+      expect(mvcContent).toContain('<\\/script>');
+      expect(mvcContent).not.toContain('</script>');
     });
   });
 
@@ -137,7 +143,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
   });
 
   describe('error_record 渲染器', () => {
-    it('必须渲染 id/fingerprint/status/symptom/root_cause/fix_action/path（用户文本由 escapeFrameworkMarkers 逃逸）', () => {
+    it('必须渲染 id/fingerprint/status/symptom/root_cause/fix_action/path（用户文本：渲染器返回未逃逸，由 MVC 统一转义口转义）', () => {
       const payload: LrnevToolPayload<{
         id: string;
         fingerprint: string;
@@ -169,16 +175,21 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
       expect(content).toContain('incidents');
       expect(content).toContain('出现次数: 1');
       expect(content).toContain('构建失败');
-      // escapeFrameworkMarkers 逃逸 </ 为 <\/
-      expect(content).toContain('<\\/error>');
+      // 新契约：渲染器返回未逃逸文本，用户文本中的 </error> 原样保留
+      expect(content).toContain('</error>');
       expect(content).toContain('依赖版本冲突');
       expect(content).toContain('锁定版本');
       expect(content).toContain('.lrnev/errorbook/incidents/err-001.md');
+
+      // 最终转义由 MVC 统一转义口（renderModelVisibleContent）保证：</ → <\/
+      const mvcContent = renderModelVisibleContent('error_record', payload);
+      expect(mvcContent).toContain('<\\/error>');
+      expect(mvcContent).not.toContain('</error>');
     });
   });
 
   describe('error_promote 渲染器', () => {
-    it('必须渲染 id/status/verification/path（verification 由 escapeFrameworkMarkers 逃逸）', () => {
+    it('必须渲染 id/status/verification/path（verification 为用户文本：渲染器返回未逃逸，由 MVC 统一转义口转义）', () => {
       const payload: LrnevToolPayload<{
         id: string;
         status: string;
@@ -202,9 +213,14 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
       expect(content).toContain('err-001');
       expect(content).toContain('promoted');
       expect(content).toContain('已通过测试');
-      // escapeFrameworkMarkers 逃逸 </ 为 <\/
-      expect(content).toContain('<\\/test>');
+      // 新契约：渲染器返回未逃逸文本，用户文本中的 </test> 原样保留
+      expect(content).toContain('</test>');
       expect(content).toContain('.lrnev/errorbook/promoted/err-001.md');
+
+      // 最终转义由 MVC 统一转义口（renderModelVisibleContent）保证：</ → <\/
+      const mvcContent = renderModelVisibleContent('error_promote', payload);
+      expect(mvcContent).toContain('<\\/test>');
+      expect(mvcContent).not.toContain('</test>');
     });
   });
 

@@ -1,7 +1,6 @@
 import type { ModelVisibleRenderer } from '../model-visible-contract.js';
 import type { LrnevToolPayload } from '../../types/response-envelope.js';
 import type { ErrorEntry } from '../../../types/errorbook.js';
-import { escapeFrameworkMarkers } from '../model-visible-contract.js';
 
 /**
  * error_promote 渲染器
@@ -9,7 +8,7 @@ import { escapeFrameworkMarkers } from '../model-visible-contract.js';
  * MVC required 字段（D-04 写入类）:
  * - id（身份字段）
  * - status（promoted）
- * - verification（逃逸）
+ * - verification（用户文本，由 MVC 出口统一转义）
  * - path
  * - ai_followup.instructions（如有）
  */
@@ -24,7 +23,7 @@ export const errorPromoteRenderer: ModelVisibleRenderer<ErrorEntry> = {
 
     lines.push(`✅ 错误 ${id} 已提升为: ${status}`);
     if (body.verification) {
-      lines.push(`   验证: ${escapeFrameworkMarkers(body.verification)}`);
+      lines.push(`   验证: ${body.verification}`);
     }
     lines.push(`   路径: ${path}`);
     lines.push('');

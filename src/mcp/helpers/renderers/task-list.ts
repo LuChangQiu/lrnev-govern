@@ -1,7 +1,6 @@
 import type { ModelVisibleRenderer } from '../model-visible-contract.js';
 import type { LrnevToolPayload } from '../../types/response-envelope.js';
 import type { Task, ReadableTask } from '../../../types/task.js';
-import { escapeFrameworkMarkers } from '../model-visible-contract.js';
 
 /**
  * task_list 渲染器
@@ -73,7 +72,7 @@ export const taskListRenderer: ModelVisibleRenderer<Task[] | ReadableTask[]> = {
 function renderTask(task: Task | ReadableTask, lines: string[], indent: number): void {
   const prefix = '  '.repeat(indent);
   const statusBadge = formatStatus(task.status);
-  lines.push(`${prefix}${task.id} [${statusBadge}] ${escapeFrameworkMarkers(task.title)}`);
+  lines.push(`${prefix}${task.id} [${statusBadge}] ${task.title}`);
 
   if (task.validates && task.validates.length > 0) {
     lines.push(`${prefix}  validates: ${task.validates.join(', ')}`);

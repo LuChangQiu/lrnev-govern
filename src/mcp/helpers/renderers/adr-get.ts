@@ -1,7 +1,6 @@
 import type { ModelVisibleRenderer } from '../model-visible-contract.js';
 import type { LrnevToolPayload } from '../../types/response-envelope.js';
 import type { ADR } from '../../../types/adr.js';
-import { escapeFrameworkMarkers } from '../model-visible-contract.js';
 
 /**
  * adr_get 渲染器
@@ -24,7 +23,7 @@ export const adrGetRenderer: ModelVisibleRenderer<ADR> = {
     const { number, title, status, scope, body, supersedes, superseded_by, path } = payload.data;
     const lines: string[] = [];
 
-    lines.push(`# ADR ${number}: ${escapeFrameworkMarkers(title)}`);
+    lines.push(`# ADR ${number}: ${title}`);
     lines.push('');
     lines.push(`**状态**: ${status}`);
     lines.push(`**范围**: ${scope}`);
@@ -43,19 +42,19 @@ export const adrGetRenderer: ModelVisibleRenderer<ADR> = {
 
     lines.push('## 背景');
     lines.push('');
-    lines.push(escapeFrameworkMarkers(body.context));
+    lines.push(body.context);
     lines.push('');
 
     lines.push('## 决策');
     lines.push('');
-    lines.push(escapeFrameworkMarkers(body.decision));
+    lines.push(body.decision);
     lines.push('');
 
     if (body.alternatives && body.alternatives.length > 0) {
       lines.push('## 备选方案');
       lines.push('');
       for (const alt of body.alternatives) {
-        lines.push(escapeFrameworkMarkers(alt));
+        lines.push(alt);
       }
       lines.push('');
     }
@@ -63,7 +62,7 @@ export const adrGetRenderer: ModelVisibleRenderer<ADR> = {
     if (body.consequences) {
       lines.push('## 后果');
       lines.push('');
-      lines.push(escapeFrameworkMarkers(body.consequences));
+      lines.push(body.consequences);
       lines.push('');
     }
 

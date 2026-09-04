@@ -1,7 +1,6 @@
 import type { ModelVisibleRenderer } from '../model-visible-contract.js';
 import type { LrnevToolPayload } from '../../types/response-envelope.js';
 import type { ErrorEntry } from '../../../types/errorbook.js';
-import { escapeFrameworkMarkers } from '../model-visible-contract.js';
 
 /**
  * error_record 渲染器
@@ -9,7 +8,7 @@ import { escapeFrameworkMarkers } from '../model-visible-contract.js';
  * MVC required 字段（D-04 写入类）:
  * - id/fingerprint（身份字段）
  * - status（incidents）
- * - symptom/root_cause/fix_action（逃逸）
+ * - symptom/root_cause/fix_action（用户文本，由 MVC 出口统一转义）
  * - occurrence_count
  * - path
  * - ai_followup.instructions（如有）
@@ -27,9 +26,9 @@ export const errorRecordRenderer: ModelVisibleRenderer<ErrorEntry> = {
     lines.push(`   指纹: ${fingerprint}`);
     lines.push(`   状态: ${status}`);
     lines.push(`   出现次数: ${occurrence_count}`);
-    lines.push(`   症状: ${escapeFrameworkMarkers(body.symptom)}`);
-    lines.push(`   根因: ${escapeFrameworkMarkers(body.root_cause)}`);
-    lines.push(`   修复: ${escapeFrameworkMarkers(body.fix_action)}`);
+    lines.push(`   症状: ${body.symptom}`);
+    lines.push(`   根因: ${body.root_cause}`);
+    lines.push(`   修复: ${body.fix_action}`);
     lines.push(`   路径: ${path}`);
     lines.push('');
 

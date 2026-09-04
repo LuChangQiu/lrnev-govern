@@ -1,13 +1,12 @@
 import type { ModelVisibleRenderer } from '../model-visible-contract.js';
 import type { LrnevToolPayload } from '../../types/response-envelope.js';
 import type { TriggerHookResult } from '../../../types/hooks.js';
-import { escapeFrameworkMarkers } from '../model-visible-contract.js';
 
 /**
  * lrnev_hook_trigger 渲染器
  *
  * MVC required 字段（D-04 写入类）:
- * - event（身份字段，逃逸）
+ * - event（身份字段；用户文本，由 MVC 出口统一转义）
  * - matched（匹配 hook 数）
  * - warnings（如有）
  * - ai_followup.instructions（如有）
@@ -21,7 +20,7 @@ export const lrnevHookTriggerRenderer: ModelVisibleRenderer<TriggerHookResult> =
     const { event, matched, warnings } = payload.data;
     const lines: string[] = [];
 
-    lines.push(`✅ 事件 "${escapeFrameworkMarkers(event)}" 已触发`);
+    lines.push(`✅ 事件 "${event}" 已触发`);
     lines.push(`   匹配 hook: ${matched} 个`);
 
     if (warnings && warnings.length > 0) {

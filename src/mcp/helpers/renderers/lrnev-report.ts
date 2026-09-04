@@ -1,4 +1,4 @@
-import type { ModelVisibleRenderer, escapeFrameworkMarkers } from '../model-visible-contract.js';
+import type { ModelVisibleRenderer } from '../model-visible-contract.js';
 import type { LrnevToolPayload } from '../../types/response-envelope.js';
 import type { GovernanceReportResult } from '../../../types/governance-report.js';
 

@@ -1,7 +1,6 @@
 import type { ModelVisibleRenderer } from '../model-visible-contract.js';
 import type { LrnevToolPayload } from '../../types/response-envelope.js';
 import type { Scene } from '../../../types/scene.js';
-import { escapeFrameworkMarkers } from '../model-visible-contract.js';
 
 /**
  * scene_get 渲染器
@@ -35,7 +34,7 @@ export const sceneGetRenderer: ModelVisibleRenderer<Scene> = {
 
     if (intent) {
       lines.push('**业务意图**:');
-      lines.push(escapeFrameworkMarkers(intent));
+      lines.push(intent);
       lines.push('');
     }
 

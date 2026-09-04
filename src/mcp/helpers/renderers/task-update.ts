@@ -1,7 +1,6 @@
 import type { ModelVisibleRenderer } from '../model-visible-contract.js';
 import type { LrnevToolPayload } from '../../types/response-envelope.js';
 import type { Task } from '../../../types/task.js';
-import { escapeFrameworkMarkers } from '../model-visible-contract.js';
 
 /**
  * task_update 渲染器
@@ -9,7 +8,7 @@ import { escapeFrameworkMarkers } from '../model-visible-contract.js';
  * MVC required 字段（D-04 写入类）:
  * - task_id
  * - status（新状态）
- * - title（逃逸）
+ * - title（用户文本，由 MVC 出口统一转义）
  * - ai_followup.instructions（如有）
  */
 export const taskUpdateRenderer: ModelVisibleRenderer<Task> = {
@@ -22,7 +21,7 @@ export const taskUpdateRenderer: ModelVisibleRenderer<Task> = {
     const lines: string[] = [];
 
     lines.push(`✅ Task ${id} 状态已更新为: ${status}`);
-    lines.push(`   标题: ${escapeFrameworkMarkers(title)}`);
+    lines.push(`   标题: ${title}`);
     lines.push('');
 
     // 投影 ai_followup

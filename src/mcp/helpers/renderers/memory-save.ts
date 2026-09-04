@@ -1,14 +1,13 @@
 import type { ModelVisibleRenderer } from '../model-visible-contract.js';
 import type { LrnevToolPayload } from '../../types/response-envelope.js';
 import type { Memory } from '../../../types/memory.js';
-import { escapeFrameworkMarkers } from '../model-visible-contract.js';
 
 /**
  * memory_save 渲染器
  *
  * MVC required 字段（D-04 写入类）:
  * - id/category（身份字段）
- * - content（逃逸）
+ * - content（用户文本，由 MVC 出口统一转义）
  * - path
  * - ai_followup.instructions（如有）
  */
@@ -23,7 +22,7 @@ export const memorySaveRenderer: ModelVisibleRenderer<Memory> = {
 
     lines.push(`✅ 记忆已保存：${id}`);
     lines.push(`   类别: ${category}`);
-    lines.push(`   内容: ${escapeFrameworkMarkers(content)}`);
+    lines.push(`   内容: ${content}`);
     lines.push(`   路径: ${path}`);
     lines.push('');
 
