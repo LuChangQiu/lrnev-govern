@@ -256,7 +256,12 @@ function buildCBasis(result, shaLabel) {
 async function buildEvidenceV2(result, overrides = {}) {
   const init = extractInitFields(result.initEvent);
   const runId = overrides.runId || `${fixture.id.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  const gitSha = sha === 'sha-a' ? await getFullGitSha('sha-a') : await getFullGitSha('sha-b');
+  // B3 对照（2026-09-04）：sha-c 快照 git_sha 支持——按 worktree 标签解析，
+  // 未知标签回退 sha-b（历史行为）。sha-a/sha-b 结果与历史完全一致。
+  const KNOWN_SHA_WORKTREES = ['sha-a', 'sha-b', 'sha-c'];
+  const gitSha = KNOWN_SHA_WORKTREES.includes(sha)
+    ? await getFullGitSha(sha)
+    : await getFullGitSha('sha-b');
   const contentHash = computeWorktreeContentHash(sha);
   const evidenceRelPath = `tests/e2e/t027-baseline/.evidences/${runId}.json`;
 
@@ -1651,11 +1656,21 @@ function judgeE02TaskRegistration(result, fixture) {
     if (!toolResult) continue;
     if (!(toolResult.success === true) || toolResult.isPermissionDenied) continue;
     const b = baseToolName(call.tool);
-    // 单条 task_create：同原单条口径（含 title 等全参数对照，服务端解析优先）
+    // 单条 task_create：v2 裁决口径（裁决 1，2026-09-04）——命中目标 A（scene/spec，
+    // 服务端解析后）并成功登记 = PASS，与 task_create_many 分支同口径。title 是 AI 拟题
+    // 自由（fixture userInput 从不指定标题，如 E-02 用户只说"补充用户登录"），全等比较
+    // 会把同义/扩展措辞（"补充用户登录能力/开发"）误判 FAIL → 不作 gate，仅留 observation。
     if (b === 'task_create') {
-      const { match, mismatches } = callArgsMatch(call, result.toolResults, fixture.expectedArgs);
-      if (match) return { applicable: true, found: true, success: true, via: b, reason: 'task_create(A) 成功且参数匹配' };
-      nonTargetNotes.push(`task_create 参数不符：${mismatches.join('；') || '细节见上'}`);
+      const { data } = resolveCallExecution(call, result.toolResults);
+      const resolvedScene = data.scene ?? call.input?.scene;
+      const resolvedSpec = data.spec ?? call.input?.spec;
+      if (taskCreateHitsTargetA(resolvedScene, resolvedSpec, expectedScene, expectedSpec)) {
+        return {
+          applicable: true, found: true, success: true, via: b,
+          reason: `task_create(A) 服务端成功且 scene/spec 命中目标 A（scene=${resolvedScene}, spec=${resolvedSpec}；title 为 AI 拟题，见 session）`,
+        };
+      }
+      nonTargetNotes.push(`task_create 打在非目标对象（scene=${resolvedScene ?? '(缺)'}, spec=${resolvedSpec ?? '(缺)'} ≠ A）→ FAIL（幻构/错误对象）`);
       continue;
     }
     // 批量 task_create_many：scene/spec 命中目标 A（服务端解析后）即算登记成功
@@ -2383,7 +2398,7 @@ async function getFullGitSha(shaLabel) {
     // 修复1：检查 worktree 是否存在
     if (!existsSync(worktreePath)) {
       console.error(`⚠️  Worktree 不存在: ${worktreePath}`);
-      resolvePromise(shaLabel === 'sha-a' ? '45a86e15c896c446a41e48324e646d32c27fb76a' : '6383e996caa636db9e704d24f4de7a8a30b3d3ee');
+      resolvePromise(shaLabel === 'sha-a' ? '45a86e15c896c446a41e48324e646d32c27fb76a' : (shaLabel === 'sha-c' ? '918581e73007c099c7e7002a29b26556a2d21590' : '6383e996caa636db9e704d24f4de7a8a30b3d3ee'));
       return;
     }
 
@@ -2408,14 +2423,14 @@ async function getFullGitSha(shaLabel) {
         resolvePromise(stdout.trim());
       } else {
         console.error(`⚠️  git rev-parse 失败 (code ${code}): ${stderr}`);
-        resolvePromise(shaLabel === 'sha-a' ? '45a86e15c896c446a41e48324e646d32c27fb76a' : '6383e996caa636db9e704d24f4de7a8a30b3d3ee');
+        resolvePromise(shaLabel === 'sha-a' ? '45a86e15c896c446a41e48324e646d32c27fb76a' : (shaLabel === 'sha-c' ? '918581e73007c099c7e7002a29b26556a2d21590' : '6383e996caa636db9e704d24f4de7a8a30b3d3ee'));
       }
     });
 
     // 修复4：处理 spawn 错误
     child.on('error', (err) => {
       console.error(`⚠️  git spawn 失败: ${err.message}`);
-      resolvePromise(shaLabel === 'sha-a' ? '45a86e15c896c446a41e48324e646d32c27fb76a' : '6383e996caa636db9e704d24f4de7a8a30b3d3ee');
+      resolvePromise(shaLabel === 'sha-a' ? '45a86e15c896c446a41e48324e646d32c27fb76a' : (shaLabel === 'sha-c' ? '918581e73007c099c7e7002a29b26556a2d21590' : '6383e996caa636db9e704d24f4de7a8a30b3d3ee'));
     });
   });
 }
