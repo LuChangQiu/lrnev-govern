@@ -1224,7 +1224,22 @@ async function runGenericRoundsFlow() {
     for (const [key, expectedValue] of Object.entries(fixture.expectedArgs)) {
       const actualInput = expectedCall.input?.[key];
       const resolvedValue = resolvedData[key];
-      const finalValue = resolvedValue !== undefined ? resolvedValue : actualInput;
+      let finalValue = resolvedValue !== undefined ? resolvedValue : actualInput;
+      // scene/spec 类字段归一比较：循环剥离开头 NN- 前缀序号段（服务端 resolveId
+      // 接受全 id/短 id/纯名；opencode 等渲染文本输出无结构化解析值时，fallback
+      // 到 AI 输入可能是别名/短名——按服务端解析形态宽容匹配；spec 名在 scene
+      // 内唯一，序号段是动态分配的，name 相同即命中）
+      if (key === 'scene' || key === 'spec') {
+        const stripNum = (s) => {
+          if (typeof s !== 'string') return s;
+          let p;
+          do { p = s; s = s.replace(/^\d+-/, ''); } while (s !== p);
+          return s;
+        };
+        if (stripNum(finalValue) === stripNum(expectedValue)) {
+          finalValue = expectedValue; // 归一命中（服务端会解析为期望 id）
+        }
+      }
       if (expectedValue !== undefined && finalValue !== expectedValue) {
         argsMatch = false;
         argsMismatch.push(`${key} 不匹配（期望 ${expectedValue}，AI 传入 ${actualInput}，服务端解析为 ${resolvedValue}）`);
@@ -1537,10 +1552,22 @@ function resolveCallExecution(call, toolResults) {
 function callArgsMatch(call, toolResults, expectedArgs) {
   const { data } = resolveCallExecution(call, toolResults);
   const mismatches = [];
+  // scene/spec 归一：循环剥离开头 NN- 前缀序号段（服务端 resolveId 接受全 id/
+  // 短 id/纯名；渲染文本输出无结构化解析值时 fallback AI 输入可能是别名——
+  // 按服务端形态宽容；spec 名在 scene 内唯一，序号动态，name 相同即命中）
+  const stripNum = (s) => {
+    if (typeof s !== 'string') return s;
+    let p;
+    do { p = s; s = s.replace(/^\d+-/, ''); } while (s !== p);
+    return s;
+  };
   for (const [key, expectedValue] of Object.entries(expectedArgs || {})) {
     const actualInput = call.input?.[key];
     const resolvedValue = data[key];
-    const finalValue = resolvedValue !== undefined ? resolvedValue : actualInput;
+    let finalValue = resolvedValue !== undefined ? resolvedValue : actualInput;
+    if ((key === 'scene' || key === 'spec') && stripNum(finalValue) === stripNum(expectedValue)) {
+      finalValue = expectedValue; // 归一命中（服务端会解析为期望 id）
+    }
     if (expectedValue !== undefined && finalValue !== expectedValue) {
       mismatches.push(`${key} 不匹配（期望 ${expectedValue}，AI 传入 ${actualInput ?? '(缺失)'}，服务端解析为 ${resolvedValue ?? '(缺失)'}）`);
     }
