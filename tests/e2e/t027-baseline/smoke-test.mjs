@@ -154,6 +154,9 @@ async function testSha(sha, projectRoot, wrapperPath) {
     });
 
     // 发送 initialize 请求
+    // 注（统一审查核验 #7）：protocolVersion 用 2024-11-05 是有意选择——smoke-test 需
+    // 兼容 sha-a（45a86e，pre-M1 老 server）与 sha-b/sha-c（新 server），取两端共同支持
+    // 的最老协议版本；不是 mcp_version 字段来源（证据字段用 harness 常量 2025-11-25）。
     const initializeRequest = {
       jsonrpc: '2.0',
       id: 1,

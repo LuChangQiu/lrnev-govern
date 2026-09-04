@@ -104,7 +104,7 @@ export interface EvidenceContract {
 
   /**
    * MCP 协议版本
-   * 例如：2024-11-05
+   * 例如：2025-11-25（harness MCP_PROTOCOL_VERSION）
    */
   mcp_version: string;
 
