@@ -343,14 +343,20 @@ async function buildWorkspace() {
   mkdirSync(resolve(lrnevDir, 'tasks'), { recursive: true });
 
   // 创建 scene.md（frontmatter 引号规则内置）
+  // T-027 对齐：frontmatter 键必须与真实 scene 模板一致（id/number/name/status/created/intent，
+  // 见 templates/scene/scene.md.tmpl）——旧 fixture 写 `scene: <id>` 属 schema 外键，
+  // 会经 SceneManager.get 泄漏给严格客户端（additional properties -32602）。
   const sceneNumber = scene.split('-')[0];
   const sceneName = scene.split('-').slice(1).join('-');
   const sceneDisplayName = sceneName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
   const sceneContent = `---
-scene: ${scene}
+id: '${scene}'
 number: ${sceneNumber}
+name: '${sceneName}'
+status: draft
 created: '${new Date().toISOString().split('T')[0]}'
+intent: ''
 ---
 
 # ${sceneNumber} ${sceneDisplayName}
@@ -1548,19 +1554,22 @@ function resolveCallExecution(call, toolResults) {
   return { success: tr.success === true && tr.isPermissionDenied !== true, denied: tr.isPermissionDenied === true, data, hasResult: true };
 }
 
+/**
+ * scene/spec 归一：循环剥离开头 NN- 前缀序号段（服务端 resolveId 接受全 id/
+ * 短 id/纯名；渲染文本输出无结构化解析值时 fallback AI 输入可能是别名——
+ * 按服务端形态宽容；spec 名在 scene 内唯一，序号动态，name 相同即命中）
+ */
+function stripNum(s) {
+  if (typeof s !== 'string') return s;
+  let p;
+  do { p = s; s = s.replace(/^\d+-/, ''); } while (s !== p);
+  return s;
+}
+
 /** 参数级对照（服务端解析值优先，其次 AI 输入）——与主流程/通用分轮同口径 */
 function callArgsMatch(call, toolResults, expectedArgs) {
   const { data } = resolveCallExecution(call, toolResults);
   const mismatches = [];
-  // scene/spec 归一：循环剥离开头 NN- 前缀序号段（服务端 resolveId 接受全 id/
-  // 短 id/纯名；渲染文本输出无结构化解析值时 fallback AI 输入可能是别名——
-  // 按服务端形态宽容；spec 名在 scene 内唯一，序号动态，name 相同即命中）
-  const stripNum = (s) => {
-    if (typeof s !== 'string') return s;
-    let p;
-    do { p = s; s = s.replace(/^\d+-/, ''); } while (s !== p);
-    return s;
-  };
   for (const [key, expectedValue] of Object.entries(expectedArgs || {})) {
     const actualInput = call.input?.[key];
     const resolvedValue = data[key];
@@ -2192,29 +2201,10 @@ async function main() {
 
       const toolSuccess = toolResult.success && !toolResult.isPermissionDenied;
 
-      // P0 判定增强：参数级对照（通用）
-      if (fixture.expectedArgs) {
-        let resolvedData = {};
-        try {
-          let resultContent = toolResult.content;
-          if (Array.isArray(resultContent) && resultContent[0]?.type === 'text') {
-            resultContent = resultContent[0].text;
-          }
-          if (typeof resultContent === 'string') {
-            const parsed = JSON.parse(resultContent);
-            resolvedData = parsed.data || parsed.structuredContent?.data || {};
-          }
-        } catch (e) {
-          // 解析失败
-        }
-        for (const [key, expectedValue] of Object.entries(fixture.expectedArgs)) {
-          const actualInput = expectedCall.input?.[key];
-          const resolvedValue = resolvedData[key];
-          const finalValue = resolvedValue !== undefined ? resolvedValue : actualInput;
-          if (expectedValue !== undefined && finalValue !== expectedValue) {
-            return false; // 参数不匹配
-          }
-        }
+      // P0 判定增强：参数级对照（通用；scene/spec 归一，与 callArgsMatch 同口径）
+      if (fixture.expectedArgs && Object.keys(fixture.expectedArgs).length > 0) {
+        const matched = callArgsMatch(expectedCall, result.toolResults, fixture.expectedArgs);
+        if (!matched.match) return false; // 参数不匹配
       }
       return toolSuccess;
     })();
@@ -2247,39 +2237,17 @@ async function main() {
     const toolSuccess = toolResult ? (toolResult.success && !toolResult.isPermissionDenied) : false;
 
     // P0 判定增强：参数级对照（通用，支持所有 expectedArgs）
+    // 归一口径（裁决 16950f9 扩展）：scene/spec 比较复用 callArgsMatch 的 stripNum
+    // 归一（服务端 resolveId 形态宽容），E-01/E-03/E-04/E-09~E-11 等单发场景与
+    // E-02/E-05/E-06a 同口径——opencode 渲染文本无结构化解析值时 fallback AI 输入
+    // 可能是别名/短名，全等比较会误判 FAIL。
     let argsMatch = true;
     let argsMismatch = [];
 
     if (expectedCall && toolSuccess && fixture.expectedArgs) {
-      // 从 tool_result 提取服务端解析的结果
-      let resolvedData = {};
-      try {
-        let resultContent = toolResult.content;
-        // 处理数组格式：[{type: "text", text: "..."}]
-        if (Array.isArray(resultContent) && resultContent[0]?.type === 'text') {
-          resultContent = resultContent[0].text;
-        }
-        if (typeof resultContent === 'string') {
-          const parsed = JSON.parse(resultContent);
-          resolvedData = parsed.data || parsed.structuredContent?.data || {};
-        }
-      } catch (e) {
-        // 解析失败，使用空对象
-      }
-
-      // 对比每个期望参数
-      for (const [key, expectedValue] of Object.entries(fixture.expectedArgs)) {
-        const actualInput = expectedCall.input?.[key];
-        const resolvedValue = resolvedData[key];
-
-        // 使用服务端解析结果（如果有），否则使用 AI 输入
-        const finalValue = resolvedValue !== undefined ? resolvedValue : actualInput;
-
-        if (expectedValue !== undefined && finalValue !== expectedValue) {
-          argsMatch = false;
-          argsMismatch.push(`${key} 不匹配（期望 ${expectedValue}，AI 传入 ${actualInput}，服务端解析为 ${resolvedValue}）`);
-        }
-      }
+      const matched = callArgsMatch(expectedCall, result.toolResults, fixture.expectedArgs);
+      argsMatch = matched.match;
+      argsMismatch = matched.mismatches;
     }
 
     // E-07 等 no_spec 场景：expectedAction 为 null，判定逻辑不同
@@ -2338,30 +2306,18 @@ async function main() {
         console.error(`   权限拒绝: ❌ 是（${toolResult.content.substring(0, 60)}...）`);
       }
 
-      // 参数级对照输出（通用）
+      // 参数级对照输出（通用；判定已走 callArgsMatch 归一，此处展示字段级明细）
       if (fixture.expectedArgs && Object.keys(fixture.expectedArgs).length > 0) {
-        // 从 tool_result 提取服务端解析的结果
-        let resolvedData = {};
-        try {
-          let resultContent = toolResult.content;
-          // 处理数组格式：[{type: "text", text: "..."}]
-          if (Array.isArray(resultContent) && resultContent[0]?.type === 'text') {
-            resultContent = resultContent[0].text;
-          }
-          if (typeof resultContent === 'string') {
-            const parsed = JSON.parse(resultContent);
-            resolvedData = parsed.data || parsed.structuredContent?.data || {};
-          }
-        } catch (e) {
-          // 忽略
-        }
+        const { data } = resolveCallExecution(expectedCall, result.toolResults);
 
         for (const [key, expectedValue] of Object.entries(fixture.expectedArgs)) {
           const actualInput = expectedCall.input?.[key];
-          const resolvedValue = resolvedData[key];
-          const match = (resolvedValue !== undefined ? resolvedValue : actualInput) === expectedValue;
+          const resolvedValue = data[key];
+          const finalValue = resolvedValue !== undefined ? resolvedValue : actualInput;
+          const normHit = (key === 'scene' || key === 'spec') && stripNum(finalValue) === stripNum(expectedValue);
+          const match = normHit ? true : finalValue === expectedValue;
 
-          console.error(`   参数对照 [${key}]: AI 传入 ${actualInput || '缺失'}，服务端解析为 ${resolvedValue || actualInput}${expectedValue !== undefined ? ` (期望 ${expectedValue})` : ''} ${match ? '✅' : '❌'}`);
+          console.error(`   参数对照 [${key}]: AI 传入 ${actualInput || '缺失'}，服务端解析为 ${resolvedValue || actualInput}${expectedValue !== undefined ? ` (期望 ${expectedValue})` : ''} ${match ? '✅' : '❌'}${normHit ? '（归一命中）' : ''}`);
         }
 
         if (argsMismatch.length > 0) {
