@@ -177,6 +177,16 @@ npm install && npm run build && npm link
 
 > 这个项目用 lrnev 治理。先调 lrnev_guide 了解怎么用，再按指引推进。
 
+**工具面分层（可选）**：默认接入全部 42 个工具。想让 AI 只看到决策/执行工具面时，可在配置 `args`
+加 `--profile core`，裁掉 9 个"AI 不该主动选"的工具（`agent_*` 由连接层自动调 + `lrnev_hook_*`
+由人配置期使用），保留 33 个（task/adr/error/memory/session_commit/doctor/report/guide 全留）：
+
+```json
+{ "mcpServers": { "lrnev": { "command": "lrnev-mcp", "args": ["--profile", "core"] } } }
+```
+
+core/full 差异与各客户端配置示例见 [`docs/AI-ADAPTATION.md`](docs/AI-ADAPTATION.md)。
+
 ### 防长对话遗忘 💤
 
 MCP 的工作流说明只在连接时注入一次。聊了几十轮之后 AI 可能"忘了"要用 lrnev——正常现象。把下面这段贴进客户端的**常驻提示槽**（不会被压缩），AI 每轮都被提醒：

@@ -13,7 +13,7 @@ import { resolveWorkspaceRoot } from '../storage/WorkspaceLocator.js';
 import { FileStorage } from '../storage/FileStorage.js';
 import { AgentRegistry } from '../core/AgentRegistry.js';
 import { registerResources } from './resources/index.js';
-import { registerTools } from './tools/index.js';
+import { registerTools, type McpProfile } from './tools/index.js';
 import { WORKFLOW_OVERVIEW } from './guidance.js';
 
 function buildInstructions(): string {
@@ -35,7 +35,20 @@ function buildInstructions(): string {
   return instructions.join('\n');
 }
 
-export function createMcpServer(): McpServer {
+/**
+ * createMcpServer 选项。
+ *
+ * L7 消费方分层（2026-09-04 裁决 2）：profile 决定注册哪些工具。
+ * 默认 'full'（42 个），保持向后兼容；'core' 只裁 9 个"AI 不该主动选"的工具：
+ * agent_* 自动面与 lrnev_hook_* 配置面（共 9 个，见 tools/index.ts 的 McpProfile 注释），保留 33 个。
+ */
+export interface McpServerOptions {
+  /** 工具注册面：'full'（默认，42）| 'core'（33，裁剪 agent_* 自动面 + lrnev_hook_* 配置面）。 */
+  profile?: McpProfile;
+}
+
+export function createMcpServer(options: McpServerOptions = {}): McpServer {
+  const profile = options.profile ?? 'full';
   const server = new McpServer(
     {
       name: PACKAGE_NAME,
@@ -51,12 +64,42 @@ export function createMcpServer(): McpServer {
   );
 
   registerResources(server);
-  registerTools(server);
+  registerTools(server, profile);
   return server;
 }
 
-export async function startMcpServer(): Promise<void> {
-  const server = createMcpServer();
+/**
+ * 解析 MCP 服务入口的 --profile 参数（MCP 客户端在配置的 args 里追加）。
+ *
+ * 支持 `--profile core` 与 `--profile=core` 两种写法；缺省返回 'full'。
+ * 非法取值抛错（bin/lrnev-mcp.mjs 的 catch 会写 stderr 并 exit 1）。
+ */
+export function parseMcpProfileArg(argv: readonly string[] = process.argv): McpProfile {
+  for (let i = 0; i < argv.length; i++) {
+    const token = argv[i];
+    if (token === undefined) break;
+    if (token === '--profile') {
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith('-')) {
+        throw new Error('--profile 缺少取值：仅支持 core|full（默认 full），例如 --profile core');
+      }
+      return assertMcpProfile(value);
+    }
+    if (token.startsWith('--profile=')) {
+      return assertMcpProfile(token.slice('--profile='.length));
+    }
+  }
+  return 'full';
+}
+
+function assertMcpProfile(value: string): McpProfile {
+  if (value === 'core' || value === 'full') return value;
+  throw new Error(`--profile 取值无效：收到 "${value}"，仅支持 core|full（默认 full）。`);
+}
+
+export async function startMcpServer(argv: readonly string[] = process.argv): Promise<void> {
+  const profile = parseMcpProfileArg(argv);
+  const server = createMcpServer({ profile });
   const transport = new StdioServerTransport();
 
   // 存活随 stdio 连接生命周期:连接初始化即注册当前会话 agent,连接断开即注销并释放其 claim。

@@ -118,6 +118,49 @@ MCP 工具名与 CLI 子命令一一对应（如 `task_create_many` ↔ `lrnev t
 | 多 Agent | `agent_register/heartbeat/list/unregister` |
 | Hooks | `lrnev_hook_list/trigger/enable/disable/tail_log` |
 
+## 工具面分层：`--profile core` / `full`
+
+42 个工具服务的消费方不同：`agent_*` 自动面由连接层在会话初始化时自动调用（AI 不该主动选），
+`lrnev_hook_*` 配置面由人在配置期使用。lrnev-mcp 支持注册期裁剪（默认 `full`，向后兼容）：
+
+| profile | 工具数 | 说明 |
+|---------|--------|------|
+| `full`（默认） | 42 | 全部工具 |
+| `core` | 33 | 裁掉 9 个"AI 不该主动选"的工具：`agent_register`/`agent_heartbeat`/`agent_unregister`/`agent_list` + `lrnev_hook_list`/`lrnev_hook_trigger`/`lrnev_hook_tail_log`/`lrnev_hook_enable`/`lrnev_hook_disable` |
+
+`core` 保留 task/adr/error/memory/session_commit/doctor/report/guide 全部——AI 决策与执行都可能用到；
+`lrnev_doctor`/`lrnev_report` 是"AI 替人执行"的 User 层可见性通道，不能砍。弱模型对长工具清单的排除能力弱，
+收敛工具面受益最大；强模型/治理型工作流用默认 `full` 即可。
+
+MCP 客户端在配置的 `args` 里追加 `--profile core`（缺省 full，不改配置零变化）：
+
+```json
+{
+  "mcpServers": {
+    "lrnev": {
+      "command": "lrnev-mcp",
+      "args": ["--profile", "core"]
+    }
+  }
+}
+```
+
+源码开发指向本仓库入口时同样追加在 `args` 末尾：
+
+```json
+{
+  "mcpServers": {
+    "lrnev": {
+      "command": "node",
+      "args": ["/path/to/lrnev-govern/bin/lrnev-mcp.mjs", "--profile", "core"]
+    }
+  }
+}
+```
+
+`--profile` 仅接受 `core|full`（也支持 `--profile=core` 写法），非法取值启动即写 stderr 报错并退出；
+参数在启动时生效，属于注册期裁剪，不碰业务 core 与渲染器。
+
 ## 如何对 AI 开口
 
 ### 常驻提示词模板（防长对话遗忘）

@@ -180,7 +180,21 @@ function withoutDecisionContext<A extends { decision_context?: unknown }>(args: 
   return placementArgs;
 }
 
-export function registerTools(server: McpServer): void {
+/**
+ * 工具面分层 profile（L7 消费方分层，2026-09-04 裁决 2，见 ai-discussions/结果/
+ * 2026-09-04-DeepSeek-引导激励与工具分层设计裁决.md 第八节裁决 2）：
+ *
+ * - 'full'（默认，42 个）：全部工具，向后兼容，现有客户端/测试零变化；
+ * - 'core'（33 个）：full − 9 个"AI 不该主动选"的工具 —— agent_* 自动面
+ *   （agent_register/heartbeat/unregister/list，连接层 initialize 自动调，AI 不该选）
+ *   + lrnev_hook_* 配置面（list/trigger/tail_log/enable/disable，人配置期使用）。
+ *
+ * task/adr/error/memory/session_commit/doctor/report/guide 全留 core（AI 可能需要；
+ * doctor/report 是"AI 替人执行"的 User 层通道，不能砍）。
+ */
+export type McpProfile = 'core' | 'full';
+
+export function registerTools(server: McpServer, profile: McpProfile = 'full'): void {
   registerWorkspaceTools(server);
   registerGuideTools(server);
   registerProjectStatusTools(server);
@@ -196,9 +210,11 @@ export function registerTools(server: McpServer): void {
   registerSearchTools(server);
   registerErrorTools(server);
   registerMemoryTools(server);
-  registerAgentTools(server);
+  // [自动] 面：agent 系由连接层在会话 initialize 时自动调用，AI 不需要也不该主动选 → 仅 full 注册。
+  if (profile === 'full') registerAgentTools(server);
   registerDoctorTools(server);
-  registerHookTools(server);
+  // [配置] 面：lrnev_hook_* 由人在配置期使用 → 仅 full 注册。
+  if (profile === 'full') registerHookTools(server);
 }
 
 function registerGuideTools(server: McpServer): void {
