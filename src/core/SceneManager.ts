@@ -114,14 +114,18 @@ export class SceneManager {
     const specPattern = `.lrnev/scenes/${resolvedId}/specs/*/requirements.md`;
     const specFiles = await this.fs.list(specPattern);
 
+    // 输出契约（03-00 T-001 / T-027 修复）：显式白名单字段，只返回类型接口声明
+    // 的键（+ 补齐字段），绝不 `...parsed.frontmatter` 全展开——否则任何用户
+    // frontmatter 里的 schema 外键都会泄漏进 structuredContent，被严格客户端
+    // （additionalProperties:false）判为 -32602。
     return {
-      ...parsed.frontmatter,
-      // 容错：如果 frontmatter 缺字段，从目录名补齐
       id: parsed.frontmatter.id ?? resolvedId,
       number: parsed.frontmatter.number ?? extractNumber(resolvedId),
       name: parsed.frontmatter.name ?? extractName(resolvedId),
       status: parsed.frontmatter.status ?? 'draft',
       created: parsed.frontmatter.created ?? today(),
+      ...(parsed.frontmatter.updated !== undefined && { updated: parsed.frontmatter.updated }),
+      ...(parsed.frontmatter.intent !== undefined && { intent: parsed.frontmatter.intent }),
       path: this.fs.abs(`${SCENES_DIR}/${resolvedId}`),
       spec_count: specFiles.length,
     };

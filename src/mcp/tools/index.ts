@@ -46,7 +46,6 @@ import { toMcpToolResult, toMcpToolResultFromData } from '../helpers/tool-result
 import {
   createToolOutputSchema,
   createGuidanceToolOutputSchema,
-  SimpleConfirmationDataSchema,
   AgentDataSchema,
   AgentRegisterResultSchema,
   AgentHeartbeatResultSchema,
@@ -56,10 +55,14 @@ import {
   TaskDataSchema,
   ReadableTaskSchema,
   TaskClaimResultSchema,
+  TaskClaimReleaseResultSchema,
+  CreateManyTasksResultSchema,
   ADRDataSchema,
   MemoryDataSchema,
+  MemoryForgetResultSchema,
   ErrorEntryDataSchema,
   HookDataSchema,
+  HookConfigDataSchema,
   HookListResultSchema,
   GoalAssessmentDataSchema,
   ContextSearchResultSchema,
@@ -73,6 +76,8 @@ import {
   HookTriggerResultSchema,
   HookLogEntrySchema,
   ValidationDataSchema,
+  AgentUnregisterResultSchema,
+  InitWorkspaceResultSchema,
 } from '../types/output-schemas.js';
 
 type ToolResult = {
@@ -223,7 +228,7 @@ function registerWorkspaceTools(server: McpServer): void {
         project_name: z.string().optional().describe('可选：项目名；默认使用目录名'),
         scan: z.boolean().optional().describe('占位 flag，M2 不做主动扫描；行为同默认 init'),
       },
-      outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
+      outputSchema: createToolOutputSchema(InitWorkspaceResultSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async (args) => toMcpToolResult(new WorkspaceManager().init(args), 'lrnev_init'),
@@ -516,7 +521,9 @@ function registerTaskTools(server: McpServer): void {
           key: z.string().optional().describe('可选：批内临时键，供同批 depends_on 引用；不得使用 T-xxx 格式，不落盘'),
         })).describe('要创建的任务列表；按数组顺序分配 T-xxx，任一条校验失败整批不写'),
       },
-      outputSchema: createToolOutputSchema(z.array(TaskDataSchema)),
+      // T-027 修复：task_create_many 返回压缩对象 { created, count }
+      // （CreateManyTasksResult），不是 Task 数组。
+      outputSchema: createToolOutputSchema(CreateManyTasksResultSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(getManagers().tasks.createMany(args), 'task_create_many'),
@@ -573,7 +580,9 @@ function registerTaskTools(server: McpServer): void {
         task: z.string().describe('Task ID，例如 T-001'),
         agent_id: z.string().describe('当前 Agent ID'),
       },
-      outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
+      // T-027 修复：task_release 返回 TaskClaimReleaseResult（scene/spec/task/released），
+      // 之前错误注册 SimpleConfirmationDataSchema 导致四个键全部被判为 additional properties。
+      outputSchema: createToolOutputSchema(TaskClaimReleaseResultSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async (args) => toMcpToolResult(getManagers().tasks.releaseClaim(args), 'task_release'),
@@ -856,7 +865,8 @@ function registerMemoryTools(server: McpServer): void {
         category: categorySchema.describe('记忆分类'),
         scope: z.string().optional().describe('global 或 scene:{id}，默认 global'),
       },
-      outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
+      // T-027 修复：memory_forget 返回 { id, deleted }，不再复用 SimpleConfirmationDataSchema。
+      outputSchema: createToolOutputSchema(MemoryForgetResultSchema),
       annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     async (args) => toMcpToolResult(getManagers().memories.forget({
@@ -941,7 +951,8 @@ function registerAgentTools(server: McpServer): void {
       inputSchema: {
         agent_id: z.string().describe('Agent ID'),
       },
-      outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
+      // T-027 修复：agent_unregister 返回 { agent_id }，不再复用 SimpleConfirmationDataSchema。
+      outputSchema: createToolOutputSchema(AgentUnregisterResultSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ agent_id }) => toMcpToolResult(getManagers().agents.unregister({ agent_id }), 'agent_unregister'),
@@ -1028,7 +1039,8 @@ function registerHookTools(server: McpServer): void {
       title: 'Enable Hook',
       description: TOOL_DESCRIPTIONS.lrnev_hook_enable,
       inputSchema: { name: z.string().describe('Hook 名称') },
-      outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
+      // T-027 修复：返回完整 HookConfig，不再复用 SimpleConfirmationDataSchema。
+      outputSchema: createToolOutputSchema(HookConfigDataSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ name }) => toMcpToolResult(getManagers().hooks.setEnabled(name, true), 'lrnev_hook_enable'),
@@ -1040,7 +1052,8 @@ function registerHookTools(server: McpServer): void {
       title: 'Disable Hook',
       description: TOOL_DESCRIPTIONS.lrnev_hook_disable,
       inputSchema: { name: z.string().describe('Hook 名称') },
-      outputSchema: createToolOutputSchema(SimpleConfirmationDataSchema),
+      // T-027 修复：返回完整 HookConfig，不再复用 SimpleConfirmationDataSchema。
+      outputSchema: createToolOutputSchema(HookConfigDataSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ name }) => toMcpToolResult(getManagers().hooks.setEnabled(name, false), 'lrnev_hook_disable'),

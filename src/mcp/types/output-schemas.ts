@@ -333,22 +333,55 @@ export const TaskClaimResultSchema = z.object({
 });
 
 /**
+ * Task claim release result schema（对齐 src/types/claim.ts TaskClaimReleaseResult）。
+ * task_release 之前错误复用 SimpleConfirmationDataSchema，真实 data 的
+ * scene/spec/task/released 四个键全部被判为 additional properties（T-027 修复）。
+ */
+export const TaskClaimReleaseResultSchema = z.object({
+  scene: z.string(),
+  spec: z.string(),
+  task: z.string(),
+  released: z.boolean(),
+});
+
+/**
+ * 批量创建任务的压缩返回 schema（对齐 src/types/task.ts CreateManyTasksResult）。
+ * task_create_many 之前错误注册成 z.array(TaskDataSchema)（数组），真实 data 是
+ * { created, count } 对象——形态 B schema 错配（T-027 修复）。
+ */
+export const CreateManyTasksResultSchema = z.object({
+  created: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+  })),
+  count: z.number(),
+});
+
+/**
  * ADR data schema
+ *
+ * 与 src/types/adr.ts 的 ADR 接口对齐（T-027 修复）：ADRManager.readOne 的返回
+ * 形态是顶层 number/title/status/scope/created/date/(supersedes)/(superseded_by)/path
+ * + 嵌套 body（context/decision/alternatives/consequences）——旧的平面字段版
+ * （顶层 context/decision/...）从不匹配真实返回，导致 body 等键被判为
+ * additional properties（严格客户端 -32602）。
  */
 export const ADRDataSchema = z.object({
   number: z.string(),
   title: z.string(),
   status: z.string(),
-  date: z.string(),
-  created: z.string(), // Added: matches ADRFrontmatter
   scope: z.string(),
-  context: z.string().optional(),
-  decision: z.string().optional(),
-  consequences: z.string().optional(),
-  alternatives: z.array(z.string()).optional(),
-  supersedes: z.array(z.string()).optional(),
-  superseded_by: z.array(z.string()).optional(), // Added: matches ADR interface (derived field)
+  created: z.string(), // matches ADRFrontmatter
+  date: z.string(),
+  supersedes: z.array(z.string()).optional(), // matches ADRFrontmatter
+  superseded_by: z.array(z.string()).optional(), // matches ADR interface (derived field)
   path: z.string(),
+  body: z.object({
+    context: z.string(),
+    decision: z.string(),
+    alternatives: z.array(z.string()).optional(),
+    consequences: z.string().optional(),
+  }),
 });
 
 /**
@@ -395,6 +428,29 @@ export const AgentListResultSchema = z.object({
 });
 
 /**
+ * Agent unregister result schema（对齐 AgentRegistry.unregister 的 { agent_id }）。
+ * 之前错误复用 SimpleConfirmationDataSchema，真实 data.agent_id 被判为
+ * additional properties（T-027 修复）。
+ */
+export const AgentUnregisterResultSchema = z.object({
+  agent_id: z.string(),
+});
+
+/**
+ * lrnev_init 返回 schema（对齐 src/types/workspace.ts InitWorkspaceResult）。
+ * 之前错误复用 SimpleConfirmationDataSchema，真实 data 的多个键全部被判为
+ * additional properties（T-027 修复）。
+ */
+export const InitWorkspaceResultSchema = z.object({
+  root: z.string(),
+  was_new: z.boolean(),
+  files_created: z.array(z.string()),
+  files_existing: z.array(z.string()),
+  directories_ensured: z.array(z.string()),
+  codebase_detected: z.boolean(),
+});
+
+/**
  * Memory data schema
  */
 export const MemoryDataSchema = z.object({
@@ -408,6 +464,16 @@ export const MemoryDataSchema = z.object({
   reference_count: z.number().optional(), // Added: matches MemoryFrontmatter
   tentative: z.boolean().optional(),
   path: z.string(), // Added: matches Memory interface
+});
+
+/**
+ * memory_forget 返回 schema（对齐 MemoryManager.forget 的 { id, deleted }）。
+ * 之前错误复用 SimpleConfirmationDataSchema，真实 data 的 id/deleted 被判为
+ * additional properties（T-027 修复）。
+ */
+export const MemoryForgetResultSchema = z.object({
+  id: z.string(),
+  deleted: z.boolean(),
 });
 
 /**
@@ -449,21 +515,29 @@ export const HookDataSchema = z.object({
 });
 
 /**
+ * Hook 配置项 schema（对齐 src/types/hooks.ts HookConfig）。
+ * lrnev_hook_enable / lrnev_hook_disable 之前错误复用 SimpleConfirmationDataSchema，
+ * 真实 data 是完整 HookConfig（HookManager.setEnabled），多个键被判为
+ * additional properties（T-027 修复）。
+ */
+export const HookConfigDataSchema = z.object({
+  name: z.string(),
+  event: z.string(),
+  command: z.union([z.string(), z.array(z.string())]),
+  timeout_ms: z.number(),
+  mode: z.enum(['sync', 'async']),
+  enabled: z.boolean(),
+  env: z.record(z.string(), z.string()),
+  cwd: z.string().optional(),
+  on_failure: z.enum(['abort', 'warn', 'silent']),
+});
+
+/**
  * Hook list result schema
  */
 export const HookListResultSchema = z.object({
   implemented: z.literal(true),
-  hooks: z.array(z.object({
-    name: z.string(),
-    event: z.string(),
-    command: z.union([z.string(), z.array(z.string())]),
-    timeout_ms: z.number(),
-    mode: z.enum(['sync', 'async']),
-    enabled: z.boolean(),
-    env: z.record(z.string(), z.string()),
-    cwd: z.string().optional(),
-    on_failure: z.enum(['abort', 'warn', 'silent']),
-  })),
+  hooks: z.array(HookConfigDataSchema),
   recent: z.array(z.object({
     ts: z.string(),
     event: z.string(),

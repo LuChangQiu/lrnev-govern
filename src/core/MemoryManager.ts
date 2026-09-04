@@ -127,9 +127,18 @@ export class MemoryManager {
   private async readMemory(path: string): Promise<Memory> {
     const content = await this.fs.read(path);
     const parsed = parseFrontmatter<MemoryFrontmatter>(content);
+    // 输出契约（03-00 T-001 / T-027 修复）：显式白名单字段，绝不
+    // `...parsed.frontmatter` 全展开——防止任何 schema 外键泄漏进
+    // structuredContent 触发严格客户端 -32602。
     return {
-      ...parsed.frontmatter,
+      id: parsed.frontmatter.id,
+      category: parsed.frontmatter.category,
+      scope: parsed.frontmatter.scope,
+      source: parsed.frontmatter.source,
+      created: parsed.frontmatter.created,
+      ...(parsed.frontmatter.last_referenced !== undefined && { last_referenced: parsed.frontmatter.last_referenced }),
       reference_count: parsed.frontmatter.reference_count ?? 0,
+      ...(parsed.frontmatter.tentative !== undefined && { tentative: parsed.frontmatter.tentative }),
       path: this.fs.abs(path),
       content: parsed.body.trim(),
     };

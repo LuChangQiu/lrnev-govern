@@ -112,12 +112,16 @@ export class SpecManager {
       tasks: this.fs.exists(`${dir}/tasks.md`),
     };
 
+    // 输出契约（03-00 T-001 / T-027 修复）：显式白名单字段，只返回 SpecFrontmatter
+    // 声明键 + 补齐字段，绝不 `...parsed.frontmatter` 全展开（防 schema 外键泄漏进
+    // structuredContent 触发严格客户端 -32602）。
     return {
-      ...parsed.frontmatter,
       spec: parsed.frontmatter.spec ?? specId,
       scene: parsed.frontmatter.scene ?? sceneId,
       status: parsed.frontmatter.status ?? 'draft',
+      ...(parsed.frontmatter.priority !== undefined && { priority: parsed.frontmatter.priority }),
       created: parsed.frontmatter.created ?? today(),
+      ...(parsed.frontmatter.updated !== undefined && { updated: parsed.frontmatter.updated }),
       path: this.fs.abs(dir),
       number,
       version,
@@ -159,6 +163,10 @@ export class SpecManager {
       const reqPath = `.lrnev/scenes/${current.scene}/specs/${current.spec}/requirements.md`;
       const content = await this.fs.read(reqPath);
       const parsed = parseFrontmatter<SpecFrontmatter>(content);
+      // 写路径 round-trip（DeepSeek 裁决，2026-09-04）：状态更新只覆盖 status/updated，
+      // 其余键（含用户自定义的 schema 外键）原样保留——spec_update 不得毁坏用户文件
+      // 内容。输出契约的泄漏防护在**读边界**（get() 白名单化）：structuredContent 永远
+      // 只含 SpecDataSchema 声明键，磁盘上的自定义键不会泄漏给客户端。
       const next = { ...parsed.frontmatter, status, updated: today() };
       await this.fs.write(reqPath, serializeFrontmatter(next, parsed.body));
     }

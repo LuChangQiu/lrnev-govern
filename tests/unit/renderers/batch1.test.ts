@@ -270,11 +270,12 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
 
   describe('task-create 渲染器', () => {
     it('应该投影 ai_followup（不自创 WORKFLOW_OVERVIEW 条款）', () => {
-      const payload: LrnevToolPayload<{ task_id: string; title: string }> = {
+      // T-027：data 使用 Task 的真实 schema 键 id（Task 数据对象没有 task_id 键）
+      const payload: LrnevToolPayload<{ id: string; title: string }> = {
         response_version: '1',
         ok: true,
         data: {
-          task_id: 'T-001',
+          id: 'T-001',
           title: '测试任务',
         },
         ai_followup: {
@@ -284,6 +285,8 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
 
       const content = taskCreateRenderer.render(payload);
 
+      // 身份字段来自 data.id
+      expect(content).toContain('✅ Task T-001 已创建：测试任务');
       // 应该投影 ai_followup
       expect(content).toContain('下一步：填写任务细节');
 
