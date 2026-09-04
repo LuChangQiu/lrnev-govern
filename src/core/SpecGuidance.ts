@@ -23,16 +23,21 @@ export const SPEC_REWRITE_GUIDANCE =
   '这个 Spec 已有实现（有 completed task 或 status=completed）。若要整体推翻重做（新需求与已有 requirements/design 方向相反），建议开新版 spec_create --version（VV+1）保留旧版对照，再用 spec_update 归档旧版；只是增量加需求时在本版 task_create 即可，不必新开 spec。注意：以上是建议，若用户已明确要求独立 Spec（如"帮我新建一个 Spec"），即使已有相似 Spec 可以承载，也应尊重用户决定。';
 
 /**
- * spec 存在但未完成（draft/ready/in-progress）时的增量/正文边界引导（E-02 G1）。
+ * spec 存在但未完成（draft/ready/in-progress）时的增量/正文边界引导（E-02 G1，B4 措辞修订）。
  *
  * 触发场景：AI 刚 spec_get 读完一个进行中 Spec、正要决定"继续开发"的下一个动作
- * （E-02 实测：此时 AI 直接编辑 spec 文档手写任务，从不调用 task_create）。
+ * （E-02 实测：此时 AI 直接编辑 spec 文档手写任务，从不调用 task_create——三 SHA 0/5）。
  *
- * 边界语义：新增可独立验收的开发增量 = 治理登记（task_create）；仅修改既有正文内容 = 直接编辑。
+ * 边界语义（修订，2026-09-04 B3 实证驱动）：旧文案"仅修改既有正文内容 → 可直接编辑
+ * 原文件"给了"补充=改文档"的宽泛豁免——模型把开发请求（"补充用户登录"）归类为改正文。
+ * 修订：用户请求的**开发/扩展功能**（加/实现/补充某能力）一律先 task_create 登记再实施；
+ * 直接编辑只限需求细化或文档维护，不能替代开发任务登记。
  */
 export const SPEC_INCREMENT_GUIDANCE = [
   ROLE_PREFIX.RECOMMENDATION,
-  '已有 Spec 下新增可独立验收的开发增量 → 用 task_create 登记任务；仅修改既有正文内容 → 可直接编辑原文件。',
+  '用户请求开发或扩展功能（加/实现/补充某能力）→ 先用 task_create 在对应 Spec 登记开发任务，再实施；',
+  'task_create 同样用于在 ready/in-progress Spec 下登记新增执行项。',
+  '直接编辑 requirements/design 只用于需求细化或文档维护，不能替代开发任务的登记。',
 ].join('');
 
 export async function getSpecWithGuidance(

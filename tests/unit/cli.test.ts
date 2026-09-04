@@ -110,8 +110,8 @@ describe('CLI', () => {
     // ai_followup 携带"增量登记 vs 正文编辑"边界引导，data 仍是 Spec 本体。
     const specGot = await run(['spec', 'get', '--scene', 'user-management', 'user-login']);
     expect(specGot.data.spec).toBe('01-00-user-login');
-    expect(specGot.ai_followup.instructions.join('\n')).toContain('task_create 登记任务');
-    expect(specGot.ai_followup.instructions.join('\n')).toContain('可直接编辑原文件');
+    expect(specGot.ai_followup.instructions.join('\n')).toContain('task_create 在对应 Spec 登记开发任务');
+    expect(specGot.ai_followup.instructions.join('\n')).toContain('不能替代开发任务的登记');
 
     const task = await run(['task', 'create', '--scene', 'user-management', '--spec', 'user-login', '实现登录']);
     expect(task.data.id).toBe('T-001');

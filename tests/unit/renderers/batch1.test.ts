@@ -258,10 +258,10 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
 
       const content = specGetRenderer.render(payload);
 
-      // 引导行必须是【建议】角色并覆盖"增量→task_create、改正文→直接编辑"两侧边界
+      // 引导行必须是【建议】角色并覆盖"开发请求→task_create、直接编辑不替代登记"两侧边界（B4 措辞修订）
       expect(content).toContain('【建议】');
-      expect(content).toContain('task_create 登记任务');
-      expect(SPEC_INCREMENT_GUIDANCE).toContain('可直接编辑原文件');
+      expect(content).toContain('task_create 在对应 Spec 登记开发任务');
+      expect(SPEC_INCREMENT_GUIDANCE).toContain('不能替代开发任务的登记');
       // 非 completed 场景不混入开新版措辞
       expect(content).not.toContain('整体推翻');
       expect(content).not.toContain('VV+1');
@@ -283,7 +283,7 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
         },
       };
 
-      const content = taskCreateRenderer.render(payload);
+      const content = taskCreateRenderer.render(payload as Parameters<typeof taskCreateRenderer.render>[0]);
 
       // 身份字段来自 data.id
       expect(content).toContain('✅ Task T-001 已创建：测试任务');
@@ -425,7 +425,7 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
         },
       };
 
-      const content = taskUpdateRenderer.render(payload);
+      const content = taskUpdateRenderer.render(payload as Parameters<typeof taskUpdateRenderer.render>[0]);
 
       expect(content).toContain('T-001');
       expect(content).toContain('completed');
@@ -442,7 +442,7 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
         },
       };
 
-      const content = taskUpdateRenderer.render(payload);
+      const content = taskUpdateRenderer.render(payload as Parameters<typeof taskUpdateRenderer.render>[0]);
 
       expect(content).toContain('完成后调 task_update 改为 completed');
     });
@@ -472,7 +472,7 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
         },
       };
 
-      const content = taskClaimRenderer.render(payload);
+      const content = taskClaimRenderer.render(payload as Parameters<typeof taskClaimRenderer.render>[0]);
 
       expect(content).toContain('T-001');
       expect(content).toContain('agent-a');
@@ -501,7 +501,7 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
         },
       };
 
-      const content = taskClaimRenderer.render(payload);
+      const content = taskClaimRenderer.render(payload as Parameters<typeof taskClaimRenderer.render>[0]);
 
       expect(content).toContain('重叠');
       expect(content).toContain('T-002');

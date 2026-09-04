@@ -18,11 +18,11 @@ import { ROLE_PREFIX } from '../../src/core/guidance-semantics.js';
 
 describe('E-02 G1-G4: 已有 Spec 下的增量登记引导', () => {
   describe('G1: spec_get 非 completed 的【建议】边界引导行', () => {
-    it('引导行用 ROLE_PREFIX 前缀体系（【建议】）且边界清晰：增量→task_create 登记、改正文→直接编辑', () => {
+    it('引导行用 ROLE_PREFIX 前缀体系（【建议】）且边界清晰：开发请求→task_create 登记，直接编辑不替代登记（B4 措辞修订）', () => {
       expect(SPEC_INCREMENT_GUIDANCE.startsWith(ROLE_PREFIX.RECOMMENDATION)).toBe(true);
-      expect(SPEC_INCREMENT_GUIDANCE).toContain('新增可独立验收的开发增量');
-      expect(SPEC_INCREMENT_GUIDANCE).toContain('task_create 登记任务');
-      expect(SPEC_INCREMENT_GUIDANCE).toContain('可直接编辑原文件');
+      expect(SPEC_INCREMENT_GUIDANCE).toContain('用户请求开发或扩展功能');
+      expect(SPEC_INCREMENT_GUIDANCE).toContain('task_create 在对应 Spec 登记开发任务');
+      expect(SPEC_INCREMENT_GUIDANCE).toContain('不能替代开发任务的登记');
     });
 
     it('增量引导与"开新版"引导语义分离：不混入整体推翻/VV+1/version 措辞', () => {
@@ -52,12 +52,12 @@ describe('E-02 G1-G4: 已有 Spec 下的增量登记引导', () => {
       expect(WORKFLOW_OVERVIEW).toContain('落位后新增开发工作用 task_create 登记');
     });
 
-    it('边界句可区分"改正文 vs 增登记"：新增需求条款/开发增量走治理登记（task_create），修改既有文本可直接编辑', () => {
+    it('边界句可区分"开发登记 vs 文档维护"：开发/扩展功能先 task_create 登记，直接编辑不替代登记（B4 修订消除"改正文"宽泛豁免）', () => {
       const concepts = buildGuide('concepts').data.content;
-      expect(concepts).toContain('新增需求条款/开发增量走治理登记（task_create）');
-      expect(concepts).toContain('修改既有文本内容可直接编辑原文件');
-      // 旧的歧义句（"修改现有需求/设计/任务时直接编辑原文件"为任何编辑背书）不再原样出现
-      expect(concepts).not.toContain('修改现有需求/设计/任务时直接编辑原文件');
+      expect(concepts).toContain('用户请求的开发/扩展功能');
+      expect(concepts).toContain('不能替代开发任务登记');
+      // 旧的宽泛豁免句（"修改既有文本内容可直接编辑原文件"为任何编辑背书）不再原样出现
+      expect(concepts).not.toContain('修改既有文本内容可直接编辑原文件');
       // 开新版（VV+1）语义仍保留
       expect(concepts).toContain('VV 是正式重写版号，不是修订号');
     });

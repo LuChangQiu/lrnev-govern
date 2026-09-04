@@ -15,6 +15,15 @@ import { DEFAULT_SCENE_ID } from '../../src/core/SceneManager.js';
 import { WorkspaceManager } from '../../src/core/WorkspaceManager.js';
 import { createMcpServer } from '../../src/mcp/server.js';
 
+/** SDK result.content / resource.contents 在类型层为 unknown / 内容块联合，
+ * 运行时是 { type: 'text'; text: string } 内容块数组。这里做局部类型投影，
+ * 读取语义与原先的 ?.[0]?.type === 'text' ? [0].text : '' 完全一致（纯类型层，无运行时转换）。 */
+type MCPTextBlock = { type?: string; text?: string };
+function contentText(content: unknown): string {
+  const first = (content as MCPTextBlock[] | undefined)?.[0];
+  return first?.type === 'text' ? (first.text ?? '') : '';
+}
+
 describe('MCP server', () => {
   it('应能创建 MCP server 并注册工具', () => {
     const server = createMcpServer();
@@ -100,7 +109,7 @@ describe('MCP server', () => {
       expect(resources.resources.map((r) => r.uri)).toContain('context://project');
 
       const project = await client.readResource({ uri: 'context://project?level=L0' });
-      const text = project.contents[0]?.text;
+      const text = (project.contents[0] as MCPTextBlock | undefined)?.text;
       expect(text).toContain('已回退到 L2 原文');
       expect(text).toContain('# demo');
       expect(text).not.toContain('legacy summary');
@@ -128,7 +137,7 @@ describe('MCP server', () => {
         name: 'spec_gate_check',
         arguments: { scene: 'user-management', spec: 'user-login', gate: 'ready' },
       });
-      const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
+      const text = contentText(result.content);
 
       // M2: spec_gate_check 使用渲染器，返回格式化文本而非 JSON
       // 验证 gate 失败和提示信息
@@ -162,8 +171,8 @@ describe('MCP server', () => {
       const draftGet = parse(await client.callTool({ name: 'spec_get', arguments: { scene: 'sg', spec: 'feat-x' } }));
       const draftText = JSON.stringify(draftGet);
       expect(draftText).not.toContain('整体推翻重做');
-      expect(draftGet.ai_followup?.instructions.join('\n')).toContain('task_create 登记任务');
-      expect(draftGet.ai_followup?.instructions.join('\n')).toContain('可直接编辑原文件');
+      expect(draftGet.ai_followup?.instructions.join('\n')).toContain('task_create 在对应 Spec 登记开发任务');
+      expect(draftGet.ai_followup?.instructions.join('\n')).toContain('不能替代开发任务的登记');
 
       // in-progress（E-02 根因场景：已有 in-progress spec 下继续开发）→ 同样挂边界引导，不提示开新版
       await client.callTool({ name: 'spec_update', arguments: { scene: 'sg', spec: 'feat-x', status: 'ready' } });
@@ -171,13 +180,13 @@ describe('MCP server', () => {
       const progressGet = parse(await client.callTool({ name: 'spec_get', arguments: { scene: 'sg', spec: 'feat-x' } }));
       const progressText = JSON.stringify(progressGet);
       expect(progressText).not.toContain('整体推翻重做');
-      expect(progressGet.ai_followup?.instructions.join('\n')).toContain('task_create 登记任务');
+      expect(progressGet.ai_followup?.instructions.join('\n')).toContain('task_create 在对应 Spec 登记开发任务');
 
       // completed（已实现）→ spec_get 提示考虑开新版（VV+1 语义，与增量引导互斥）
       await client.callTool({ name: 'spec_update', arguments: { scene: 'sg', spec: 'feat-x', status: 'completed' } });
       const doneGet = parse(await client.callTool({ name: 'spec_get', arguments: { scene: 'sg', spec: 'feat-x' } }));
       expect(doneGet.ai_followup?.instructions.join('\n')).toContain('整体推翻重做');
-      expect(doneGet.ai_followup?.instructions.join('\n')).not.toContain('task_create 登记任务');
+      expect(doneGet.ai_followup?.instructions.join('\n')).not.toContain('task_create 在对应 Spec 登记开发任务');
 
       await client.close();
       await server.close();
@@ -331,7 +340,7 @@ describe('MCP server', () => {
         name: 'task_list',
         arguments: { scene: 'user-management', spec: 'user-login', view: 'readable' },
       });
-      const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
+      const text = contentText(result.content);
 
       // M2: task_list 使用渲染器，返回格式化文本而非 JSON
       // 验证关键内容出现在渲染结果中（status 显示为 emoji：→ = in_progress）
@@ -643,11 +652,11 @@ describe('MCP server', () => {
       expect(payload.ai_followup?.instructions.join('\n')).toContain('ADR 0001');
 
       const listed = await client.callTool({ name: 'adr_list', arguments: { scope: 'global' } });
-      const listPayload = (listed.structuredContent?.data as Array<{ title: string }>) ?? [];
+      const listPayload = (listed.structuredContent as { data?: Array<{ title: string }> } | undefined)?.data ?? [];
       expect(listPayload[0]?.title).toBe('Use file storage');
 
       const resource = await client.readResource({ uri: 'context://adr/1' });
-      expect(resource.contents[0]?.text).toContain('# 0001. Use file storage');
+      expect((resource.contents[0] as MCPTextBlock | undefined)?.text).toContain('# 0001. Use file storage');
 
       await client.close();
       await server.close();
@@ -689,7 +698,7 @@ describe('MCP server', () => {
       });
 
       const resource = await client.readResource({ uri: 'context://scene/01-user-management?level=L0' });
-      expect(resource.contents[0]?.text).toBe('用户管理 Scene\n');
+      expect((resource.contents[0] as MCPTextBlock | undefined)?.text).toBe('用户管理 Scene\n');
       expect(new FileStorage(workspace.path).exists('.lrnev/scenes/01-user-management/.scene.abstract.md')).toBe(true);
       expect(new FileStorage(workspace.path).exists('.lrnev/scenes/01-user-management/.abstract.md')).toBe(false);
 
@@ -758,7 +767,7 @@ describe('MCP server', () => {
         name: 'error_search',
         arguments: { query: 'token', scope: 'global' },
       });
-      const searchPayload = (searched.structuredContent?.data as Array<{ id: string }>) ?? [];
+      const searchPayload = (searched.structuredContent as { data?: Array<{ id: string }> } | undefined)?.data ?? [];
       expect(searchPayload[0]?.id).toBe(recordPayload.data.id);
 
       const promoted = await client.callTool({
@@ -804,7 +813,7 @@ describe('MCP server', () => {
         name: 'memory_search',
         arguments: { query: 'lrnev-govern', category: 'facts', scope: 'global' },
       });
-      const searchPayload = (searched.structuredContent?.data as Array<{ id: string }>) ?? [];
+      const searchPayload = (searched.structuredContent as { data?: Array<{ id: string }> } | undefined)?.data ?? [];
       expect(searchPayload[0]?.id).toBe(savePayload.data.id);
 
       const forgotten = await client.callTool({
@@ -907,7 +916,7 @@ describe('MCP server', () => {
 
       const result = await client.callTool({ name: 'lrnev_doctor', arguments: { verbose: true } });
       // M2: lrnev_doctor 使用渲染器，返回格式化文本
-      const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
+      const text = contentText(result.content);
       expect(text).toContain('# lrnev 工作区诊断');
       expect(text).toContain('检查时间');
 
@@ -948,7 +957,7 @@ describe('MCP server', () => {
   it('协议级 lrnev_hook_list 应返回当前 hook 配置', async () => {
     const { server, client } = await connectInMemory();
     const result = await client.callTool({ name: 'lrnev_hook_list', arguments: {} });
-    const text = result.content[0]?.type === 'text' ? result.content[0].text : '';
+    const text = contentText(result.content);
 
     // M2: lrnev_hook_list 使用渲染器，返回格式化文本而非 JSON
     // 验证基本内容（空 hook 列表场景）
@@ -1113,7 +1122,7 @@ async function writeReadyRequirements(root: string, sceneId: string, specId: str
         name: 'spec_list',
         arguments: { scene: 'test-scene' },
       });
-      const specListText = specListResult.content[0]?.type === 'text' ? specListResult.content[0].text : '';
+      const specListText = contentText(specListResult.content);
 
       // 验证：两个 spec 都存在（简化检查，不依赖具体返回格式）
       expect(specListText).toContain(payloadA.data.spec);
