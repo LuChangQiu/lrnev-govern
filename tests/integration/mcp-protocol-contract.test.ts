@@ -19,6 +19,17 @@ import { createMcpServer } from '../../src/mcp/server.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { dir as tmpDir, type DirectoryResult } from 'tmp-promise';
 
+/** SDK result.content 在类型层为 unknown；运行时是 { type: 'text'; text: string } 内容块数组。
+ * 局部类型投影，读取语义与原先的 ?.[0]?.type === 'text' ? [0].text : '' 完全一致（纯类型层）。 */
+type MCPTextBlock = { type?: string; text?: string };
+function contentText(content: unknown): string {
+  const first = (content as MCPTextBlock[] | undefined)?.[0];
+  return first?.type === 'text' ? (first.text ?? '') : '';
+}
+function firstBlock(content: unknown): MCPTextBlock | undefined {
+  return (content as MCPTextBlock[] | undefined)?.[0];
+}
+
 describe('T-003: MCP 协议契约测试', () => {
   let workspace: DirectoryResult;
   let client: Client;
@@ -95,7 +106,7 @@ describe('T-003: MCP 协议契约测试', () => {
       const result = await client.callTool({ name: 'spec_get', arguments: { scene: '00-default', spec: 'test-spec' } });
 
       // F-06.1: 成功响应必须有 structuredContent
-      expect(result.content[0]?.type).toBe('text');
+      expect(firstBlock(result.content)?.type).toBe('text');
       expect(result.structuredContent).toBeDefined();
 
       const payload = result.structuredContent as any;
@@ -167,8 +178,8 @@ describe('T-003: MCP 协议契约测试', () => {
 
       // F-06.4: 参数校验错误应返回 isError=true（不是抛出异常）
       expect(result.isError).toBe(true);
-      expect(result.content[0]?.type).toBe('text');
-      expect(result.content[0]?.text).toContain('Invalid input');
+      expect(firstBlock(result.content)?.type).toBe('text');
+      expect(contentText(result.content)).toContain('Invalid input');
     });
   });
 
@@ -177,7 +188,7 @@ describe('T-003: MCP 协议契约测试', () => {
       const result = await client.callTool({ name: 'project_status', arguments: {} });
 
       // 模拟 legacy 客户端只读 content
-      const legacyContent = result.content[0]?.type === 'text' ? result.content[0].text : '';
+      const legacyContent = contentText(result.content);
 
       // F-07: content 必须可读且含关键信息
       expect(legacyContent).toContain('项目接手快照');
@@ -186,7 +197,7 @@ describe('T-003: MCP 协议契约测试', () => {
 
     it('legacy 客户端场景：lrnev_guide 返回完整指南文本', async () => {
       const result = await client.callTool({ name: 'lrnev_guide', arguments: {} });
-      const legacyContent = result.content[0]?.type === 'text' ? result.content[0].text : '';
+      const legacyContent = contentText(result.content);
 
       // F-07: 验证包含核心内容
       expect(legacyContent).toContain('lrnev');

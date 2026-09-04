@@ -1,0 +1,25 @@
+{
+  // tests 类型门禁（统一审查预检项 #6）：
+  // - 主 tsconfig.json 只管 src/**，tests/ 一直游离在类型检查之外；
+  // - 本配置把 tests/** + src/** 放进同一个 program，noEmit 纯检查，
+  //   让测试代码（含被 import 的 fixtures/helpers）与 src 同 strict 级别接受门禁。
+  // - module/moduleResolution 用 ESNext + Bundler：与 vitest/vite 实际解析一致
+  //   （tests/e2e/04-00 与 tests/fixtures/04-00 使用无扩展名相对导入），
+  //   同时兼容带 .js 扩展的 NodeNext 风格 src 导入。
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "include": ["tests/**/*.ts", "src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

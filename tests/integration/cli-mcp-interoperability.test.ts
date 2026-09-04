@@ -13,6 +13,14 @@ import { createMcpServer } from '../../src/mcp/server.js';
 import { buildCli } from '../../src/cli/index.js';
 import { FileStorage } from '../../src/storage/FileStorage.js';
 
+/** SDK result.content 在类型层为 unknown；运行时是 { type: 'text'; text: string } 内容块数组。
+ * 局部类型投影，读取语义与原先的 ?.[0]?.type === 'text' ? [0].text : '' 完全一致（纯类型层）。 */
+type MCPTextBlock = { type?: string; text?: string };
+function contentText(content: unknown): string {
+  const first = (content as MCPTextBlock[] | undefined)?.[0];
+  return first?.type === 'text' ? (first.text ?? '') : '';
+}
+
 describe('CLI / MCP interoperability', () => {
   let workspace: DirectoryResult | null = null;
 
@@ -51,7 +59,7 @@ describe('CLI / MCP interoperability', () => {
         name: 'spec_list',
         arguments: { scene: 'user-management' },
       });
-      const specs = (listed.structuredContent?.data as Array<{ spec: string }>) ?? [];
+      const specs = (listed.structuredContent as { data?: Array<{ spec: string }> } | undefined)?.data ?? [];
       expect(specs[0]?.spec).toBe('01-00-user-login');
     } finally {
       await client.close();
@@ -201,7 +209,7 @@ describe('CLI / MCP interoperability', () => {
 
       const cli = await runCli(workspace.path, ['report']);
       const mcpRaw = await client.callTool({ name: 'lrnev_report', arguments: {} });
-      const mcpText = mcpRaw.content[0]?.type === 'text' ? mcpRaw.content[0].text : '';
+      const mcpText = contentText(mcpRaw.content);
 
       // M2: MCP lrnev_report 使用渲染器返回格式化文本，CLI 仍返回 JSON
       // 验证 MCP 文本包含关键信息
@@ -217,7 +225,7 @@ describe('CLI / MCP interoperability', () => {
       // scene 参数对等：两者都应支持 scene 过滤
       const cliScene = await runCli(workspace.path, ['report', '--scene', '00-default']);
       const mcpSceneRaw = await client.callTool({ name: 'lrnev_report', arguments: { scene: '00-default' } });
-      const mcpSceneText = mcpSceneRaw.content[0]?.type === 'text' ? mcpSceneRaw.content[0].text : '';
+      const mcpSceneText = contentText(mcpSceneRaw.content);
       expect(cliScene.data.scope).toBe('00-default');
       expect(mcpSceneText).toContain('00-default');
     } finally {

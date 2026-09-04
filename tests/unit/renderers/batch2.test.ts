@@ -44,7 +44,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = taskReleaseRenderer.render(payload);
+      const content = taskReleaseRenderer.render(payload as Parameters<typeof taskReleaseRenderer.render>[0]);
 
       expect(content).toContain('T-001');
       expect(content).toContain('已释放');
@@ -63,7 +63,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = adrCreateRenderer.render(payload);
+      const content = adrCreateRenderer.render(payload as Parameters<typeof adrCreateRenderer.render>[0]);
 
       expect(content).toContain('0001');
       expect(content).toContain('使用 PostgreSQL 作为主数据库');
@@ -84,7 +84,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = adrCreateRenderer.render(payload);
+      const content = adrCreateRenderer.render(payload as Parameters<typeof adrCreateRenderer.render>[0]);
 
       expect(content).toContain('请检查 context / decision / alternatives / consequences 是否完整');
     });
@@ -108,7 +108,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = memorySaveRenderer.render(payload);
+      const content = memorySaveRenderer.render(payload as Parameters<typeof memorySaveRenderer.render>[0]);
 
       expect(content).toContain('mem-001');
       expect(content).toContain('preferences');
@@ -168,7 +168,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = errorRecordRenderer.render(payload);
+      const content = errorRecordRenderer.render(payload as Parameters<typeof errorRecordRenderer.render>[0]);
 
       expect(content).toContain('err-001');
       expect(content).toContain('abc123');
@@ -208,7 +208,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = errorPromoteRenderer.render(payload);
+      const content = errorPromoteRenderer.render(payload as Parameters<typeof errorPromoteRenderer.render>[0]);
 
       expect(content).toContain('err-001');
       expect(content).toContain('promoted');
@@ -240,7 +240,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = summarizeSaveRenderer.render(payload);
+      const content = summarizeSaveRenderer.render(payload as Parameters<typeof summarizeSaveRenderer.render>[0]);
 
       expect(content).toContain('context://spec/00-default/01-00-test');
       expect(content).toContain('L0');
@@ -270,7 +270,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = sessionCommitRenderer.render(payload);
+      const content = sessionCommitRenderer.render(payload as Parameters<typeof sessionCommitRenderer.render>[0]);
 
       expect(content).toContain('mem-001');
       expect(content).toContain('preferences');
@@ -295,7 +295,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = agentRegisterRenderer.render(payload);
+      const content = agentRegisterRenderer.render(payload as Parameters<typeof agentRegisterRenderer.render>[0]);
 
       expect(content).toContain('agent-a');
       expect(content).toContain('active');
@@ -319,7 +319,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = agentRegisterRenderer.render(payload);
+      const content = agentRegisterRenderer.render(payload as Parameters<typeof agentRegisterRenderer.render>[0]);
 
       expect(content).toContain('清理 2 个 dead agent 记录');
       expect(content).toContain('清理 3 个过期 claim');
@@ -344,7 +344,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = agentHeartbeatRenderer.render(payload);
+      const content = agentHeartbeatRenderer.render(payload as Parameters<typeof agentHeartbeatRenderer.render>[0]);
 
       expect(content).toContain('agent-a');
       expect(content).toContain('active');
@@ -388,7 +388,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = lrnevHookEnableRenderer.render(payload);
+      const content = lrnevHookEnableRenderer.render(payload as Parameters<typeof lrnevHookEnableRenderer.render>[0]);
 
       expect(content).toContain('test-hook');
       expect(content).toContain('已启用');
@@ -406,7 +406,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = lrnevHookDisableRenderer.render(payload);
+      const content = lrnevHookDisableRenderer.render(payload as Parameters<typeof lrnevHookDisableRenderer.render>[0]);
 
       expect(content).toContain('test-hook');
       expect(content).toContain('已禁用');
@@ -457,7 +457,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         },
       };
 
-      const content = lrnevInitRenderer.render(payload);
+      const content = lrnevInitRenderer.render(payload as Parameters<typeof lrnevInitRenderer.render>[0]);
 
       expect(content).toContain('/path/to/project');
       expect(content).toContain('已创建');
@@ -480,12 +480,12 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
           response_version: '1',
           ok: true,
           data: { id: 'T-001', title: '测试', status: 'completed' },
-        }),
+        } as Parameters<typeof taskUpdateRenderer.render>[0]),
         adrCreateRenderer.render({
           response_version: '1',
           ok: true,
           data: { number: '0001', title: '测试', path: 'test.md' },
-        }),
+        } as Parameters<typeof adrCreateRenderer.render>[0]),
       ];
 
       for (const content of payloads) {

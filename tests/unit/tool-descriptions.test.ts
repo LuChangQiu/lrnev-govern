@@ -138,7 +138,7 @@ describe('MCP 工具自描述审计', () => {
         expect(tool.description).toContain('何时用');
         expect(isBareDescription(tool)).toBe(false);
         // 08-00 语义边界修复：spec_create 补充用户决定优先条款，上限 180→300
-        expect([...tool.description].length).toBeLessThanOrEqual(300);
+        expect([...(tool.description ?? '')].length).toBeLessThanOrEqual(300);
       }
     } finally {
       await client.close();

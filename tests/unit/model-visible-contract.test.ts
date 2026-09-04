@@ -12,6 +12,8 @@ import { describe, it, expect } from 'vitest';
 import { escapeFrameworkMarkers, renderModelVisibleContent } from '../../src/mcp/helpers/model-visible-contract.js';
 import { errorRenderer } from '../../src/mcp/helpers/renderers/error.js';
 import type { LrnevToolPayload } from '../../src/mcp/types/response-envelope.js';
+import type { ErrorCode } from '../../src/shared/errors.js';
+import type { AiFollowup, ToolHint } from '../../src/types/response.js';
 
 describe('ModelVisibleContract - Phase 1', () => {
   describe('escapeFrameworkMarkers', () => {
@@ -81,7 +83,7 @@ describe('ModelVisibleContract - Phase 1', () => {
         data: 42,
         ai_followup: {
           text: 'next step',
-        },
+        } as unknown as AiFollowup,
       };
 
       const content = renderModelVisibleContent('another_unknown', payload);
@@ -122,8 +124,8 @@ describe('ModelVisibleContract - Phase 1', () => {
         response_version: '1',
         ok: false,
         errors: [
-          { code: 'ERROR_1', message: 'First error' },
-          { code: 'ERROR_2', message: 'Second error', hint: 'Fix this' },
+          { code: 'ERROR_1' as ErrorCode, message: 'First error' },
+          { code: 'ERROR_2' as ErrorCode, message: 'Second error', hint: 'Fix this' },
         ],
       };
 
@@ -161,10 +163,10 @@ describe('ModelVisibleContract - Phase 1', () => {
       const payload: LrnevToolPayload<undefined> = {
         response_version: '1',
         ok: false,
-        errors: [{ code: 'ERROR', message: 'Something failed' }],
+        errors: [{ code: 'ERROR' as ErrorCode, message: 'Something failed' }],
         ai_followup: {
           instructions: ['Try using spec_list first', 'Then retry with full id'],
-          suggested_tools: ['spec_list', 'scene_list'],
+          suggested_tools: ['spec_list', 'scene_list'] as unknown as ToolHint[],
         },
       };
 
@@ -182,7 +184,7 @@ describe('ModelVisibleContract - Phase 1', () => {
       const payload: LrnevToolPayload<undefined> = {
         response_version: '1',
         ok: false,
-        errors: [{ code: 'TEST', message: 'test error' }],
+        errors: [{ code: 'TEST' as ErrorCode, message: 'test error' }],
       };
 
       const content = errorRenderer.render(payload);
@@ -210,7 +212,7 @@ describe('ModelVisibleContract - Phase 1', () => {
       // 验证：content 中的数据应该与 payload.data 一致
       // （未注册工具回退 JSON，所以可以解析验证）
       const parsed = JSON.parse(content.replace(/<\\\//g, '</'));
-      expect(parsed.data.value).toBe(payload.data.value);
+      expect(parsed.data.value).toBe(payload.data!.value);
       expect(parsed.ok).toBe(payload.ok);
     });
 

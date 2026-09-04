@@ -5,6 +5,7 @@ import {
   wrapInternalError,
   createSchemaValidationError,
 } from '../../src/mcp/types/response-envelope.js';
+import type { ErrorCode } from '../../src/shared/errors.js';
 
 describe('response-envelope', () => {
   describe('shouldSetIsError', () => {
@@ -22,7 +23,7 @@ describe('response-envelope', () => {
         response_version: '1',
         ok: false,
         errors: [{
-          code: 'GATE_FAILED',
+          code: 'GATE_FAILED' as ErrorCode,
           message: 'Gate check failed',
         }],
       };

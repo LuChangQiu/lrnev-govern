@@ -222,8 +222,8 @@ describe('Semantic Authority Model v0.1', () => {
 
       sceneManager = new SceneManager(storage);
       specManager = new SpecManager(storage, sceneManager);
-      claimStore = new ClaimStore(storage, sceneManager, specManager);
-      taskManager = new TaskManager(storage, sceneManager, specManager, claimStore);
+      claimStore = new ClaimStore(storage);
+      taskManager = new TaskManager(storage, sceneManager, specManager);
 
       // Create test scene and spec with anchors
       const sceneResult = await sceneManager.create({ name: 'test-scene' });
@@ -389,7 +389,7 @@ More design
         forbiddenPatterns.forEach(pattern => {
           const violations = checkSemanticViolations(pattern);
           expect(violations.length).toBeGreaterThan(0);
-          expect(violations[0].violation).toContain('mandatory language');
+          expect(violations[0]!.violation).toContain('mandatory language');
         });
 
         const validPatterns = [
@@ -437,7 +437,7 @@ More design
         violations.forEach(text => {
           const detected = checkSemanticViolations(text);
           expect(detected.length).toBeGreaterThan(0);
-          expect(detected[0].violation).toContain('Client boundary disguised');
+          expect(detected[0]!.violation).toContain('Client boundary disguised');
         });
 
         // Valid patterns
@@ -477,7 +477,7 @@ More design
           const text = `${source} ${claim}`;
           const detected = checkSemanticViolations(text);
           expect(detected.length).toBeGreaterThan(0);
-          expect(detected[0].violation).toContain('fabricated from non-user source');
+          expect(detected[0]!.violation).toContain('fabricated from non-user source');
         });
 
         // Valid patterns

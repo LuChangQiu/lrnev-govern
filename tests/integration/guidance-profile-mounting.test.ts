@@ -148,10 +148,10 @@ describe('T-004: Guidance Profile 挂载与文本一致性（MCP server 协议�
 
       // 文本同源：FACT/RECOMMENDATION 的 text 去掉前缀后与结构化 text 相同
       const instructions: string[] = payload.ai_followup.instructions;
-      expect(instructions[0].startsWith('【事实】')).toBe(true);
-      expect(instructions[1].startsWith('【建议】')).toBe(true);
-      expect(payload.guidance[0].text).toBe(instructions[0].slice('【事实】'.length));
-      expect(payload.guidance[1].text).toBe(instructions[1].slice('【建议】'.length));
+      expect(instructions[0]!.startsWith('【事实】')).toBe(true);
+      expect(instructions[1]!.startsWith('【建议】')).toBe(true);
+      expect(payload.guidance[0].text).toBe(instructions[0]!.slice('【事实】'.length));
+      expect(payload.guidance[1].text).toBe(instructions[1]!.slice('【建议】'.length));
 
       // content 文本通道保留了同一条 role 行（text 降级不丢失，F-07）
       const contentText = result.content[0]?.text ?? '';

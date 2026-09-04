@@ -12,7 +12,7 @@
  * - 哨兵：校验为纯函数——合法/非法输入均不触发任何文件系统写入。
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { promises as fs } from 'node:fs';
 import {
   DecisionContextInputSchema,
@@ -378,7 +378,7 @@ describe('decision-context-schema', () => {
       'copyFile',
     ] as const;
 
-    let spies: Array<ReturnType<typeof vi.spyOn>> = [];
+    let spies: MockInstance[] = [];
 
     beforeEach(() => {
       spies = WRITE_METHODS.map((method) =>

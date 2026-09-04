@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import { errorSearchRenderer } from '../../../src/mcp/helpers/renderers/error-search.js';
 import { memorySearchRenderer } from '../../../src/mcp/helpers/renderers/memory-search.js';
 import type { LrnevToolPayload } from '../../../src/mcp/types/response-envelope.js';
-import type { ErrorEntry } from '../../../src/types/errorbook.js';
+import type { ErrorEntry, ErrorStatus } from '../../../src/types/errorbook.js';
 import type { Memory } from '../../../src/types/memory.js';
 import { renderModelVisibleContent } from '../../../src/mcp/helpers/model-visible-contract.js';
 
@@ -22,7 +22,7 @@ describe('M2 第 3 批渲染器 - 选择/歧义/搜索类', () => {
           {
             id: 'E-001',
             fingerprint: 'abc123',
-            status: 'incidents',
+            status: 'incidents' as ErrorStatus,
             scope: 'global',
             occurrence_count: 3,
             first_seen: '2024-01-01T00:00:00Z',
@@ -53,7 +53,7 @@ describe('M2 第 3 批渲染器 - 选择/歧义/搜索类', () => {
           {
             id: 'E-003',
             fingerprint: 'xyz789',
-            status: 'incidents',
+            status: 'incidents' as ErrorStatus,
             scope: 'global',
             occurrence_count: 1,
             first_seen: '2024-01-01T00:00:00Z',

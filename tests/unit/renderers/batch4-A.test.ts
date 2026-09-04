@@ -30,6 +30,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
   describe('governance_map 渲染器', () => {
     it('应呈现完整层级：scene→spec（status/L0）→anchors', () => {
       const payload: LrnevToolPayload<GovernanceMapResult> = {
+        response_version: '1',
         ok: true,
         data: {
           generated_at: '2026-09-02T10:00:00Z',
@@ -86,6 +87,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
 
     it('应正确处理空 spec 列表', () => {
       const payload: LrnevToolPayload<GovernanceMapResult> = {
+        response_version: '1',
         ok: true,
         data: {
           generated_at: '2026-09-02T10:00:00Z',
@@ -106,6 +108,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
 
     it('不应硬编码 paraphrase', () => {
       const payload: LrnevToolPayload<GovernanceMapResult> = {
+        response_version: '1',
         ok: true,
         data: {
           generated_at: '2026-09-02T10:00:00Z',
@@ -124,6 +127,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
   describe('lrnev_report 渲染器', () => {
     it('应呈现完整欠债清单和覆盖率', () => {
       const payload: LrnevToolPayload<GovernanceReportResult> = {
+        response_version: '1',
         ok: true,
         data: {
           generated_at: '2026-09-02T10:00:00Z',
@@ -217,6 +221,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
 
     it('应处理 release_notes 和 warnings', () => {
       const payload: LrnevToolPayload<GovernanceReportResult> = {
+        response_version: '1',
         ok: true,
         data: {
           generated_at: '2026-09-02T10:00:00Z',
@@ -274,6 +279,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
 
     it('用户文本经统一逃逸层处理后应正确逃逸', () => {
       const payload: LrnevToolPayload<GovernanceReportResult> = {
+        response_version: '1',
         ok: true,
         data: {
           generated_at: '2026-09-02T10:00:00Z',
@@ -320,6 +326,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
 
     it('不应硬编码 paraphrase', () => {
       const payload: LrnevToolPayload<GovernanceReportResult> = {
+        response_version: '1',
         ok: true,
         data: {
           generated_at: '2026-09-02T10:00:00Z',
@@ -357,6 +364,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
   describe('project_status 渲染器', () => {
     it('应呈现 active tasks, specs, agents, ADRs, errors', () => {
       const payload: LrnevToolPayload<ProjectStatusSnapshot> = {
+        response_version: '1',
         ok: true,
         data: {
           generated_at: '2026-09-02T10:00:00Z',
@@ -491,6 +499,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
 
     it('应正确处理空列表', () => {
       const payload: LrnevToolPayload<ProjectStatusSnapshot> = {
+        response_version: '1',
         ok: true,
         data: {
           generated_at: '2026-09-02T10:00:00Z',
@@ -515,6 +524,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
 
     it('不应硬编码 paraphrase', () => {
       const payload: LrnevToolPayload<ProjectStatusSnapshot> = {
+        response_version: '1',
         ok: true,
         data: {
           generated_at: '2026-09-02T10:00:00Z',
@@ -538,6 +548,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
   describe('adr_list 渲染器', () => {
     it('应呈现完整 ADR 列表和 supersedes 关系', () => {
       const payload: LrnevToolPayload<ADR[]> = {
+        response_version: '1',
         ok: true,
         data: [
           {
@@ -610,6 +621,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
 
     it('应正确处理空 ADR 列表', () => {
       const payload: LrnevToolPayload<ADR[]> = {
+        response_version: '1',
         ok: true,
         data: [],
       };
@@ -620,6 +632,7 @@ describe('M2 第 4 批 A 组渲染器', () => {
 
     it('不应硬编码 paraphrase', () => {
       const payload: LrnevToolPayload<ADR[]> = {
+        response_version: '1',
         ok: true,
         data: [],
       };

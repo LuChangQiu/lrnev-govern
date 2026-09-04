@@ -15,6 +15,7 @@ import type { DiagnosticReport } from '../../../src/types/doctor.js';
 describe('agent_list renderer', () => {
   it('renders complete agent list with all required fields', () => {
     const payload: LrnevToolPayload<AgentListResult> = {
+      response_version: '1',
       ok: true,
       data: {
         agents: [
@@ -66,6 +67,7 @@ describe('agent_list renderer', () => {
 
   it('renders empty agent list', () => {
     const payload: LrnevToolPayload<AgentListResult> = {
+      response_version: '1',
       ok: true,
       data: {
         agents: [],
@@ -86,6 +88,7 @@ describe('agent_list renderer', () => {
 
   it('renders agent list with issues', () => {
     const payload: LrnevToolPayload<AgentListResult> = {
+      response_version: '1',
       ok: true,
       data: {
         agents: [],
@@ -112,6 +115,7 @@ describe('agent_list renderer', () => {
 
   it('does not contain hardcoded paraphrase', () => {
     const payload: LrnevToolPayload<AgentListResult> = {
+      response_version: '1',
       ok: true,
       data: {
         agents: [],
@@ -131,6 +135,7 @@ describe('agent_list renderer', () => {
 describe('lrnev_guide renderer', () => {
   it('renders complete guide content for specific topic', () => {
     const payload: LrnevToolPayload<{ topic: string; content: string }> = {
+      response_version: '1',
       ok: true,
       data: {
         topic: 'workflow',
@@ -153,6 +158,7 @@ describe('lrnev_guide renderer', () => {
 
   it('renders complete guide content for all topics', () => {
     const payload: LrnevToolPayload<{ topic: string; content: string }> = {
+      response_version: '1',
       ok: true,
       data: {
         topic: 'all',
@@ -174,6 +180,7 @@ describe('lrnev_guide renderer', () => {
 
   it('does not create new guidance text', () => {
     const payload: LrnevToolPayload<{ topic: string; content: string }> = {
+      response_version: '1',
       ok: true,
       data: {
         topic: 'errors',
@@ -192,6 +199,7 @@ describe('lrnev_guide renderer', () => {
 
   it('does not contain hardcoded paraphrase', () => {
     const payload: LrnevToolPayload<{ topic: string; content: string }> = {
+      response_version: '1',
       ok: true,
       data: {
         topic: 'concepts',
@@ -209,6 +217,7 @@ describe('lrnev_guide renderer', () => {
 describe('lrnev_doctor renderer', () => {
   it('renders complete diagnostic report with all required fields', () => {
     const payload: LrnevToolPayload<DiagnosticReport> = {
+      response_version: '1',
       ok: false,
       data: {
         ok: false,
@@ -278,6 +287,7 @@ describe('lrnev_doctor renderer', () => {
 
   it('renders healthy diagnostic report', () => {
     const payload: LrnevToolPayload<DiagnosticReport> = {
+      response_version: '1',
       ok: true,
       data: {
         ok: true,
@@ -305,6 +315,7 @@ describe('lrnev_doctor renderer', () => {
 
   it('does not contain hardcoded paraphrase', () => {
     const payload: LrnevToolPayload<DiagnosticReport> = {
+      response_version: '1',
       ok: true,
       data: {
         ok: true,
