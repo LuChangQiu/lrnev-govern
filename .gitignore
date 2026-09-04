@@ -20,3 +20,12 @@ Thumbs.db
 /.codex/
 /.claude/
 tests/e2e/t027-baseline/.smoke-results/
+
+# #9f 四层分级迁移（DeepSeek 裁决 2026-09-04 裁决 4，ai-discussions/结果/2026-09-04-DeepSeek-引导激励与工具分层设计裁决.md）：
+# 契约物入库（.json / -rounds.jsonl / -e06b.jsonl 判定 sidecar / 汇总报告 .md / INVALID 标注），
+# 原始会话录制不入库（-session.jsonl / -round1.jsonl / -round2.jsonl = 原始运行日志，出库侧，同 .claude 先例）。
+# 存量录制已 git rm --cached（工作树保留，git 历史不回写）；未来批次仅契约物入库，录制本机留存/zip 归档。
+tests/e2e/t027-baseline/.evidences/*-session.jsonl
+tests/e2e/t027-baseline/.evidences/*-round1.jsonl
+tests/e2e/t027-baseline/.evidences/*-round2.jsonl
+
