@@ -26,7 +26,7 @@ import {
   SPEC_CREATION_SUCCESS_FOLLOWUP,
   GOAL_ASSESSOR_OVERRIDE_CLAUSE,
 } from '../../../src/core/guidance-semantics.js';
-import { SPEC_REWRITE_GUIDANCE } from '../../../src/core/SpecGuidance.js';
+import { SPEC_REWRITE_GUIDANCE, SPEC_INCREMENT_GUIDANCE } from '../../../src/core/SpecGuidance.js';
 
 describe('M2 第 1 批渲染器 - 常量引用验收', () => {
   describe('assess-goal 渲染器', () => {
@@ -240,6 +240,31 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
       // draft 状态不应该提示开新版
       expect(content).not.toContain('VV+1');
       expect(content).not.toContain('整体推翻');
+    });
+
+    it('E-02 G1: 必须投影 ai_followup 中的 SPEC_INCREMENT_GUIDANCE（增量登记边界引导）', () => {
+      const payload: LrnevToolPayload<{ spec: string; scene: string; status: string }> = {
+        response_version: '1',
+        ok: true,
+        data: {
+          spec: '01-00-user-login',
+          scene: '00-default',
+          status: 'in-progress',
+        },
+        ai_followup: {
+          instructions: [SPEC_INCREMENT_GUIDANCE],
+        },
+      };
+
+      const content = specGetRenderer.render(payload);
+
+      // 引导行必须是【建议】角色并覆盖"增量→task_create、改正文→直接编辑"两侧边界
+      expect(content).toContain('【建议】');
+      expect(content).toContain('task_create 登记任务');
+      expect(SPEC_INCREMENT_GUIDANCE).toContain('可直接编辑原文件');
+      // 非 completed 场景不混入开新版措辞
+      expect(content).not.toContain('整体推翻');
+      expect(content).not.toContain('VV+1');
     });
   });
 

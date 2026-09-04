@@ -144,7 +144,7 @@ describe('MCP server', () => {
     }
   });
 
-  it('12-F02 spec_get 仅对已实现的 Spec 提示考虑开新版（其余零噪音）', async () => {
+  it('12-F02 + E-02 G1: spec_get 对已完成 Spec 提示开新版；对存在但未完成的 Spec 挂增量登记边界引导', async () => {
     const workspace = await tmpDir({ unsafeCleanup: true });
     const original = process.env.LRNEV_WORKSPACE;
     process.env.LRNEV_WORKSPACE = workspace.path;
@@ -158,18 +158,26 @@ describe('MCP server', () => {
         return r.structuredContent as { data?: unknown; ai_followup?: { instructions: string[] }; status?: string };
       };
 
-      // draft（未实现）→ 无 followup 提示
+      // draft（存在但未完成）→ 不提示开新版；但给"增量登记 vs 正文编辑"边界引导（E-02 G1）
       const draftGet = parse(await client.callTool({ name: 'spec_get', arguments: { scene: 'sg', spec: 'feat-x' } }));
       const draftText = JSON.stringify(draftGet);
       expect(draftText).not.toContain('整体推翻重做');
+      expect(draftGet.ai_followup?.instructions.join('\n')).toContain('task_create 登记任务');
+      expect(draftGet.ai_followup?.instructions.join('\n')).toContain('可直接编辑原文件');
 
-      // 标 completed（已实现）→ spec_get 提示考虑开新版
+      // in-progress（E-02 根因场景：已有 in-progress spec 下继续开发）→ 同样挂边界引导，不提示开新版
       await client.callTool({ name: 'spec_update', arguments: { scene: 'sg', spec: 'feat-x', status: 'ready' } });
       await client.callTool({ name: 'spec_update', arguments: { scene: 'sg', spec: 'feat-x', status: 'in-progress' } });
-      await client.callTool({ name: 'spec_update', arguments: { scene: 'sg', spec: 'feat-x', status: 'completed' } });
+      const progressGet = parse(await client.callTool({ name: 'spec_get', arguments: { scene: 'sg', spec: 'feat-x' } }));
+      const progressText = JSON.stringify(progressGet);
+      expect(progressText).not.toContain('整体推翻重做');
+      expect(progressGet.ai_followup?.instructions.join('\n')).toContain('task_create 登记任务');
 
+      // completed（已实现）→ spec_get 提示考虑开新版（VV+1 语义，与增量引导互斥）
+      await client.callTool({ name: 'spec_update', arguments: { scene: 'sg', spec: 'feat-x', status: 'completed' } });
       const doneGet = parse(await client.callTool({ name: 'spec_get', arguments: { scene: 'sg', spec: 'feat-x' } }));
       expect(doneGet.ai_followup?.instructions.join('\n')).toContain('整体推翻重做');
+      expect(doneGet.ai_followup?.instructions.join('\n')).not.toContain('task_create 登记任务');
 
       await client.close();
       await server.close();

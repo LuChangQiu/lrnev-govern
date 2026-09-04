@@ -5,8 +5,11 @@ import type { LrnevToolPayload } from '../../types/response-envelope.js';
  * spec_get 渲染器
  *
  * 08-00 核心验证点：渲染 ai_followup 中的 SPEC_REWRITE_GUIDANCE（VV+1 语义）
+ * 05-00 / E-02 G1：spec 存在且未完成（draft/ready/in-progress）时 ai_followup 携带
+ * SPEC_INCREMENT_GUIDANCE（新增开发增量 → task_create / 修改既有正文 → 直接编辑的边界），
+ * 本渲染器原样投影 instructions，不区分哪条引导。
  * - 已完成 Spec 提示考虑开新版（整体推翻重做）
- * - draft/ready/in-progress 零噪音（不提示）
+ * - archived 参考态零噪音（无 ai_followup）
  * - 禁止硬编码 version=1（必须使用 VV+1 语义）
  */
 export const specGetRenderer: ModelVisibleRenderer = {
