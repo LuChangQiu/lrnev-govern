@@ -97,6 +97,7 @@
 | A3 | 纯净口径 artifact | opencode 原生 `list_mcp_resources`/`read_mcp_resource` 被 server 启发式记为 `mcp__list__mcp_resources` 等 → 部分 session_clean=false | 如实记录；非发布版污染（发布版 0） |
 | A4 | 参数形态差异 | E-01 3/5 spec_create scene 传短名 `user-management`（服务端解析落位 01-user-management 成功），与 fixture 全 id 期望不符 → harness 判 FAIL | 按 harness 参数级对照口径记录（与 sha-a 同规，未放宽） |
 | A5 | 环境重试统计 | 20 sessions 认证/429/崩溃类环境失败 **0 次**，退避重试未触发 | — |
+| A6 | 并发工作区变更（外部） | 本批运行期间（15:28:19）同仓并发 agent 修改了**工作区未提交版** harness-mvp.mjs（`callArgsMatch`/generic-rounds 路径新增 scene/spec 序号前缀归一），本批运行所用代码 = 会话启动瞬间加载的工作区版本 | 逐 session 核验判定不受影响：E-01×5 全在 15:17 前结束（旧逻辑，短名 FAIL 依据成立）；E-02 PASS 2 次均全 id+预期 title（归一不影响）、FAIL 3 次均 title 不匹配（title 不在归一范围，新旧逻辑都 FAIL）；E-07 判据=禁止工具调用（无 args 归一参与）；E-08 判据=expectFailure 动作出现+被拒（无 args 归一参与）。**20/20 判定在改动前后一致**，本批 evidence 如实为会话实际运行版本产物 |
 
 ## 4. 成本合计（step_finish part.cost 求和）
 
@@ -138,6 +139,6 @@
   - `5047b82` chore(T-027): opencode explicit E-07 sha-b 5 sessions 证据
   - `bc06917` chore(T-027): opencode explicit E-08 sha-b 5 sessions 证据
   - （本报告随汇总提交）
-- 全程未改代码、未伪造；AI 行为结果（PASS/FAIL）不重试；每 session 全新隔离环境（config+workspace+XDG 重定向）+ wrapper 代理录制核验 shaSource=env；主工作区零写入（证据与报告除外）；本批 20 sessions 全部真实执行。
+- 全程未改代码、未伪造；AI 行为结果（PASS/FAIL）不重试；每 session 全新隔离环境（config+workspace+XDG 重定向）+ wrapper 代理录制核验 shaSource=env；主工作区零写入（证据与报告除外）；本批 20 sessions 全部真实执行。并发 agent 在运行中段对工作区 harness 的改动（A6）经核验不影响本批任何判定。
 
 *复核建议：① E-02 sha-b 的 task_create_many 工具级失败（ANCHOR_NOT_FOUND / MCP -32602）建议在 T-027 汇总前核对其是否为 sha-b 服务端（6383e99）回归，区分「模型行为差异」与「服务端×客户端工具契约问题」；② E-01 scene 短名 FAIL 属参数形态口径（服务端解析成功），若后续口径放宽为「服务端解析落位即 PASS」，sha-b E-01 判定将变为 5/5——建议与 E-02 v2 同批口径复审时一并明确。*
