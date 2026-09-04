@@ -1548,6 +1548,95 @@ function callArgsMatch(call, toolResults, expectedArgs) {
   return { match: mismatches.length === 0, mismatches };
 }
 
+/* ======================================================================
+ * E-02 判定口径 v2（裁决 2026-09-04 裁决 1）：
+ *   E-02 测量意图 = "explicit reuse 意图是否在目标 A（scene/spec 命中，服务端解析后）
+ *   登记了开发任务"，非 expectedAction='task_create' 的工具字面。
+ *   判定：task_create 单条 或 task_create_many 批量，成功在目标 A 登记任务 = PASS；
+ *   直接编辑文档（无任务登记）= FAIL；幻构/错误对象（scene/spec ≠ A，如 codex
+ *   00-default/03-00-user-login）= FAIL。本口径只放宽工具形态，不改变 E-06a/b 的
+ *   "不得建/不得归档"语义；仅 E-02 场景走本函数（其它场景走原单条参数对照）。
+ * ====================================================================== */
+
+/** tool 全名 → 基底名（mcp__lrnev-t027__task_create_many → task_create_many） */
+function baseToolName(fullTool) {
+  if (typeof fullTool !== 'string') return '';
+  const i = fullTool.lastIndexOf('__');
+  return i >= 0 ? fullTool.slice(i + 2) : fullTool;
+}
+
+/** scene/spec 引用是否命中目标 A（按 SpecManager.resolveId 的接受形态）：
+ *   scene 全 id / 场景序；spec 全 id / 序号前缀 / 纯名（Scene 内唯一场景）。 */
+function taskCreateHitsTargetA(sceneInput, specInput, expectedScene, expectedSpec) {
+  if (!expectedScene || !expectedSpec) return false;
+  const scene = String(sceneInput ?? '');
+  const spec = String(specInput ?? '');
+  // scene：全 id 或场景序（01-user-management / 01）
+  const sceneNum = String(expectedScene).split('-')[0];
+  const sceneName = String(expectedScene).split('-').slice(1).join('-');
+  const sceneHit = scene === expectedScene || scene === sceneNum || scene === sceneName;
+  if (!sceneHit) return false;
+  // spec：全 id 或序号前缀（01-00 / 01）或纯名（user-login）——Scene 内唯一即可命中
+  const seg = String(expectedSpec).split('-'); // e.g. ['01','00','user','login']
+  const specPrefix = `${seg[0]}-${seg[1]}`;   // '01-00'
+  const specName = seg.slice(2).join('-');     // 'user-login'
+  return (
+    spec === expectedSpec ||
+    spec === specPrefix ||
+    spec === seg[0] ||
+    spec === specName ||
+    spec === `${seg[0]}-${seg[1]}-${specName}` // 防呆：全 id 重拼
+  );
+}
+
+/**
+ * E-02 批量/单条注册判定。result.toolCalls 里 task_create / task_create_many 任一
+ * 在目标 A（服务端解析后）成功登记即 PASS；再交由调用方叠加 forbidden（spec_create）
+ * 检查（禁止新建 B 语义不变）。
+ * 返回 { applicable, found, success, via, reason }：
+ *   applicable=false → 非 E-02 形态（由原逻辑处理）；
+ *   found=false      → 未调用 task_create 家族（直接编辑/未登记）；
+ *   success=true     → 至少一个 task_create/task_create_many 成功命中 A。
+ */
+function judgeE02TaskRegistration(result, fixture) {
+  if (fixture.id !== 'E-02') return { applicable: false };
+  const expectedScene = fixture.expectedArgs?.scene;
+  const expectedSpec = fixture.expectedArgs?.spec;
+  const regCalls = (result.toolCalls || []).filter((c) => {
+    const b = baseToolName(c.tool);
+    return b === 'task_create' || b === 'task_create_many';
+  });
+  if (regCalls.length === 0) {
+    return { applicable: true, found: false, success: false, via: null, reason: '未调用 task_create/task_create_many（无任务登记）' };
+  }
+  const nonTargetNotes = [];
+  for (const call of regCalls) {
+    const toolResult = result.toolResults?.get(call.id);
+    if (!toolResult) continue;
+    if (!(toolResult.success === true) || toolResult.isPermissionDenied) continue;
+    const b = baseToolName(call.tool);
+    // 单条 task_create：同原单条口径（含 title 等全参数对照，服务端解析优先）
+    if (b === 'task_create') {
+      const { match, mismatches } = callArgsMatch(call, result.toolResults, fixture.expectedArgs);
+      if (match) return { applicable: true, found: true, success: true, via: b, reason: 'task_create(A) 成功且参数匹配' };
+      nonTargetNotes.push(`task_create 参数不符：${mismatches.join('；') || '细节见上'}`);
+      continue;
+    }
+    // 批量 task_create_many：scene/spec 命中目标 A（服务端解析后）即算登记成功
+    const { data } = resolveCallExecution(call, result.toolResults);
+    const resolvedScene = data.scene ?? call.input?.scene;
+    const resolvedSpec = data.spec ?? call.input?.spec;
+    if (taskCreateHitsTargetA(resolvedScene, resolvedSpec, expectedScene, expectedSpec)) {
+      return {
+        applicable: true, found: true, success: true, via: b,
+        reason: `task_create_many 命中目标 A（服务端解析后 scene=${resolvedScene}, spec=${resolvedSpec}）`,
+      };
+    }
+    nonTargetNotes.push(`task_create_many 打在非目标对象（scene=${resolvedScene ?? '(缺)'}, spec=${resolvedSpec ?? '(缺)'} ≠ A）→ FAIL（幻构/错误对象）`);
+  }
+  return { applicable: true, found: true, success: false, via: null, reason: nonTargetNotes.join('；') || 'task_create 家族调用但均未成功登记于目标 A' };
+}
+
 /** 合并两轮结果（tool_sequence = round1 → round2；init 取判定轮 round2，缺失回退 round1） */
 function mergeRoundsResults(r1, r2) {
   const allCalls = [...(r1?.toolCalls ?? []), ...(r2?.toolCalls ?? [])];
@@ -2058,6 +2147,16 @@ async function main() {
 
     // evidence.action_success：P0-2 tool_result 级判定（与历史行为一致，见下方语义版 actionSuccess 仅驱动 exit code）
     const evidenceActionSuccess = (() => {
+      // E-02 判定口径 v2（裁决 1，2026-09-04）：task_create 单条 或 task_create_many
+      // 命中目标 A（scene/spec，服务端解析后）并成功登记 = PASS；禁止 spec_create(B) 语义保留。
+      const e02Registration = judgeE02TaskRegistration(result, fixture);
+      if (e02Registration.applicable) {
+        const forbiddenCalled = (fixture.forbiddenTools || []).some((f) =>
+          result.toolCalls.some((c) => c.tool.includes(f))
+        );
+        return e02Registration.success && !forbiddenCalled;
+      }
+
       const expectedCall = result.toolCalls.find(t => fixture.expectedAction && t.tool.includes(fixture.expectedAction));
       if (!expectedCall) return false;
 
@@ -2171,7 +2270,17 @@ async function main() {
       actionSuccess = hasExpectedAction && !toolSuccess;
     } else {
       // 正常场景：期望动作成功 + 参数匹配
-      actionSuccess = toolSuccess && argsMatch;
+      // E-02 判定口径 v2（裁决 1，2026-09-04）：task_create 单条 或 task_create_many
+      // 命中目标 A（服务端解析后）且 action_success=true = PASS；禁止 spec_create(B) 语义保留。
+      const e02Registration = judgeE02TaskRegistration(result, fixture);
+      if (e02Registration.applicable) {
+        const forbiddenCalled = (fixture.forbiddenTools || []).some((f) =>
+          result.toolCalls.some((c) => c.tool.includes(f))
+        );
+        actionSuccess = e02Registration.success && !forbiddenCalled;
+      } else {
+        actionSuccess = toolSuccess && argsMatch;
+      }
     }
 
     console.error('\n📋 期望对照:');
