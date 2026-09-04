@@ -75,11 +75,12 @@ let currentSha;
 let shaSource;
 
 const envSha = (process.env.T027_SHA ?? '').trim();
-if (envSha === 'sha-a' || envSha === 'sha-b') {
+// B3 对照（2026-09-04）新增 sha-c（主工作区修复后快照）；校验放宽为 /^sha-[a-z]+$/
+if (/^sha-[a-z]+$/.test(envSha)) {
   currentSha = envSha;
   shaSource = 'env';
 } else if (envSha !== '') {
-  console.error(`❌ 无效的 T027_SHA：${envSha}（应为 sha-a 或 sha-b）`);
+  console.error(`❌ 无效的 T027_SHA：${envSha}（应为 sha-a/sha-b/sha-c 等 worktree 标签）`);
   process.exit(1);
 } else {
   // 无 env → 读指针文件（历史行为）
@@ -91,8 +92,8 @@ if (envSha === 'sha-a' || envSha === 'sha-b') {
   currentSha = readFileSync(currentShaPath, 'utf-8').trim();
   shaSource = 'pointer';
 
-  if (currentSha !== 'sha-a' && currentSha !== 'sha-b') {
-    console.error(`❌ 无效的 SHA 指针：${currentSha}（应为 sha-a 或 sha-b）`);
+  if (!/^sha-[a-z]+$/.test(currentSha)) {
+    console.error(`❌ 无效的 SHA 指针：${currentSha}（应为 sha-a/sha-b/sha-c 等 worktree 标签）`);
     process.exit(1);
   }
 }
