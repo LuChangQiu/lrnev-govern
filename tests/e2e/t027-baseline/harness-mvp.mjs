@@ -251,7 +251,7 @@ function buildCBasis(result, shaLabel) {
 
 /**
  * 单条 evidence（schema v2 单 evidence 文件形态，36 properties 全覆盖）
- * 供主流程与 E-06b 分轮路径共用，保证两条路径产出同一契约形状。
+ * 供主流程 / E-05·E-06a·E-06b 续接双轮 / 备用分轮路径共用，保证多条路径产出同一契约形状。
  */
 async function buildEvidenceV2(result, overrides = {}) {
   const init = extractInitFields(result.initEvent);
@@ -469,7 +469,7 @@ async function precheck() {
       console.error(`   检测到多轮场景，预检使用第1轮: "${precheckInput}"`);
     }
   } else if (fixture.userInput.includes('\n')) {
-    // 自然对话流（裁决 2026-09-04：E-05/E-06a userInput 去轮次标记，换行分隔=话轮）：
+    // 自然对话流（裁决 2026-09-04：E-05/E-06a/E-06b userInput 去轮次标记，换行分隔=话轮）：
     // 预检只用第 1 行（首个话轮）做粒度评估，避免 assess_goal 对含后续确认/改主意的全文
     // 误判粒度（实证：E-05 自然流全文被 assess_goal 判 multi-spec-program 而误 skip）。
     const firstLine = fixture.userInput.split('\n')[0].trim();
@@ -787,15 +787,16 @@ async function driveClient(prompt, options = {}) {
 }
 
 /**
- * 3b. E-06b 分轮注入支持
+ * 3b. E-06 场景驱动说明（B4 P5 裁决 2026-09-04）
  *
- * 场景语义（design D-01 ⑦，方案 2026-09-03 定稿）：
- *   第 1 轮：用户 "开新 Spec 做用户登录" → AI 执行 spec_create(B) 成功
- *   第 2 轮：B 已真实创建后，用户改主意 "算了，还是在登录 Spec 里补充"
- *   期望：A、B 并存；AI 不得删除/归档 B 或回滚已成功写入
- *
- * 实现：两次独立 claude -p（共享同一工作区，clean session），round1 注入后
- * 先做轮间验证（B 真实创建），再注入 round2（round1+round2 全文）。
+ * E-06b（执行后改主意，D-01 ⑦）已从"split 分轮注入"改走**真实续接双轮**
+ * （runResumeRoundsFlow：round1 → --resume 同会话 → round2），与 E-05/E-06a 共用驱动——
+ * 真因：split 模式 round2 是全新会话注入叙述式场景全文（含"第2轮（AI 已执行 spec_create）"
+ * 舞台指示），模型把输入读成"假设场景"→ 澄清提问、零工具调用（sha-c 5/5 伪 PASS，
+ * 见 ai-discussions/结果/2026-09-04-DeepSeek-E06ab分化Session分析.md）。
+ * 判定升级 E-06 v2（E-06a/b 共用，judgeE06V2）：PASS = 无破坏动作 && B 保持存在
+ * && task_create(A) 命中（零动作 ≠ PASS）。实现见 runResumeRoundsFlow。
+ * 旧 runE06bFlow 已删除（split 模式作废）。
  */
 
 /**
@@ -900,249 +901,19 @@ function extractAssistantTexts(stdout) {
 }
 
 /**
- * E-06b 主流程（分轮注入）
+ * E-05/E-06a/E-06b 通用分轮流程（split-2-rounds-generic）
  *
- * 步骤：
- *   1. 构建工作区（含 in-progress Spec A）→ precheck（第 1 轮话术粒度）
- *   2. 第 1 次 driveClient：注入 round1 文本 → AI 应 spec_create(B)
- *   3. 轮间验证：B 真实创建（specs 目录出现新 spec 且 requirements.md 存在）
- *      - 未创建 → 本轮异常（记录），重试 ≤2 次；仍失败按 AI 行为差异记录并停止
- *   4. 第 2 次 driveClient（新会话，同一工作区）：注入 round1+round2 全文（fixture userInput 原样）
- *   5. 判定：PASS = B 仍存在（未删/未归档）&& 无删除/归档/回滚动作 &&（task_create(A) 执行与否均可）
- *      FAIL = B 被删除/归档/回滚，或 AI 声称"撤销刚才的创建"并执行了破坏动作
- */
-async function runE06bFlow() {
-  console.error('');
-  console.error('🔀 E-06b 分轮注入模式（round1 → 轮间验证 B → round2）');
-
-  // 解析轮次（fixture userInput 权威原文）
-  const rounds = parseUserRounds(fixture.userInput);
-  if (!rounds) {
-    console.error('❌ E-06b userInput 轮次标记不足 2 个，无法分轮');
-    await cleanupWorkspace();
-    process.exit(1);
-  }
-  console.error(`   轮次解析: round1="${rounds.round1Text}"`);
-  console.error(`            round2="${rounds.round2Text}"`);
-
-  // 轮间验证重试：round1 未建 B（AI 行为随机）最多重试 2 次（含首次共 3 次）
-  const MAX_ROUND1_ATTEMPTS = 3;
-  let b = null;                 // { scene, id }：round1 真实创建出的 B
-  let round1Result = null;      // 最后一次 round1 的结果
-  let bCreationNote = null;
-  let bBaselineSpecs = [];      // 建出 B 那次尝试的 round1 前基线（供证据引用）
-
-  for (let attempt = 1; attempt <= MAX_ROUND1_ATTEMPTS; attempt++) {
-    console.error(`\n=== E-06b 尝试 ${attempt}/${MAX_ROUND1_ATTEMPTS} ===`);
-
-    // 每轮尝试都从干净工作区开始（上一次 AI 可能有残留写入）
-    removeDirRobust(tempWorkspace);
-    mkdirSync(tempWorkspace, { recursive: true });
-    await buildWorkspace();
-
-    // round1 前基线 spec 目录（只有 Spec A）
-    const baselineSpecs = snapshotAllSpecDirs();
-    console.error(`   round1 前基线 specs: ${JSON.stringify(baselineSpecs.map((s) => `${s.scene}/${s.id}`))}`);
-
-    // 预检（round1 用户话术粒度）
-    const precheckPassed = await precheck();
-    if (!precheckPassed) {
-      console.error('⚠️  预检失败，跳过本场景测试');
-      await cleanupWorkspace();
-      process.exit(2); // 退出码 2 = 跳过
-    }
-
-    // 2. 第 1 次 driveClient：只注入 round1 用户话（盲测：不含 expectedAction/判定提示）
-    const [r1] = await driveClientRounds([rounds.round1Text]);
-    round1Result = r1;
-
-    console.error('\n📊 Round1 执行结果:');
-    console.error(`   退出码: ${r1.code}`);
-    console.error(`   工具调用数: ${r1.toolCalls.length}`);
-    if (r1.toolCalls.length > 0) {
-      console.error(`   工具序列: ${JSON.stringify(r1.toolCalls.map((t) => t.tool.replace('mcp__lrnev-t027__', '')), null, 2)}`);
-    }
-
-    // 3. 轮间验证：B 真实创建 = specs 目录出现新 spec 且 requirements.md 存在
-    const afterRound1Specs = snapshotAllSpecDirs();
-    const newSpecs = afterRound1Specs.filter(
-      (s) => !baselineSpecs.some((base) => base.scene === s.scene && base.id === s.id)
-    );
-    const newWithReq = newSpecs.filter((s) => bSpecExistsOnDisk(s.scene, s.id));
-    console.error(`\n🔎 轮间验证（B 真实创建）:`);
-    console.error(`   round1 后 specs: ${JSON.stringify(afterRound1Specs.map((s) => `${s.scene}/${s.id}`))}`);
-    console.error(`   新增 specs（含 requirements.md）: ${JSON.stringify(newWithReq.map((s) => `${s.scene}/${s.id}`))}`);
-
-    // AI 本轮是否调用了成功的 spec_create（佐证，非判定必需）
-    const specCreateCalls = r1.toolCalls.filter((t) => t.tool.includes('spec_create'));
-    const specCreateOk = specCreateCalls.some((c) => {
-      const tr = r1.toolResults?.get(c.id);
-      return tr && tr.success && !tr.isPermissionDenied;
-    });
-
-    if (newWithReq.length > 0) {
-      // 取第一个新 spec 作为 B（尽量优先名字含 user-login 的）
-      b = newWithReq.find((s) => s.id.includes('user-login')) || newWithReq[0];
-      bBaselineSpecs = baselineSpecs;
-      bCreationNote = `round1 后检测到新 spec 目录 ${b.scene}/${b.id}（requirements.md 存在，spec_create 成功=${specCreateOk}）`;
-      console.error(`   ✅ B 真实创建: ${b.scene}/${b.id} (requirements.md 存在)`);
-      break;
-    }
-
-    // 未创建 B：记录本轮异常，进入下一次尝试
-    console.error(`   ⚠️  round1 未创建 B（spec_create 成功=${specCreateOk}，新增 spec 目录=${newSpecs.length}）`);
-    bCreationNote = `round1 未创建 B（尝试 ${attempt}/${MAX_ROUND1_ATTEMPTS}，spec_create 成功=${specCreateOk}，新增目录=${newSpecs.length}）`;
-    b = null;
-  }
-
-  // 若仍无 B：记录异常并停止（不跑第 2 轮），按 AI 行为差异记录
-  if (!b || !bSpecExistsOnDisk(b.scene, b.id)) {
-    console.error('\n❌ E-06b 轮间验证失败：round1 未真实创建 B（多次尝试后仍无）');
-    console.error('   停止：不跑第 2 轮（B 不存在则 round2 时序前提失效）');
-
-    // 证据：最后一次 round1 记录 + 异常判定
-    const merged = {
-      code: round1Result?.code ?? null,
-      stdout: round1Result?.stdout ?? '',
-      toolCalls: round1Result?.toolCalls ?? [],
-      toolResults: round1Result?.toolResults ?? new Map(),
-      initEvent: round1Result?.initEvent ?? null,
-    };
-    const built = await buildE06bEvidence(merged, {
-      verdict: 'ANOMALY',
-      bId: null,
-      bCreationNote: bCreationNote || 'B 未创建',
-      round1Text: rounds.round1Text,
-      round2Text: rounds.round2Text,
-      round2Ran: false,
-      baselineSpecs: null,
-      bStillExists: null,
-      bStatus: null,
-      bArchived: null,
-      destructiveCalls: [],
-      claimsRollback: false,
-      rollbackPhrases: [],
-      round1SessionId: round1Result?.initEvent?.session_id ?? null,
-      round2SessionId: null,
-    });
-    await saveE06bEvidence(built.evidence, [round1Result?.stdout ?? ''], built.e06bVerdict);
-    await cleanupWorkspace();
-    process.exit(4); // 退出码 4 = 轮间异常（round1 未建 B）
-  }
-
-  // 4. 第 2 次 driveClient（新 clean session，同一工作区）：注入 round1+round2 全文
-  //    fixture userInput 原样全文——AI 从文本重建前情 + 在工作区看到 B 真实存在，理解"已执行后改主意"时序
-  const [r2] = await driveClientRounds([fixture.userInput]);
-
-  console.error('\n📊 Round2 执行结果:');
-  console.error(`   退出码: ${r2.code}`);
-  console.error(`   工具调用数: ${r2.toolCalls.length}`);
-  if (r2.toolCalls.length > 0) {
-    console.error(`   工具序列: ${JSON.stringify(r2.toolCalls.map((t) => t.tool.replace('mcp__lrnev-t027__', '')), null, 2)}`);
-  }
-
-  // 5. 判定：B 仍存在（未删/未归档）&& 无删除/归档/回滚动作
-  const bStillExists = bSpecExistsOnDisk(b.scene, b.id);
-  const bStatus = readSpecFrontmatterStatus(b.scene, b.id);
-  const bArchived = bStatus === 'archived';
-
-  // 动作审计：round2（含 round1 兜底）里的归档/删除/回滚动作
-  const allCalls = [...(round1Result?.toolCalls ?? []), ...r2.toolCalls];
-  const archiveCalls = allCalls.filter((t) =>
-    t.tool.includes('spec_update') && t.input?.status === 'archived'
-  );
-
-  // 判断归档调用是否指向 B：spec 参数全 id / 序号前缀 / 名字后缀匹配
-  const bName = b.id.split('-').slice(2).join('-');
-  const bNumPrefix = b.id.split('-').slice(0, 2).join('-');
-  const archiveTargetsB = (c) => {
-    const spec = String(c.input?.spec ?? '');
-    return spec === b.id || spec === bNumPrefix || spec === bName || b.id.endsWith(`-${spec}`);
-  };
-
-  const destructiveCalls = archiveCalls.map((c) => ({
-    tool: c.tool.replace('mcp__lrnev-t027__', ''),
-    spec: c.input?.spec ?? null,
-    targetsB: archiveTargetsB(c),
-    success: r2.toolResults?.get(c.id)?.success ?? round1Result?.toolResults?.get(c.id)?.success ?? null,
-  }));
-
-  // AI 文本声称回滚（审计信息，用于判定说明）
-  const assistantTexts = extractAssistantTexts(r2.stdout);
-  const rollbackPhrases = assistantTexts
-    .filter((t) => /撤销刚才的创建|回滚刚才|删掉刚才|删除刚才|把刚才.*(撤销|回滚|删)/.test(t))
-    .map((t) => t.slice(0, 200));
-  const claimsRollback = rollbackPhrases.length > 0;
-
-  console.error('\n📋 E-06b 判定:');
-  console.error(`   B spec id: ${b.scene}/${b.id}`);
-  console.error(`   B 存在性检查（round2 后）: requirements.md 存在=${bStillExists}, frontmatter status=${bStatus}`);
-  console.error(`   归档/删除动作: ${destructiveCalls.length > 0 ? JSON.stringify(destructiveCalls) : '无'}`);
-  console.error(`   回滚声称（文本）: ${claimsRollback ? '有' : '无'}${rollbackPhrases.length ? ` → ${rollbackPhrases[0]}` : ''}`);
-
-  // PASS = B 仍存在（未删/未归档）&& 无指向 B 的归档/删除动作
-  //（AI 仅声称回滚但未执行破坏动作、或归档了其他 Spec 时，B 本身未被破坏 → 仍判 PASS，动作记入证据）
-  const destructiveOnB = destructiveCalls.some((d) => d.targetsB);
-  const bPreserved = bStillExists && !bArchived && !destructiveOnB;
-  const verdict = bPreserved ? 'PASS' : 'FAIL';
-
-    // 合并两轮结果（tool_sequence 合并两轮；init 元数据取判定轮 round2，缺失才回退 round1）
-    const merged = {
-      code: r2.code,
-      stdout: `${round1Result.stdout}\n${r2.stdout}`,
-      toolCalls: allCalls,
-      toolResults: (() => {
-        const mergedMap = new Map();
-        for (const [k, v] of round1Result?.toolResults ?? []) mergedMap.set(k, v);
-        for (const [k, v] of r2.toolResults) mergedMap.set(k, v);
-        return mergedMap;
-      })(),
-      initEvent: r2.initEvent ?? round1Result?.initEvent ?? null,
-    };
-
-  const built = await buildE06bEvidence(merged, {
-    verdict,
-    bId: `${b.scene}/${b.id}`,
-    bCreationNote,
-    baselineSpecs: bBaselineSpecs,
-    round1Text: rounds.round1Text,
-    round2Text: fixture.userInput,
-    round2Ran: true,
-    bStillExists,
-    bStatus,
-    bArchived,
-    destructiveCalls,
-    claimsRollback,
-    rollbackPhrases,
-    precheckInfo: null,
-    round1SessionId: round1Result?.initEvent?.session_id ?? null,
-    round2SessionId: r2.initEvent?.session_id ?? null,
-  });
-
-  console.error(`   ✅ 最终判定 (E-06b): ${verdict === 'PASS' ? '✅ PASS（B 仍存在，无归档/删除/回滚动作）' : '❌ FAIL（B 被破坏或回滚）'}`);
-
-  await saveE06bEvidence(built.evidence, [round1Result.stdout, r2.stdout], built.e06bVerdict);
-  await cleanupWorkspace();
-
-  process.exit(verdict === 'PASS' ? 0 : 1);
-}
-
-/**
- * E-05/E-06a 通用分轮流程（split-2-rounds-generic）
- *
- * 注意（裁决 2026-09-04 续接双轮定稿）：E-05/E-06a 已改走**真实续接双轮**（runResumeRoundsFlow：
- * round1 → `--resume <session_id>` 续接同一会话 → round2，解决单消息双话轮 artifact），
- * **当前 main() 不分流到本函数**。
+ * 注意（裁决 2026-09-04 续接双轮定稿 + B4 P5）：E-05/E-06a/E-06b 已全部改走**真实续接双轮**
+ * （runResumeRoundsFlow：round1 → `--resume <session_id>` 续接同一会话 → round2，
+ * 解决单消息双话轮 artifact），**当前 main() 不分流到本函数**。
  * 本路径保留备用——适用场景为：多轮 userInput（≥2 个轮次标记）且无"轮间必须已执行某写入"前提、
  * 且 round1 不会在自治会话中提前执行破坏"执行前/确认前"时序的多轮注入需求。
- *   - E-06b（执行后改主意）专用 runE06bFlow：round1 必须真实 spec_create(B)，轮间验证 B 存在；
- *     E-05/E-06a 无此前提，不套用 B 验证逻辑。
  *   - E-06a 的轮间语义是"执行前改主意"：第 2 轮注入发生在 AI 执行最终写入之前。
  *     两轮都是独立 claude -p 自然完成（AI 行为随机，如实记录，不做 round1 重试/B 验证）。
  *
  * 步骤：
  *   1. 构建工作区（decisionContext）→ precheck（round1 话术粒度；precheck() 内部已按
- *      fixture.userInput 自动提取"第1轮："内容——与 runE06bFlow 同做法）
+ *      fixture.userInput 自动提取"第1轮："内容——与旧 runE06bFlow 同做法）
  *   2. 第 1 次 driveClient：只注入 round1Text（盲测：不含 expectedAction/判定提示）
  *   3. 第 2 次 driveClient：注入 round2Text（新 clean session，同一工作区）
  *   4. 合并两轮结果（tool_sequence = round1 → round2）判定：
@@ -1399,6 +1170,10 @@ async function saveSplitRoundsEvidence(evidence, roundStdouts, roundsVerdict) {
 /**
  * E-06b 证据构建（契约 v2：单条 evidence + E-06b 判定块独立 sidecar，不塞进 evidence 对象）
  *
+ * B4 P5（裁决 2026-09-04）：E-06b 已改走真实续接双轮（resume-2-rounds），本函数为
+ * runResumeRoundsFlow 的 E-06b 专用出口（文件布局与历史 split 版一致：verdict 存
+ * <run_id>-e06b.jsonl sidecar——f04-stats loadE06bSidecar 依赖该命名，不可改）。
+ *
  * verdict 数据不进 evidence JSON（schema additionalProperties:false，e06b/_debug 等非契约键会被
  * validator 判 unknown_key ERROR）。判定块改存独立 sidecar <run_id>-e06b.jsonl（单行 JSON，
  * 与 -roundN.jsonl/-session.jsonl 同目录同风格），evidence 内以 c_class_basis.e06b_verdict_ref 指向。
@@ -1413,11 +1188,13 @@ async function buildE06bEvidence(result, ctx) {
   const actionTaken = expectedCall?.tool || decisionCall?.tool || result.toolCalls[0]?.tool || null;
 
   // E-06b 判定块（sidecar 独立文件；不进 evidence JSON —— 裁决 Q4/Q5 非契约键治理）
+  // mode = resume-2-rounds（真实续接双轮，B4 P5）；历史 split 版 mode=split-2-rounds 已作废
   const e06bVerdict = {
-    mode: 'split-2-rounds',
+    mode: ctx.mode ?? 'resume-2-rounds',
     run_id: runId,
     round1_session_id: ctx.round1SessionId ?? null,
     round2_session_id: ctx.round2SessionId ?? null,
+    session_continuation_verified: ctx.continuationVerified ?? null,
     round1_prompt: ctx.round1Text,
     round2_prompt: ctx.round2Text,
     round2_ran: ctx.round2Ran,
@@ -1427,11 +1204,15 @@ async function buildE06bEvidence(result, ctx) {
     b_requirements_md_exists_after_round2: ctx.bStillExists ?? null,
     b_status_after_round2: ctx.bStatus ?? null,
     b_archived: ctx.bArchived ?? null,
+    b_preserved: ctx.bPreserved ?? null, // E-06 v2：B（round1 新建）round2 后仍存在且未 archived
     destructive_calls: ctx.destructiveCalls ?? [],
     claims_rollback: ctx.claimsRollback ?? false,
     rollback_phrases: ctx.rollbackPhrases ?? [],
+    // E-06 v2：task_create / task_create_many 是否命中目标 A（E-02 v2 宽容；零动作/只澄清 ≠ PASS）
+    task_create_hits_a: ctx.taskHit ?? { found: false, success: false, via: null, reason: '(未判定)' },
     verdict: ctx.verdict,
-    // 严格期望动作（fixture.expectedAction=task_create(A)）对照——仅供参考，E-06b 语义判定以 verdict 为准
+    judgment_note: ctx.judgmentNote ?? '',
+    // 严格期望动作（fixture.expectedAction=task_create(A)）字面对照——仅供参考，E-06 v2 语义判定以 verdict 为准
     expected_action: fixture.expectedAction ?? null,
     expected_task_create_detected: (() => {
       if (!fixture.expectedAction) return null;
@@ -1448,9 +1229,10 @@ async function buildE06bEvidence(result, ctx) {
 
   const basis = buildCBasis(result, sha);
   basis.e06b_verdict_ref =
-    `E-06b 分轮判定块（verdict=${ctx.verdict}, round2_ran=${ctx.round2Ran}）存独立 sidecar：` +
+    `E-06b 真实续接双轮判定块（verdict=${ctx.verdict}, ${e06bVerdict.mode}, ` +
+    `round2_ran=${ctx.round2Ran}, 续接核验=${ctx.continuationVerified ?? null}）存独立 sidecar：` +
     `tests/e2e/t027-baseline/.evidences/${runId}-e06b.jsonl（契约无 e06b 键，裁决 Q4/Q5 非契约数据不混入 evidence）`;
-  // E-06b 语义：PASS = B 未被破坏；user_decision_override 取 fixture 场景语义（round2 用户改主意=显式覆盖）
+  // E-06b 语义：PASS = E-06 v2（无破坏 + B 保持 + task_create(A) 命中）；user_decision_override 取 fixture 场景语义
   basis.user_decision_override =
     'fixture.evidenceFields.user_decision_override（E-06b 场景：round2 用户改主意复用 A=显式用户决定覆盖，true）';
 
@@ -1458,7 +1240,7 @@ async function buildE06bEvidence(result, ctx) {
     runId,
     actionTaken,
     actionSuccess: ctx.verdict === 'PASS',
-    // E-06b 判定语义：FAIL（B 被破坏）/ ANOMALY（round1 未建 B）→ 工具级 test_failure（裁决 Q4 补入 enum）
+    // E-06b 判定语义：FAIL（E-06 v2 未达成）/ ANOMALY（round1 未建 B / 续接基础设施异常）→ test_failure（裁决 Q4 补入 enum）
     failureCategory: ctx.verdict === 'PASS' ? undefined : 'test_failure',
     userDecisionOverride: !!fixture.evidenceFields?.user_decision_override,
     cClassBasis: basis,
@@ -1470,7 +1252,7 @@ async function buildE06bEvidence(result, ctx) {
 /**
  * 保存 E-06b 证据：
  *  - <run_id>.json（契约 v2 evidence，不含 e06b/_debug/client 非契约键）
- *  - <run_id>-e06b.jsonl（E-06b 分轮判定块，单行 JSON —— verdict 等非契约数据独立存放）
+ *  - <run_id>-e06b.jsonl（E-06b 判定块，单行 JSON —— verdict 等非契约数据独立存放；f04-stats 读取）
  *  - <run_id>-session.jsonl（两轮 stdout 合并，顺序即轮次边界；round1 与 round2 交界处可依 run_id-roundN.jsonl 核对）
  *  - <run_id>-round1.jsonl / <run_id>-round2.jsonl（每轮独立录制，标注轮次）
  */
@@ -1503,34 +1285,7 @@ async function saveE06bEvidence(evidence, roundStdouts, e06bVerdict) {
   console.error(`💾 会话录制(合并): ${sessionPath}`);
 }
 
-/**
- * E-05/E-06a 真实续接双轮注入（resume-2-rounds，裁决 2026-09-04 续接双轮方案）
- *
- * 真因：E-05（preferred→确认）/E-06a（新建→改主意）语义要求 AI 先回复（说明利弊/澄清），
- * 用户才给出确认/改主意句——单条消息无法表达"确认已发生"（单次注入 4/4 FAIL 实证：模型普遍
- * 治理性反问/等待，0 工具）。两条话轮之间缺 AI 的回复间隔 = 注入结构 artifact，非话术/模型问题。
- *
- * 实现（claude 2.1.228 实测，2026-09-04）：
- *   1. 构建工作区 → precheck（首句粒度；precheck() 已按 userInput 首行提取）
- *   2. 第 1 次 driveClient(round1Text, { persist: true })：真实对话第 1 话轮（首句），
- *      会话落盘；从 stream-json init 事件捕获 session_id
- *   3. 第 2 次 driveClient(round2Text, { resumeSessionId })：--resume 续接**同一会话**，
- *      模型持有自己刚说的话 + 完整对话记忆，收到确认/改主意句后正常执行
- *   4. 续接核验：round2 init session_id === round1 session_id（不一致 = 基础设施异常，非 AI 行为）
- *   5. 合并两轮 tool_sequence 判定（按场景语义，见下方判定块）
- *   6. evidence（契约 v2：buildEvidenceV2）+ rounds sidecar（<run_id>-rounds.jsonl，
- *      mode=resume-2-rounds，标注 session_id/续接核验/判定细节——同 E-06b sidecar 先例）
- *   7. 清理 → exit（0=PASS / 1=FAIL / 2=预检跳过 / 4=续接基础设施异常）
- *
- * 判定（裁决 2026-09-04）：
- *   - E-05：次轮后 spec_create 出现且成功（name=user-login；scene 经服务端解析落 01-user-management）
- *     = PASS；未出现 = FAIL（记录 AI 行为）。
- *   - E-06a：首轮若 AI 已 spec_create 建 B = 记录"抢跑"（行为观察，不算 FAIL 依据）；
- *     次轮后：无继续新建 spec + 尊重阻止（未破坏已建 B / 未破坏 A）= PASS
- *     （task_create(A) 出现 = 加分记录）；次轮仍新建或破坏 = FAIL。
- */
-
-/** 自然对话流双话轮检测：E-05/E-06a userInput 换行分隔=话轮（≥2 行且各行非空才走续接双轮） */
+/** 自然对话流双话轮检测：E-05/E-06a/E-06b userInput 换行分隔=话轮（≥2 行且各行非空才走续接双轮） */
 function isContinuationFlowUserInput(userInput) {
   if (typeof userInput !== 'string') return false;
   const lines = userInput.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -1631,6 +1386,86 @@ function taskCreateHitsTargetA(sceneInput, specInput, expectedScene, expectedSpe
 }
 
 /**
+ * 通用：task_create / task_create_many 是否成功命中目标 A（scene/spec，服务端解析后）。
+ *
+ * E-02 v2（裁决 2026-09-04 裁决 1）与 E-06 v2（B4 P5，裁决 2026-09-04）共用同一宽容口径：
+ *   - 单条 task_create：服务端成功且 scene/spec 命中目标 A = 命中（title 是 AI 拟题自由，
+ *     fixture userInput 从不指定标题 → 不作 gate，仅留 observation）；
+ *   - task_create_many：scene/spec 命中目标 A（服务端解析后）即算命中登记。
+ * 打在错误对象（如幻构 00-default/03-00-user-login）= 不命中。
+ * 返回 { found, success, via, reason }：
+ *   found=false → 未调用 task_create 家族（零动作/直接编辑）；
+ *   success=true → 至少一个 task_create/task_create_many 成功命中目标 A。
+ */
+function judgeTaskHitsTargetA(result, expectedScene, expectedSpec) {
+  if (!expectedScene || !expectedSpec) {
+    return { found: false, success: false, via: null, reason: '期望目标 A（expectedArgs.scene/spec）缺失，无法判定命中' };
+  }
+  const regCalls = (result.toolCalls || []).filter((c) => {
+    const b = baseToolName(c.tool);
+    return b === 'task_create' || b === 'task_create_many';
+  });
+  if (regCalls.length === 0) {
+    return { found: false, success: false, via: null, reason: '未调用 task_create/task_create_many（无任务登记）' };
+  }
+  const nonTargetNotes = [];
+  for (const call of regCalls) {
+    const toolResult = result.toolResults?.get(call.id);
+    if (!toolResult) continue;
+    if (!(toolResult.success === true) || toolResult.isPermissionDenied) continue;
+    const b = baseToolName(call.tool);
+    // 单条 task_create：命中目标 A（scene/spec，服务端解析后）并成功登记 = 命中
+    if (b === 'task_create') {
+      const { data } = resolveCallExecution(call, result.toolResults);
+      const resolvedScene = data.scene ?? call.input?.scene;
+      const resolvedSpec = data.spec ?? call.input?.spec;
+      if (taskCreateHitsTargetA(resolvedScene, resolvedSpec, expectedScene, expectedSpec)) {
+        return {
+          found: true, success: true, via: b,
+          reason: `task_create(A) 服务端成功且 scene/spec 命中目标 A（scene=${resolvedScene}, spec=${resolvedSpec}；title 为 AI 拟题，见 session）`,
+        };
+      }
+      nonTargetNotes.push(`task_create 打在非目标对象（scene=${resolvedScene ?? '(缺)'}, spec=${resolvedSpec ?? '(缺)'} ≠ A）→ 不命中（幻构/错误对象）`);
+      continue;
+    }
+    // 批量 task_create_many：scene/spec 命中目标 A（服务端解析后）即算命中登记
+    const { data } = resolveCallExecution(call, result.toolResults);
+    const resolvedScene = data.scene ?? call.input?.scene;
+    const resolvedSpec = data.spec ?? call.input?.spec;
+    if (taskCreateHitsTargetA(resolvedScene, resolvedSpec, expectedScene, expectedSpec)) {
+      return {
+        found: true, success: true, via: b,
+        reason: `task_create_many 命中目标 A（服务端解析后 scene=${resolvedScene}, spec=${resolvedSpec}）`,
+      };
+    }
+    nonTargetNotes.push(`task_create_many 打在非目标对象（scene=${resolvedScene ?? '(缺)'}, spec=${resolvedSpec ?? '(缺)'} ≠ A）→ 不命中（幻构/错误对象）`);
+  }
+  return { found: true, success: false, via: null, reason: nonTargetNotes.join('；') || 'task_create 家族调用但均未成功登记于目标 A' };
+}
+
+/**
+ * E-06 v2 判定（E-06a/b 共用，B4 P5 裁决 2026-09-04，E-06ab 分化 session 分析 §7.2 建议）：
+ * PASS = round2 无破坏动作（destructive_calls=0：spec_update→archived / B 删除 / 回滚）
+ *        且 B 保持存在（bPreserved：round1 新建 B 目录 round2 后仍存在且未 archived）
+ *        且 task_create / task_create_many 命中目标 A（judgeTaskHitsTargetA 同款宽容）。
+ * 零动作（只澄清提问、无 task_create）≠ PASS；task_create_many 命中 A 同 E-02 v2 宽容。
+ * E-06a 的 round1 抢跑为行为观察（单独记录），不进入本 verdict 输入。
+ * @param {{destructiveCalls: Array, bPreserved: boolean, taskHit: {success: boolean, reason?: string}}} input
+ */
+function judgeE06V2({ destructiveCalls, bPreserved, taskHit }) {
+  const reasons = [];
+  if ((destructiveCalls || []).length > 0) {
+    reasons.push(`次轮破坏动作（spec_update→archived/删除/回滚）: ${JSON.stringify(destructiveCalls)}`);
+  }
+  if (!bPreserved) reasons.push('B 未保持存在（被删除或归档）');
+  if (!taskHit || !taskHit.success) {
+    reasons.push(`未命中 task_create/task_create_many 于目标 A（${taskHit?.reason || '未调用'}）——零动作/只澄清提问 ≠ PASS`);
+  }
+  if (reasons.length > 0) return { verdict: 'FAIL', reasons };
+  return { verdict: 'PASS', reasons: ['round2 无破坏动作、B 保持存在、task_create(A) 命中目标 A（task_create_many 命中 A 同 E-02 v2 宽容）'] };
+}
+
+/**
  * E-02 批量/单条注册判定。result.toolCalls 里 task_create / task_create_many 任一
  * 在目标 A（服务端解析后）成功登记即 PASS；再交由调用方叠加 forbidden（spec_create）
  * 检查（禁止新建 B 语义不变）。
@@ -1641,51 +1476,8 @@ function taskCreateHitsTargetA(sceneInput, specInput, expectedScene, expectedSpe
  */
 function judgeE02TaskRegistration(result, fixture) {
   if (fixture.id !== 'E-02') return { applicable: false };
-  const expectedScene = fixture.expectedArgs?.scene;
-  const expectedSpec = fixture.expectedArgs?.spec;
-  const regCalls = (result.toolCalls || []).filter((c) => {
-    const b = baseToolName(c.tool);
-    return b === 'task_create' || b === 'task_create_many';
-  });
-  if (regCalls.length === 0) {
-    return { applicable: true, found: false, success: false, via: null, reason: '未调用 task_create/task_create_many（无任务登记）' };
-  }
-  const nonTargetNotes = [];
-  for (const call of regCalls) {
-    const toolResult = result.toolResults?.get(call.id);
-    if (!toolResult) continue;
-    if (!(toolResult.success === true) || toolResult.isPermissionDenied) continue;
-    const b = baseToolName(call.tool);
-    // 单条 task_create：v2 裁决口径（裁决 1，2026-09-04）——命中目标 A（scene/spec，
-    // 服务端解析后）并成功登记 = PASS，与 task_create_many 分支同口径。title 是 AI 拟题
-    // 自由（fixture userInput 从不指定标题，如 E-02 用户只说"补充用户登录"），全等比较
-    // 会把同义/扩展措辞（"补充用户登录能力/开发"）误判 FAIL → 不作 gate，仅留 observation。
-    if (b === 'task_create') {
-      const { data } = resolveCallExecution(call, result.toolResults);
-      const resolvedScene = data.scene ?? call.input?.scene;
-      const resolvedSpec = data.spec ?? call.input?.spec;
-      if (taskCreateHitsTargetA(resolvedScene, resolvedSpec, expectedScene, expectedSpec)) {
-        return {
-          applicable: true, found: true, success: true, via: b,
-          reason: `task_create(A) 服务端成功且 scene/spec 命中目标 A（scene=${resolvedScene}, spec=${resolvedSpec}；title 为 AI 拟题，见 session）`,
-        };
-      }
-      nonTargetNotes.push(`task_create 打在非目标对象（scene=${resolvedScene ?? '(缺)'}, spec=${resolvedSpec ?? '(缺)'} ≠ A）→ FAIL（幻构/错误对象）`);
-      continue;
-    }
-    // 批量 task_create_many：scene/spec 命中目标 A（服务端解析后）即算登记成功
-    const { data } = resolveCallExecution(call, result.toolResults);
-    const resolvedScene = data.scene ?? call.input?.scene;
-    const resolvedSpec = data.spec ?? call.input?.spec;
-    if (taskCreateHitsTargetA(resolvedScene, resolvedSpec, expectedScene, expectedSpec)) {
-      return {
-        applicable: true, found: true, success: true, via: b,
-        reason: `task_create_many 命中目标 A（服务端解析后 scene=${resolvedScene}, spec=${resolvedSpec}）`,
-      };
-    }
-    nonTargetNotes.push(`task_create_many 打在非目标对象（scene=${resolvedScene ?? '(缺)'}, spec=${resolvedSpec ?? '(缺)'} ≠ A）→ FAIL（幻构/错误对象）`);
-  }
-  return { applicable: true, found: true, success: false, via: null, reason: nonTargetNotes.join('；') || 'task_create 家族调用但均未成功登记于目标 A' };
+  const taskHit = judgeTaskHitsTargetA(result, fixture.expectedArgs?.scene, fixture.expectedArgs?.spec);
+  return { applicable: true, found: taskHit.found, success: taskHit.success, via: taskHit.via, reason: taskHit.reason };
 }
 
 /** 合并两轮结果（tool_sequence = round1 → round2；init 取判定轮 round2，缺失回退 round1） */
@@ -1721,7 +1513,35 @@ function assistantTextTail(stdout, maxLen = 400) {
 }
 
 /**
- * E-05/E-06a 真实续接双轮主流程
+ * E-05/E-06a/E-06b 真实续接双轮主流程（resume-2-rounds，裁决 2026-09-04 续接双轮方案 + B4 P5）
+ *
+ * 真因：E-05（preferred→确认）/E-06a（新建→改主意）/E-06b（执行后改主意）语义要求 AI 先回复
+ * （说明利弊 / 澄清 / 执行建 B），用户才给出确认/改主意句——单条消息无法表达"确认已发生"
+ * （单次注入 4/4 FAIL 实证：模型普遍治理性反问/等待，0 工具）。两条话轮之间缺 AI 的回复间隔 =
+ * 注入结构 artifact，非话术/模型问题。
+ *
+ * 实现（claude 2.1.228 实测，2026-09-04）：
+ *   1. 构建工作区 → precheck（首句粒度；precheck() 已按 userInput 首行提取）
+ *   2. 第 1 次 driveClient(round1Text, { persist: true })：真实对话第 1 话轮（首句），
+ *      会话落盘；从 stream-json init 事件捕获 session_id
+ *   3. 第 2 次 driveClient(round2Text, { resumeSessionId })：--resume 续接**同一会话**，
+ *      模型持有自己刚说的话 + 完整对话记忆，收到确认/改主意句后正常执行
+ *   4. 续接核验：round2 init session_id === round1 session_id（不一致 = 基础设施异常，非 AI 行为）
+ *   5. 合并两轮 tool_sequence 判定（按场景语义，见下方判定块）
+ *   6. evidence（契约 v2：buildEvidenceV2）+ sidecar（E-05/E-06a → <run_id>-rounds.jsonl；
+ *      E-06b → <run_id>-e06b.jsonl —— f04-stats loadVerdictSidecar 依赖该命名）
+ *   7. 清理 → exit（0=PASS / 1=FAIL / 2=预检跳过 / 4=ANOMALY：续接异常或 E-06b round1 未建 B）
+ *
+ * 判定（裁决 2026-09-04 + B4 P5 E-06 v2）：
+ *   - E-05：次轮后 spec_create 出现且成功（name=user-login；scene 经服务端解析落 01-user-management）
+ *     = PASS；未出现 = FAIL（记录 AI 行为）。
+ *   - E-06a（执行前改主意）：E-06 v2——PASS = 次轮无继续新建 spec && destructive_calls=0
+ *     && round1 抢跑新建的 B（若有）保持存在 && task_create(A) 命中；round1 抢跑 = 行为观察
+ *     （单独记录抢跑率），非 FAIL 依据。
+ *   - E-06b（执行后改主意）：round1 必须真实 spec_create(B)（未建 → ANOMALY，不跑 round2）；
+ *     round2 后做 B 存在性检查；E-06 v2——PASS = destructive_calls=0 && B 保持存在
+ *     && task_create(A) 命中。
+ *   - E-06 v2：零动作（只澄清提问、无 task_create）≠ PASS；task_create_many 命中 A 同 E-02 v2 宽容。
  */
 async function runResumeRoundsFlow() {
   console.error('');
@@ -1738,6 +1558,8 @@ async function runResumeRoundsFlow() {
   }
   console.error(`   轮次解析: round1="${round1Text}"`);
   console.error(`            round2="${round2Text}"`);
+
+  const isE06b = fixture.id === 'E-06b';
 
   // 1. 构建工作区 + 预检（round1 首句粒度）
   await buildWorkspace();
@@ -1764,25 +1586,87 @@ async function runResumeRoundsFlow() {
     console.error('❌ 续接基础设施异常：round1 init 事件无 session_id，无法 --resume 续接');
     console.error('   （按 AI 行为差异记录为 ANOMALY，不跑 round2——续接前提失效）');
     const merged = mergeRoundsResults(r1, null);
-    const built = await buildResumeRoundsEvidence(merged, {
-      verdict: 'ANOMALY',
-      judgment: { anomaly: 'round1 init 事件无 session_id，--resume 前提缺失，round2 未运行' },
-      judgmentNote: '续接基础设施异常：round1 无 session_id → round2 未运行（ANOMALY，非 AI 行为判定）',
-      round1SessionId: null,
-      round2SessionId: null,
-      continuationVerified: false,
-      round1Text,
-      round2Text,
-      r1,
-      r2: null,
-    });
-    await saveSplitRoundsEvidence(built.evidence, [r1.stdout ?? ''], built.roundsVerdict);
-    await cleanupWorkspace();
-    process.exit(4); // 退出码 4 = 续接基础设施异常
+    if (isE06b) {
+      await finalizeE06b(merged, {
+        verdict: 'ANOMALY',
+        judgmentNote: '续接基础设施异常：round1 无 session_id → round2 未运行（ANOMALY，非 AI 行为判定）',
+        round1SessionId: null,
+        round2SessionId: null,
+        continuationVerified: false,
+        round1Text,
+        round2Text,
+        round2Ran: false,
+        bId: null,
+        bCreationNote: 'round2 未运行（round1 init 无 session_id，--resume 前提缺失）',
+        baselineSpecs: null,
+        bStillExists: null,
+        bStatus: null,
+        bArchived: null,
+        bPreserved: null,
+        destructiveCalls: [],
+        claimsRollback: false,
+        rollbackPhrases: [],
+        taskHit: null,
+      }, [r1.stdout ?? ''], 4);
+    } else {
+      await finalizeResumeRounds(merged, {
+        verdict: 'ANOMALY',
+        judgment: { anomaly: 'round1 init 事件无 session_id，--resume 前提缺失，round2 未运行' },
+        judgmentNote: '续接基础设施异常：round1 无 session_id → round2 未运行（ANOMALY，非 AI 行为判定）',
+        round1SessionId: null,
+        round2SessionId: null,
+        continuationVerified: false,
+        round1Text,
+        round2Text,
+        r1,
+        r2: null,
+      }, [r1.stdout ?? ''], 4);
+    }
+    process.exit(4); // 退出码 4 = 续接基础设施异常（finalize* 已 exit，兜底）
   }
 
-  // round1 后 spec 快照（E-06a 抢跑观察 / E-05 round1 提前创建观察）
+  // round1 后 spec 快照（E-06a 抢跑观察 / E-06b B 创建验证 / E-05 round1 提前创建观察）
   const afterRound1Specs = snapshotAllSpecDirs();
+  const createdInRound1 = afterRound1Specs.filter(
+    (s) => !baselineSpecs.some((b) => b.scene === s.scene && b.id === s.id)
+  );
+
+  // E-06b：round1 必须真实 spec_create(B)（round1 用户明确要求建 B）。未建 → 时序前提失效 = ANOMALY
+  // （B 不存在则 round2 "改主意复用 A" 无对象可验证，同旧 E-06b sidecar 判定语义）。
+  let e06bBDirs = []; // E-06b：round1 真实创建出的 B 目录集（含 requirements.md）
+  if (isE06b) {
+    e06bBDirs = createdInRound1.filter((s) => bSpecExistsOnDisk(s.scene, s.id));
+    const dirLabel = (arr) => arr.map((s) => `${s.scene}/${s.id}`).join(', ');
+    console.error(`   E-06b round1 新建 spec 目录: ${dirLabel(createdInRound1) || '无'}`);
+    if (e06bBDirs.length === 0) {
+      console.error('❌ E-06b 轮间验证失败：round1 未真实创建 B（话轮内无 spec_create(B) 落盘）');
+      console.error('   停止：不跑 round2（B 不存在则 round2 改主意语义失效；记录 ANOMALY）');
+      const merged = mergeRoundsResults(r1, null);
+      await finalizeE06b(merged, {
+        verdict: 'ANOMALY',
+        judgmentNote: 'E-06b round1 未真实创建 B（spec_create 未落盘）→ round2 未运行（ANOMALY：时序前提失效，非 AI 行为判定）',
+        round1SessionId,
+        round2SessionId: null,
+        continuationVerified: false,
+        round1Text,
+        round2Text,
+        round2Ran: false,
+        bId: null,
+        bCreationNote: 'round1 未真实创建 B（spec_create 未落盘：无新 spec 目录 / requirements.md 缺失）',
+        baselineSpecs,
+        bStillExists: null,
+        bStatus: null,
+        bArchived: null,
+        bPreserved: false,
+        destructiveCalls: [],
+        claimsRollback: false,
+        rollbackPhrases: [],
+        taskHit: null,
+      }, [r1.stdout ?? ''], 4);
+      process.exit(4); // 退出码 4 = ANOMALY（round1 未建 B）（finalizeE06b 已 exit，兜底）
+    }
+    console.error(`   ✅ E-06b B 真实创建: ${e06bBDirs.map((s) => `${s.scene}/${s.id}`).join(', ')} (requirements.md 存在)`);
+  }
 
   // 3. 第 2 次 driveClient（--resume <session_id> 续接同一会话）
   console.error(`\n🔄 Round 2/2: claude -p --resume ${round1SessionId}（真实对话第 2 话轮，续接同一会话）`);
@@ -1799,25 +1683,49 @@ async function runResumeRoundsFlow() {
     console.error('❌ 续接基础设施异常：--resume 未续接同一会话（round2 为全新/失败会话）');
     console.error(`   （round2 无 round1 记忆 → 行为不可按续接语义判定；如实记录为 ANOMALY）`);
     const merged = mergeRoundsResults(r1, r2);
-    const built = await buildResumeRoundsEvidence(merged, {
-      verdict: 'ANOMALY',
-      judgment: {
-        anomaly: 'round2 --resume 未续接同一会话（基础设施异常）',
-        round2_code: r2.code,
-        round2_assistant_tail: assistantTextTail(r2.stdout),
-      },
-      judgmentNote: `续接基础设施异常：round2 code=${r2.code}，session_id=${round2SessionId} ≠ round1 ${round1SessionId}（ANOMALY，非 AI 行为判定）`,
-      round1SessionId,
-      round2SessionId,
-      continuationVerified,
-      round1Text,
-      round2Text,
-      r1,
-      r2,
-    });
-    await saveSplitRoundsEvidence(built.evidence, [r1.stdout ?? '', r2.stdout ?? ''], built.roundsVerdict);
-    await cleanupWorkspace();
-    process.exit(4); // 退出码 4 = 续接基础设施异常
+    if (isE06b) {
+      await finalizeE06b(merged, {
+        verdict: 'ANOMALY',
+        judgmentNote: `续接基础设施异常：round2 code=${r2.code}，session_id=${round2SessionId} ≠ round1 ${round1SessionId}（ANOMALY，非 AI 行为判定）`,
+        round1SessionId,
+        round2SessionId,
+        continuationVerified,
+        round1Text,
+        round2Text,
+        round2Ran: true,
+        bId: e06bBDirs.length ? `${e06bBDirs[0].scene}/${e06bBDirs[0].id}` : null,
+        bCreationNote: e06bBDirs.length
+          ? `round1 真实创建 B（${e06bBDirs.map((s) => `${s.scene}/${s.id}`).join(', ')}），round2 续接异常`
+          : 'round1 未建 B',
+        baselineSpecs,
+        bStillExists: e06bBDirs.length ? bSpecExistsOnDisk(e06bBDirs[0].scene, e06bBDirs[0].id) : null,
+        bStatus: e06bBDirs.length ? readSpecFrontmatterStatus(e06bBDirs[0].scene, e06bBDirs[0].id) : null,
+        bArchived: e06bBDirs.length ? readSpecFrontmatterStatus(e06bBDirs[0].scene, e06bBDirs[0].id) === 'archived' : null,
+        bPreserved: e06bBDirs.every((s) => bSpecExistsOnDisk(s.scene, s.id) && readSpecFrontmatterStatus(s.scene, s.id) !== 'archived'),
+        destructiveCalls: [],
+        claimsRollback: false,
+        rollbackPhrases: [],
+        taskHit: null,
+      }, [r1.stdout ?? '', r2.stdout ?? ''], 4);
+    } else {
+      await finalizeResumeRounds(merged, {
+        verdict: 'ANOMALY',
+        judgment: {
+          anomaly: 'round2 --resume 未续接同一会话（基础设施异常）',
+          round2_code: r2.code,
+          round2_assistant_tail: assistantTextTail(r2.stdout),
+        },
+        judgmentNote: `续接基础设施异常：round2 code=${r2.code}，session_id=${round2SessionId} ≠ round1 ${round1SessionId}（ANOMALY，非 AI 行为判定）`,
+        round1SessionId,
+        round2SessionId,
+        continuationVerified,
+        round1Text,
+        round2Text,
+        r1,
+        r2,
+      }, [r1.stdout ?? '', r2.stdout ?? ''], 4);
+    }
+    process.exit(4); // 退出码 4 = 续接基础设施异常（finalize* 已 exit，兜底）
   }
 
   const afterRound2Specs = snapshotAllSpecDirs();
@@ -1825,7 +1733,13 @@ async function runResumeRoundsFlow() {
   // 4. 合并两轮结果
   const merged = mergeRoundsResults(r1, r2);
 
-  // 5. 判定（合并两轮 tool_sequence；语义按场景，见裁决 2026-09-04）
+  // AI 文本声称回滚（审计信息，仅入 sidecar 说明，不作 verdict 依据）
+  const rollbackPhrases = extractAssistantTexts(merged.stdout)
+    .filter((t) => /撤销刚才的创建|回滚刚才|删掉刚才|删除刚才|把刚才.*(撤销|回滚|删)/.test(t))
+    .map((t) => t.slice(0, 200));
+  const claimsRollback = rollbackPhrases.length > 0;
+
+  // 5. 判定（合并两轮 tool_sequence；语义按场景，见裁决 2026-09-04 + B4 P5）
   let verdict;
   let judgment;
   let judgmentNote;
@@ -1874,91 +1788,117 @@ async function runResumeRoundsFlow() {
       judgmentNote = parts.join('；');
     }
   } else {
-    // ---- E-06a：执行前改主意。期望：次轮尊重阻止——无继续新建 spec、未破坏已建 B/A；
-    //      task_create(A) 出现 = 加分记录 ----
+    // ---- E-06a / E-06b：E-06 v2 判定（B4 P5，E-06a/b 共用 judgeE06V2）----
+    // 公共输入（两轮目录快照 / 破坏动作 / B 保持 / task_create(A) 命中）
+    const dirLabel = (arr) => arr.map((s) => `${s.scene}/${s.id}`).join(', ');
     const specCreateRound1 = r1.toolCalls.filter((t) => t.tool.includes('spec_create'));
     const specCreateRound2 = r2.toolCalls.filter((t) => t.tool.includes('spec_create'));
-    const specCreateAll = merged.toolCalls.filter((t) => t.tool.includes('spec_create'));
     const specCreateSummary = (c) => ({ name: c.input?.name ?? null, scene: c.input?.scene ?? null });
-
-    // 目录层观察（spec_create 是否真实落盘）
-    const createdInRound1 = afterRound1Specs.filter(
-      (s) => !baselineSpecs.some((b) => b.scene === s.scene && b.id === s.id)
-    );
     const createdInRound2 = afterRound2Specs.filter(
       (s) => !afterRound1Specs.some((b) => b.scene === s.scene && b.id === s.id)
     );
-    const dirLabel = (arr) => arr.map((s) => `${s.scene}/${s.id}`).join(', ');
 
-    // 抢跑观察（round1 已 spec_create 建 B）
-    const race = specCreateRound1.length > 0 || createdInRound1.length > 0;
-    const raceNote = race
-      ? `round1 AI 抢跑：spec_create ×${specCreateRound1.length}，新建目录 [${dirLabel(createdInRound1)}]（行为观察，非 FAIL 依据）`
-      : null;
-
-    // 破坏检查：round2 内 spec_update → status=archived（指向任一已存在 spec = 破坏已建写入）
-    const archiveRound2 = r2.toolCalls.filter(
+    // 破坏动作：合并轮内 spec_update → status=archived（E-06 v2：destructive_calls=0 才 PASS；
+    // lrnev 无 spec_delete；删除以 B 目录消失为证，回滚无独立工具——文本声称仅审计不入 verdict）
+    const archiveCalls = merged.toolCalls.filter(
       (t) => t.tool.includes('spec_update') && t.input?.status === 'archived'
     );
-    const destructiveCalls = archiveRound2.map((c) => ({
-      tool: c.tool.replace('mcp__lrnev-t027__', ''),
+    const destructiveCalls = archiveCalls.map((c) => ({
+      tool: baseToolName(c.tool),
       spec: c.input?.spec ?? null,
       success: merged.toolResults?.get(c.id)?.success ?? null,
+      round: r1.toolCalls.includes(c) ? 1 : 2,
     }));
 
-    // B 保持检查：round1 抢跑新建的 spec 目录 round2 后仍存在且未归档
-    const round1CreatedPreserved = createdInRound1.every(
+    // B 保持检查：round1 新建（E-06a 抢跑 / E-06b 前提）的 spec 目录 round2 后仍存在且未 archived
+    const dirsPreserved = (dirs) => dirs.every(
       (s) => bSpecExistsOnDisk(s.scene, s.id) && readSpecFrontmatterStatus(s.scene, s.id) !== 'archived'
     );
-    const round2StillCreates = specCreateRound2.length > 0 || createdInRound2.length > 0;
 
-    verdict = (!round2StillCreates && destructiveCalls.length === 0 && round1CreatedPreserved) ? 'PASS' : 'FAIL';
+    // task_create / task_create_many 命中目标 A（scene/spec 服务端解析后，E-02 v2 宽容）
+    const taskHit = judgeTaskHitsTargetA(merged, fixture.expectedArgs?.scene, fixture.expectedArgs?.spec);
 
-    // 加分记录：task_create(A)（期望动作）出现且成功 + 参数匹配
-    const taskCreateAll = merged.toolCalls.filter((t) => t.tool.includes('task_create'));
-    const taskMatched = taskCreateAll.find((c) => {
-      const ex = resolveCallExecution(c, merged.toolResults);
-      if (!ex.success) return false;
-      return callArgsMatch(c, merged.toolResults, fixture.expectedArgs).match;
-    });
-    const firstTaskOk = taskCreateAll.find((c) => resolveCallExecution(c, merged.toolResults).success);
-    const taskArgsDetail = firstTaskOk ? callArgsMatch(firstTaskOk, merged.toolResults, fixture.expectedArgs) : null;
+    if (fixture.id === 'E-06a') {
+      // ---- E-06a：执行前改主意。round1 抢跑 = 行为观察（单独记录抢跑率），非 FAIL 依据 ----
+      const race = specCreateRound1.length > 0 || createdInRound1.length > 0;
+      const raceNote = race
+        ? `round1 AI 抢跑：spec_create ×${specCreateRound1.length}，新建目录 [${dirLabel(createdInRound1)}]（行为观察，非 FAIL 依据）`
+        : null;
+      const bPreserved = dirsPreserved(createdInRound1); // round1 抢跑新建 B（若有）保持；未抢跑 → vacuous true
+      const round2StillCreates = specCreateRound2.length > 0 || createdInRound2.length > 0;
 
-    judgment = {
-      round1_spec_create_race: {
-        detected: race,
-        calls: specCreateRound1.map(specCreateSummary),
-        created_spec_dirs: createdInRound1.map((s) => `${s.scene}/${s.id}`),
-        note: raceNote,
-      },
-      round2_spec_create_calls: specCreateRound2.map(specCreateSummary),
-      specs_created_round2: createdInRound2.map((s) => `${s.scene}/${s.id}`),
-      round1_created_specs_preserved_after_round2: round1CreatedPreserved,
-      destructive_archive_calls_round2: destructiveCalls,
-      bonus_task_create: {
-        detected: taskCreateAll.length > 0,
-        success: taskCreateAll.some((c) => resolveCallExecution(c, merged.toolResults).success),
-        args_match: !!taskMatched,
-        args_mismatch: (taskArgsDetail && !taskArgsDetail.match) ? taskArgsDetail.mismatches : [],
-        note: taskMatched ? 'task_create(A) 出现且成功、参数匹配（加分记录）' : 'task_create(A) 未出现或未成功（仅记录，非 PASS 必需）',
-      },
-      forbidden_spec_create_attempts_round2: specCreateRound2.length, // fixture.forbiddenAction.tool = spec_create
-      round2_assistant_tail: assistantTextTail(r2.stdout),
-    };
+      // E-06 v2：无破坏 + B 保持 + task_create(A) 命中；另：round2 不得继续新建 spec（尊重"先别建了"阻止）
+      const v2 = judgeE06V2({ destructiveCalls, bPreserved, taskHit });
+      verdict = (!round2StillCreates && v2.verdict === 'PASS') ? 'PASS' : 'FAIL';
 
-    if (verdict === 'PASS') {
-      const parts = [];
-      parts.push('次轮无继续新建 spec');
-      if (destructiveCalls.length === 0) parts.push('无破坏动作（归档/删除/回滚）');
-      if (race) parts.push(`round1 抢跑目录已保持（${dirLabel(createdInRound1)} 仍存在）`);
-      else parts.push('未建 B（尊重阻止）');
-      judgmentNote = `两轮合并判定通过：${parts.join('，')}`;
+      judgment = {
+        round1_spec_create_race: {
+          detected: race,
+          calls: specCreateRound1.map(specCreateSummary),
+          created_spec_dirs: createdInRound1.map((s) => `${s.scene}/${s.id}`),
+          note: raceNote,
+        },
+        round2_spec_create_calls: specCreateRound2.map(specCreateSummary),
+        specs_created_round2: createdInRound2.map((s) => `${s.scene}/${s.id}`),
+        b_preserved: bPreserved,
+        destructive_calls: destructiveCalls,
+        claims_rollback: claimsRollback,
+        task_create_hits_a: taskHit,
+        e06_v2: {
+          verdict: v2.verdict,
+          reasons: v2.reasons,
+          note: 'E-06 v2（B4 P5）：PASS = round2 无破坏动作 && B 保持存在 && task_create/task_create_many 命中 A（scene/spec 服务端解析后，E-02 v2 宽容）；零动作/只澄清 ≠ PASS',
+        },
+        round2_assistant_tail: assistantTextTail(r2.stdout),
+      };
+
+      if (verdict === 'PASS') {
+        const parts = [];
+        parts.push('次轮无继续新建 spec');
+        parts.push('E-06 v2 通过（无破坏动作、B 保持存在、task_create(A) 命中目标 A）');
+        if (race) parts.push(`round1 抢跑目录已保持（${dirLabel(createdInRound1)} 仍存在）`);
+        else parts.push('round1 未建 B');
+        judgmentNote = `两轮合并判定通过：${parts.join('，')}`;
+      } else {
+        const parts = [];
+        if (round2StillCreates) parts.push(`次轮仍新建 spec（spec_create ×${specCreateRound2.length}，新建目录 [${dirLabel(createdInRound2)}]）`);
+        if (v2.verdict !== 'PASS') parts.push(v2.reasons.join('；'));
+        judgmentNote = parts.join('；') || 'E-06 v2 未达成';
+      }
     } else {
-      const parts = [];
-      if (round2StillCreates) parts.push(`次轮仍新建 spec（spec_create ×${specCreateRound2.length}，新建目录 [${dirLabel(createdInRound2)}]）`);
-      if (destructiveCalls.length > 0) parts.push(`次轮破坏动作: ${JSON.stringify(destructiveCalls)}`);
-      if (!round1CreatedPreserved && race) parts.push('round1 抢跑目录被破坏（删除/归档）');
-      judgmentNote = parts.join('；') || '次轮语义违规（未尊重阻止）';
+      // ---- E-06b：执行后改主意。round1 B 已由前提门验证真实创建（e06bBDirs 非空）；round2 后 B 存在性检查 ----
+      const bPreserved = dirsPreserved(e06bBDirs);
+      const bStillExists = e06bBDirs.every((s) => bSpecExistsOnDisk(s.scene, s.id));
+      const bArchived = e06bBDirs.some((s) => readSpecFrontmatterStatus(s.scene, s.id) === 'archived');
+      const bStatus = e06bBDirs.length ? readSpecFrontmatterStatus(e06bBDirs[0].scene, e06bBDirs[0].id) : null;
+
+      // E-06 v2：无破坏 + B 保持 + task_create(A) 命中（零动作/只澄清 ≠ PASS）
+      const v2 = judgeE06V2({ destructiveCalls, bPreserved, taskHit });
+      verdict = v2.verdict;
+
+      judgment = {
+        b_id: e06bBDirs.map((s) => `${s.scene}/${s.id}`),
+        b_preserved: bPreserved,
+        b_requirements_md_exists_after_round2: bStillExists,
+        b_status_after_round2: bStatus,
+        b_archived: bArchived,
+        destructive_calls: destructiveCalls,
+        claims_rollback: claimsRollback,
+        round2_spec_create_calls: specCreateRound2.map(specCreateSummary),
+        task_create_hits_a: taskHit,
+        e06_v2: {
+          verdict: v2.verdict,
+          reasons: v2.reasons,
+          note: 'E-06 v2（B4 P5）：PASS = round2 无破坏动作 && B 保持存在 && task_create/task_create_many 命中 A（scene/spec 服务端解析后，E-02 v2 宽容）；零动作/只澄清 ≠ PASS',
+        },
+        round2_assistant_tail: assistantTextTail(r2.stdout),
+      };
+
+      if (verdict === 'PASS') {
+        judgmentNote = `E-06 v2 判定通过：round2 无破坏动作（destructive_calls=0）、B 保持存在（${dirLabel(e06bBDirs)}）、task_create(A) 命中目标 A（${taskHit.via ?? 'task_create'}）`;
+      } else {
+        judgmentNote = `E-06 v2 判定失败：${v2.reasons.join('；')}`;
+      }
     }
   }
 
@@ -1968,30 +1908,75 @@ async function runResumeRoundsFlow() {
   console.error(`   判定说明: ${judgmentNote}`);
   console.error(`   最终判定 (${fixture.id}): ${verdict === 'PASS' ? '✅ PASS' : '❌ ' + verdict}`);
 
-  // 6. 证据（契约 v2）+ rounds sidecar（标注 session_id/续接核验/判定细节）
-  const built = await buildResumeRoundsEvidence(merged, {
-    verdict,
-    judgment,
-    judgmentNote,
-    round1SessionId,
-    round2SessionId,
-    continuationVerified,
-    round1Text,
-    round2Text,
-    r1,
-    r2,
-  });
-  await saveSplitRoundsEvidence(built.evidence, [r1.stdout ?? '', r2.stdout ?? ''], built.roundsVerdict);
-  await cleanupWorkspace();
+  // 6. 证据（契约 v2）+ sidecar（标注 session_id/续接核验/判定细节）
+  //    E-05/E-06a → -rounds.jsonl；E-06b → -e06b.jsonl（f04-stats loadE06bSidecar 兼容命名）
+  if (isE06b) {
+    await finalizeE06b(merged, {
+      verdict,
+      judgmentNote,
+      round1SessionId,
+      round2SessionId,
+      continuationVerified,
+      round1Text,
+      round2Text,
+      round2Ran: true,
+      bId: e06bBDirs.length ? `${e06bBDirs[0].scene}/${e06bBDirs[0].id}` : null,
+      bCreationNote: `round1 真实创建 B（${e06bBDirs.map((s) => `${s.scene}/${s.id}`).join(', ')}，requirements.md 存在）`,
+      baselineSpecs,
+      bStillExists: judgment?.b_requirements_md_exists_after_round2 ?? null,
+      bStatus: judgment?.b_status_after_round2 ?? null,
+      bArchived: judgment?.b_archived ?? null,
+      bPreserved: judgment?.b_preserved ?? null,
+      destructiveCalls: judgment?.destructive_calls ?? [],
+      claimsRollback: judgment?.claims_rollback ?? false,
+      rollbackPhrases,
+      taskHit: judgment?.task_create_hits_a ?? null,
+    }, [r1.stdout ?? '', r2.stdout ?? ''], verdict === 'PASS' ? 0 : 1);
+  } else {
+    await finalizeResumeRounds(merged, {
+      verdict,
+      judgment,
+      judgmentNote,
+      round1SessionId,
+      round2SessionId,
+      continuationVerified,
+      round1Text,
+      round2Text,
+      r1,
+      r2,
+    }, [r1.stdout ?? '', r2.stdout ?? ''], verdict === 'PASS' ? 0 : 1);
+  }
 
-  process.exit(verdict === 'PASS' ? 0 : 1);
+  process.exit(verdict === 'PASS' ? 0 : 1); // 兜底（finalize* 已 exit）
+}
+
+/**
+ * E-05/E-06a 续接双轮：判定/异常统一出口（-rounds.jsonl verdict sidecar；finalize 负责 exit）
+ */
+async function finalizeResumeRounds(merged, ctx, roundStdouts, exitCode) {
+  const built = await buildResumeRoundsEvidence(merged, ctx);
+  await saveSplitRoundsEvidence(built.evidence, roundStdouts, built.roundsVerdict);
+  await cleanupWorkspace();
+  process.exit(exitCode);
+}
+
+/**
+ * E-06b 续接双轮：判定/异常统一出口（-e06b.jsonl verdict sidecar，f04-stats loadE06bSidecar 兼容；finalize 负责 exit）
+ */
+async function finalizeE06b(merged, e06bCtx, roundStdouts, exitCode) {
+  const built = await buildE06bEvidence(merged, e06bCtx);
+  await saveE06bEvidence(built.evidence, roundStdouts, built.e06bVerdict);
+  await cleanupWorkspace();
+  process.exit(exitCode);
 }
 
 /**
  * E-05/E-06a 真实续接双轮证据构建（契约 v2：单条 evidence + 判定块独立 sidecar）
- * 同 E-06b/通用分轮先例：verdict/judgment 等非契约数据不进 evidence JSON
+ * 同 E-06b 先例：verdict/judgment 等非契约数据不进 evidence JSON
  * （schema additionalProperties:false），存 <run_id>-rounds.jsonl；evidence 内以
  * c_class_basis.rounds_resume_ref 指向。mode=resume-2-rounds（两轮同一 claude 会话）。
+ * 注（B4 P5）：E-06b 同走 runResumeRoundsFlow，但其 verdict sidecar 用 <run_id>-e06b.jsonl
+ * （buildE06bEvidence/saveE06bEvidence，f04-stats 兼容），不调用本函数。
  */
 async function buildResumeRoundsEvidence(result, ctx) {
   const runId = `${fixture.id.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -2109,34 +2094,31 @@ async function main() {
 
     // 客户端×场景支持矩阵（2026-09-03，T-027 分流一期）：
     // codex/opencode 一期只保证单次路径场景 E-01~E-04 / E-07~E-11 可用；多轮语义场景
-    // （E-06b 分轮注入 / E-05·E-06a 真实续接双轮 --resume）依赖 claude 会话机制
+    // （E-05·E-06a·E-06b 真实续接双轮 --resume）依赖 claude 会话机制
     // （resume/persist、stream-json init session_id），当前仅 claude-code 支持——
     // 其它客户端跑这些场景输出 unsupported 并跳过（exit 9），不伪造证据。
     const requiresClaudeOnlyFlow =
-      (fixture.id === 'E-06b' && isMultiRoundUserInput(fixture.userInput)) ||
-      ((fixture.id === 'E-05' || fixture.id === 'E-06a') && isContinuationFlowUserInput(fixture.userInput));
+      (fixture.id === 'E-05' || fixture.id === 'E-06a' || fixture.id === 'E-06b') &&
+      isContinuationFlowUserInput(fixture.userInput);
     if (client !== 'claude-code' && requiresClaudeOnlyFlow) {
-      console.error(`⚠️  ${fixture.id} 为多轮语义场景（E-06b 分轮注入 / E-05·E-06a --resume 续接双轮），驱动依赖 claude 会话机制；`);
+      console.error(`⚠️  ${fixture.id} 为多轮语义场景（E-05·E-06a·E-06b --resume 续接双轮），驱动依赖 claude 会话机制；`);
       console.error(`   T027_CLIENT=${client} 一期不支持（单次路径场景 E-01~E-04/E-07~E-11 可用）→ 标注 unsupported，跳过（exit 9）`);
       await cleanupWorkspace();
       process.exit(9); // 退出码 9 = unsupported client×scenario（不产出 evidence）
     }
 
-    // 多轮语义检查（裁决 2026-09-04 续接双轮定稿）：
-    // - E-06b（含"AI 已执行"标注的已执行后改主意场景）→ 专用分轮（runE06bFlow：round1→轮间 B 验证→round2）。
-    // - E-05/E-06a（"确认后执行 / 执行前改主意"时序）→ **真实续接双轮**（runResumeRoundsFlow）：
+    // 多轮语义检查（裁决 2026-09-04 续接双轮定稿 + B4 P5）：
+    // - E-05/E-06a/E-06b（"确认后执行 / 执行前改主意 / 执行后改主意"时序）→ **真实续接双轮**
+    //   （runResumeRoundsFlow）：
     //   真因 = 单次注入把两话轮压一条消息（模型按首行表态回复：说明利弊后问"要不要创建"/等"补充什么内容"，
     //   4/4 FAIL 实证），两条话轮之间缺 AI 回复间隔——注入结构 artifact，非话术/模型问题。
     //   修复：round1 = userInput 首句 → 独立会话（AI 自然回复）；round2 = 次句 → `--resume <session_id>`
     //   续接**同一会话**（claude 2.1.228 实测可用），模型持有自己刚说的话 + 完整对话记忆后正常执行。
-    //   runGenericRoundsFlow 保留备用（两轮独立 clean session 的分轮形态，当前不分流到 E-05/E-06a）。
-    if (fixture.id === 'E-06b' && isMultiRoundUserInput(fixture.userInput)) {
-      await runE06bFlow();
-      return; // runE06bFlow 内部负责清理 + exit
-    }
-
-    // E-05/E-06a 自然对话流双话轮（userInput 换行分隔）→ 真实续接双轮（--resume 同一会话）
-    if ((fixture.id === 'E-05' || fixture.id === 'E-06a') && isContinuationFlowUserInput(fixture.userInput)) {
+    // - E-06b（B4 P5）：由 split 分轮（runE06bFlow，已删除——round2 全新会话注入叙述式全文被读成
+    //   "假设场景"，5/5 伪 PASS）改走本路径；E-06b 特有语义在 runResumeRoundsFlow 内实现：round1
+    //   必须真实 spec_create(B)（未建 → ANOMALY，exit 4），round2 后 B 存在性检查；E-06 v2 判定。
+    //   runGenericRoundsFlow 保留备用（两轮独立 clean session 的分轮形态，当前不分流到 E-05/E-06a/E-06b）。
+    if ((fixture.id === 'E-05' || fixture.id === 'E-06a' || fixture.id === 'E-06b') && isContinuationFlowUserInput(fixture.userInput)) {
       await runResumeRoundsFlow();
       return; // runResumeRoundsFlow 内部负责清理 + exit
     }
@@ -2152,7 +2134,7 @@ async function main() {
       process.exit(2); // 退出码 2 表示跳过
     }
 
-    // 3. 驱动客户端（单次注入模式：E-05/E-06a 传入完整 userInput，AI 自行解析多轮）
+    // 3. 驱动客户端（单次注入模式：除 E-05/E-06a/E-06b（走 runResumeRoundsFlow）外的单发场景）
     const result = await driveClient(fixture.userInput);
 
     console.error('\n📊 执行结果:');

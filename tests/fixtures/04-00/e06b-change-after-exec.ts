@@ -8,10 +8,17 @@ import { FixtureDefinition } from './types';
  * 先 `explicit + new_spec` 并已创建 B，后明确改为 `explicit + reuse_spec + target_ref=scene=01-user-management, spec=01-00-user-login` |
  * A、B 并存；后续可 `task_create(A)`，不得自动删除/归档 B 或回滚已成功写入；关键
  *
- * 场景：AI 已执行 spec_create（B="login-risk" 登录风控，已创建），用户第3轮改变主意选择复用 A。
+ * 场景（D-01 ⑦ 叙述轮次）：第1轮用户明确要求新建独立 Spec B（登录风控）→ AI 已执行
+ * spec_create(B)（B 已创建）→ 第3轮用户改变主意选择复用 A（"算了，还是在登录 Spec 里补充"）。
  * 验证：A、B 并存（不得自动回滚 B），后续可 task_create(A)。
  * 注：B 与 A（01-00-user-login）必须语义可区分——第 1 轮用户话术用"登录风控"
  *     （T-027 真机发现：原话术"做用户登录"与 A 同域，AI 合理询问澄清而非建 B）。
+ *
+ * 驱动（B4 P5，裁决 2026-09-04）：E-06b 改走真实续接双轮（round1 → --resume 同会话 → round2）。
+ * 自然对话流（同 E-05/E-06a 先例）：去掉"第1轮：/第2轮（AI 已执行 spec_create）："舞台指示
+ * 转述格式——模型把叙述式全文读成"假设场景"（E-06b split 驱动 5/5 伪 PASS：零工具澄清提问）；
+ * round1 = 用户明确要求建 B（真实续接中 AI 执行 spec_create(B)），round2 = 用户改主意放弃
+ * 新建方向（"算了"=放下前向计划，不含对已执行动作的责备——区别于 E-06a 的"先别建了"撤销信号）。
  *
  * 来自：04-00 T-007，对应 D-01 场景 ⑦
  */
@@ -20,8 +27,10 @@ export const E06b_ChangeAfterExec: FixtureDefinition = {
   title: '用户改变主意-执行后',
   scenario: 'D-01 ⑦',
 
-  // 用户原话（多轮）
-  userInput: '第1轮："开新 Spec 做登录风控"\n第2轮（AI 已执行 spec_create）："算了，还是在登录 Spec 里补充"',
+  // 用户原话（自然对话流，B4 P5 裁决 2026-09-04）：换行分隔=话轮。
+  // round1 = 用户明确要求建 B（真实续接中 AI spec_create(B)）；round2 = 用户改主意放弃新建方向。
+  // 语义不变：round1 明确让建 B → round2 放弃 → 期望 A、B 并存 + task_create(A)，不得自动归档 B。
+  userInput: '帮我建一个独立的登录风控 Spec\n算了，还是在登录 Spec 里补充吧',
 
   // 决策上下文（第 3 轮，改变主意后，B 已创建）
   decisionContext: {

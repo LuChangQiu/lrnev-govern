@@ -20,20 +20,23 @@ Clean Session Harness 用于驱动客户端执行 12 个决策场景的盲测，
 - fixture.prohibitedAction 仅用于失败判定
 - 执行者不可见期望答案
 
-### 2. E-06b 分轮注入
+### 2. E-05/E-06a/E-06b 真实续接双轮（resume-2-rounds，裁决 2026-09-04 + B4 P5）
 
-E-06b 场景特殊处理：
+E-05/E-06a/E-06b 场景特殊处理（多轮语义场景不再单次注入；E-06b 原 split 分轮注入已随 B4 P5 作废）：
 ```
-第1轮：注入 userInput 第1轮（"开新 Spec 做用户登录"）
-  ↓
-等待 AI 执行 spec_create(B)
-  ↓
-第2轮：注入 userInput 第2轮（"算了，还是在登录 Spec 里补充"）
+round1：claude -p（persist）注入 userInput 首句（真实对话第 1 话轮）
+  ↓ （会话落盘，记录 session_id）
+round2：claude -p --resume <session_id> 注入 userInput 次句（真实对话第 2 话轮）
 ```
+
+**E-06a/E-06b 特有点**：
+- E-06b：round1 后校验 B 真实创建（spec_create 落盘），未建 → ANOMALY（exit 4）；round2 后做 B 存在性检查。
+- E-06a：round1 若已建 B = 抢跑观察（单独记录），非 FAIL 依据。
+- E-06 v2 判定（E-06a/b 共用）：PASS = 无破坏动作 && B 保持存在 && task_create(A) 命中（零动作 ≠ PASS）。
 
 **实现**：
-- Harness 监听 MCP tool calls
-- 检测 spec_create 成功后再注入第2轮
+- 首轮 `{ persist: true }` 落盘会话；次轮 `--resume <session_id>` 续接同一会话
+- 续接核验：round2 init session_id === round1 session_id（不一致 = 基础设施异常 ANOMALY）
 
 ### 3. 工作区构建器
 
@@ -204,9 +207,9 @@ tests/e2e/t027-baseline/.evidences/
 - ❌ 不得在工作区中预创建目标 Spec
 - ✅ 只读 userInput，期望答案事后对照
 
-### E-06b 分轮保证
-- ❌ 不得一次性注入两轮 prompt
-- ✅ 必须监听 spec_create(B) 成功后再注入第2轮
+### E-05/E-06a/E-06b 多轮语义保证
+- ❌ 不得一次性注入两轮 prompt（单条消息压两话轮 → 模型按首句回复/治理反问，artifact）
+- ✅ round1（persist）→ `--resume` 续接同一会话 → round2；E-06b 另须 round1 真实 spec_create(B) 后再进 round2
 
 ### 预检失效处理
 - 如果 assess_goal 返回方向与场景前提不符，报错并跳过

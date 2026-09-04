@@ -7,7 +7,7 @@
  *
  * 单 session 等价命令（每 session 由本 runner spawn，仓库根运行）：
  *   T027_SCENARIO=<id> T027_SHA=sha-a|sha-b npx tsx tests/e2e/t027-baseline/harness-mvp.mjs
- *   exit 0=PASS | 1=FAIL(数据) | 2=预检跳过 | 4=E-06b ANOMALY 类
+ *   exit 0=PASS | 1=FAIL(数据) | 2=预检跳过 | 4=ANOMALY（续接/时序前提失效类）
  *
  * 每 session 环境注入：读取 ~/.claude/settings.json 的 env 字段
  * （ANTHROPIC_AUTH_TOKEN / ANTHROPIC_BASE_URL / ANTHROPIC_MODEL 等）→ 进程 env
@@ -123,7 +123,7 @@ function usage() {
 判定映射:
   exit 0            → PASS            （数据，不重试）
   exit 1            → FAIL            （数据，不重试）
-  exit 4            → ANOMALY         （E-06b 轮间异常类，数据，不重试）
+  exit 4            → ANOMALY         （续接异常 / E-06b round1 未建 B 等时序前提失效类，数据，不重试）
   exit 2            → SKIP            （预检跳过，不重试）
   其他/崩溃/超时/认证错/429 → 退避重试 ≤2 次，仍败 → ENV-FAIL（继续下一 session）
   validator strict ERROR → VALIDATION-FAIL（终止本批并报告）

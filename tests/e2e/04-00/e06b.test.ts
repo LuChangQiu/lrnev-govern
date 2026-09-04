@@ -16,8 +16,11 @@ describe('E-06b: 用户改变主意-执行后', () => {
     expect(fixture.title).toBe('用户改变主意-执行后');
     expect(fixture.scenario).toBe('D-01 ⑦');
 
-    // 验证用户输入（多轮，B 已创建后改变主意）
-    expect(fixture.userInput).toContain('开新 Spec');
+    // 验证用户输入（自然对话流，B4 P5 裁决 2026-09-04：userInput 去"第1轮：/第2轮（AI 已执行 spec_create）："
+    // 舞台指示转述标注——split 注入把叙述式全文读成"假设场景"导致 5/5 伪 PASS（零工具澄清）；
+    // 断言覆盖关键语义词：round1 独立 Spec B（登录风控）明确指令 + round2 放弃新建方向（算了）
+    expect(fixture.userInput).toContain('独立的登录风控 Spec');
+    expect(fixture.userInput).toContain('算了');
     expect(fixture.userInput).toContain('登录 Spec');
     expect(fixture.userInput).toContain('补充');
 
