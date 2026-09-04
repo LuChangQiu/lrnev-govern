@@ -20,6 +20,7 @@ import { taskCreateManyRenderer } from '../../../src/mcp/helpers/renderers/task-
 import { taskUpdateRenderer } from '../../../src/mcp/helpers/renderers/task-update.js';
 import { taskClaimRenderer } from '../../../src/mcp/helpers/renderers/task-claim.js';
 import type { LrnevToolPayload } from '../../../src/mcp/types/response-envelope.js';
+import type { CreateManyTasksResult } from '../../../src/types/task.js';
 import {
   USER_DECISION_PRIORITY_CLAUSE,
   SPEC_CREATION_SUCCESS_FOLLOWUP,
@@ -310,8 +311,11 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
   });
 
   describe('task_create_many 渲染器', () => {
-    it('必须渲染 created 数组（task_id/title）', () => {
-      const payload: LrnevToolPayload<{ created: Array<{ id: string; title: string }>; errors: [] }> = {
+    // ADR-0001：task_create_many 为纯原子 all-or-nothing。
+    // 成功 data 仅 { created, count }，无逐条失败条目；
+    // 任一条失败整批不写，错误经信封 errors（ok=false）错误通道返回。
+    it('必须渲染 created 列表与 count（task_id/title）', () => {
+      const payload: LrnevToolPayload<CreateManyTasksResult> = {
         response_version: '1',
         ok: true,
         data: {
@@ -319,44 +323,42 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
             { id: 'T-001', title: '实现登录' },
             { id: 'T-002', title: '实现注册' },
           ],
-          errors: [],
+          count: 2,
         },
       };
 
       const content = taskCreateManyRenderer.render(payload);
 
+      expect(content).toContain('已创建 2 个 Task');
       expect(content).toContain('T-001');
       expect(content).toContain('实现登录');
       expect(content).toContain('T-002');
       expect(content).toContain('实现注册');
+
+      // 原子语义：成功 data 不含逐条失败条目，渲染器无 errors 分支
+      expect(content).not.toContain('创建失败');
+      expect(content).not.toContain('索引');
     });
 
-    it('必须渲染 errors 数组（如有）', () => {
-      const payload: LrnevToolPayload<{
-        created: [];
-        errors: Array<{ index: number; error: string }>;
-      }> = {
+    it('原子语义：整批失败走信封错误通道（ok=false），无逐条失败渲染', () => {
+      const payload: LrnevToolPayload<CreateManyTasksResult> = {
         response_version: '1',
-        ok: true,
-        data: {
-          created: [],
-          errors: [{ index: 0, error: '标题不能为空' }],
-        },
+        ok: false,
       };
 
       const content = taskCreateManyRenderer.render(payload);
 
-      expect(content).toContain('索引 0');
-      expect(content).toContain('标题不能为空');
+      expect(content).toBe('批量创建失败');
+      expect(content).not.toContain('索引');
     });
 
     it('必须投影 ai_followup.instructions', () => {
-      const payload: LrnevToolPayload<{ created: Array<{ id: string; title: string }>; errors: [] }> = {
+      const payload: LrnevToolPayload<CreateManyTasksResult> = {
         response_version: '1',
         ok: true,
         data: {
           created: [{ id: 'T-001', title: '测试' }],
-          errors: [],
+          count: 1,
         },
         ai_followup: {
           instructions: ['建议下一步：task_update 置 in_progress'],
@@ -369,10 +371,10 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
     });
 
     it('禁止硬编码 paraphrase', () => {
-      const payload: LrnevToolPayload<{ created: []; errors: [] }> = {
+      const payload: LrnevToolPayload<CreateManyTasksResult> = {
         response_version: '1',
         ok: true,
-        data: { created: [], errors: [] },
+        data: { created: [], count: 0 },
       };
 
       const content = taskCreateManyRenderer.render(payload);

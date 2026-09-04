@@ -458,7 +458,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
         taskCreateManyRenderer.render({
           response_version: '1',
           ok: true,
-          data: { created: [], errors: [] },
+          data: { created: [], count: 0 },
         }),
         taskUpdateRenderer.render({
           response_version: '1',

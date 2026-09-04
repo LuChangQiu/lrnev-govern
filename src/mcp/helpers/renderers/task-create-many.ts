@@ -6,9 +6,13 @@ import type { CreateManyTasksResult } from '../../../types/task.js';
  * task_create_many 渲染器
  *
  * MVC required 字段（D-04 写入类）:
- * - 批量创建成功的 task_id/title
- * - 失败条目的 error 信息
+ * - 批量创建成功的 task_id/title 列表与总条数 count
  * - ai_followup.instructions（如有）
+ *
+ * 原子语义（ADR-0001）：task_create_many 为纯原子 all-or-nothing。
+ * 成功时 data 仅 { created, count }，无逐条失败条目；
+ * 任一条失败整批不写，错误经信封 errors（ok=false）错误通道返回，
+ * 故渲染器不存在"失败条目"渲染分支。
  */
 export const taskCreateManyRenderer: ModelVisibleRenderer<CreateManyTasksResult> = {
   render(payload: LrnevToolPayload<CreateManyTasksResult>): string {
@@ -16,21 +20,13 @@ export const taskCreateManyRenderer: ModelVisibleRenderer<CreateManyTasksResult>
       return '批量创建失败';
     }
 
-    const { created, errors } = payload.data;
+    const { created, count } = payload.data;
     const lines: string[] = [];
 
     if (created.length > 0) {
-      lines.push(`✅ 已创建 ${created.length} 个 Task：`);
+      lines.push(`✅ 已创建 ${count} 个 Task：`);
       for (const task of created) {
         lines.push(`   ${task.id}: ${task.title}`);
-      }
-      lines.push('');
-    }
-
-    if (errors && errors.length > 0) {
-      lines.push(`❌ ${errors.length} 个 Task 创建失败：`);
-      for (const err of errors) {
-        lines.push(`   索引 ${err.index}: ${err.error}`);
       }
       lines.push('');
     }

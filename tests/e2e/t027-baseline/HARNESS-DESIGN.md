@@ -136,15 +136,17 @@ claude --mcp-config /path/to/t027-config.json -p "列出可用工具"
 ## 执行流程
 
 ### 1. 初始化
+
+> 注：早期设计期骨架（.mjs 混 TS 语法不可运行、客户端 mock 过期）已删除，
+> 由真实实现 `harness-mvp.mjs` 取代，启动命令见下。
+
 ```bash
-# 设置 SHA
+# 设置场景与 SHA（sha-a | sha-b）
+export T027_SCENARIO=E-01
 export T027_SHA=sha-a
 
-# 设置客户端
-export T027_CLIENT=claude-code
-
-# 运行 harness
-node tests/e2e/t027-baseline/clean-session-harness.mjs
+# 运行 harness（真实实现）
+npx tsx tests/e2e/t027-baseline/harness-mvp.mjs
 ```
 
 ### 2. 单场景流程
