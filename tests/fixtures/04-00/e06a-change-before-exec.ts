@@ -20,8 +20,10 @@ export const E06a_ChangeBeforeExec: FixtureDefinition = {
   title: '用户改变主意-执行前',
   scenario: 'D-01 ⑥',
 
-  // 用户原话（多轮）
-  userInput: '第1轮："开新 Spec 做登录风控"\n第3轮（工具调用前）："等等，算了，还是在登录 Spec 里补充"',
+  // 用户原话（自然对话流，裁决 2026-09-04）：去掉"第N轮（工具调用前）：'...'"转述标注——
+  // 模型把转述格式读成"待分析场景"而非用户实际指令（单次注入 2/2 FAIL meta 模式实证）；
+  // 自然对话流语义不变：先想新建独立 Spec（new_spec）→ 执行前改主意复用 A（reuse_spec）→ 不得建 B。
+  userInput: '我想新建一个独立的登录风控 Spec\n等等，先别建了——还是在登录 Spec 里补充吧',
 
   // 决策上下文（第 3 轮，改变主意后，Spec A 为 in-progress）
   decisionContext: {

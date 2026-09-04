@@ -62,9 +62,13 @@ export const E02_SuggestNewExplicitReuse: FixtureDefinition = {
 
   // 预期动作（最终 task_create(A)）
   expectedAction: 'task_create',
+  // expectedArgs.spec 用全 id（01-00-user-login）：R1 实测 AI 调 task_create/task_create_many 时传的
+  // 是全 id（scene=01-user-management, spec=01-00-user-login）——服务端/构建器权威 id 即全 id；
+  // 期望短 id '00-user-login' 会造成参数级误判（与 E-09 修复同源；对照 e06a/e06b fixture 全 id 先例）。
+  // decisionContext.existing_specs 的 '00-user-login (in-progress)' 是工作区描述文本，保持短 id 不变。
   expectedArgs: {
     scene: '01-user-management',
-    spec: '00-user-login',
+    spec: '01-00-user-login',
     title: '补充用户登录功能'
   },
 

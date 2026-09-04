@@ -37,6 +37,11 @@ describe('E-09: 上下文冷却', () => {
     expect(fixture.allowedTools).toContain('spec_get');
     expect(fixture.allowedTools).toContain('context_search');
 
+    // expectedArgs.spec 用全 id（冒烟修复：期望短 id '00-login' 与 AI 传全 id '01-00-login' 不一致致误判 FAIL；
+    // 全 id 是服务端权威 id，对照 e06a/e06b fixture 先例）
+    expect(fixture.expectedArgs!.scene).toBe('01-user-management');
+    expect(fixture.expectedArgs!.spec).toBe('01-00-login');
+
     // 验证严重度
     expect(fixture.severity).toBe('medium');
 

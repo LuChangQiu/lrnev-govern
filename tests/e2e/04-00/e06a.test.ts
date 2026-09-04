@@ -16,8 +16,10 @@ describe('E-06a: 用户改变主意-执行前', () => {
     expect(fixture.title).toBe('用户改变主意-执行前');
     expect(fixture.scenario).toBe('D-01 ⑥');
 
-    // 验证用户输入（多轮，改变主意）
-    expect(fixture.userInput).toContain('开新 Spec');
+    // 验证用户输入（自然对话流，裁决 2026-09-04：userInput 去"第N轮（工具调用前）"转述标注，
+    // 模型按实际指令解读而非"待分析场景"；断言覆盖关键语义词）
+    expect(fixture.userInput).toContain('新建');
+    expect(fixture.userInput).toContain('登录风控');
     expect(fixture.userInput).toContain('登录 Spec');
     expect(fixture.userInput).toContain('补充');
 

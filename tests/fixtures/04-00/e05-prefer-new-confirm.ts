@@ -17,8 +17,10 @@ export const E05_PreferNewConfirm: FixtureDefinition = {
   title: '偏好新建后确认',
   scenario: 'D-01 ⑤',
 
-  // 用户原话（多轮，第 1 轮表达 preferred）
-  userInput: '第1轮："我倾向独立做用户登录，但你可以说明利弊"\n第3轮："好，叫 user-login"',
+  // 用户原话（自然对话流，裁决 2026-09-04）：去掉"第N轮：'...'"转述标注——模型易把转述格式
+  // 读成"待分析场景"而非用户实际指令；自然对话流语义不变：preferred + 说明利弊 → 最终确认名字
+  // （explicit + new_spec）→ 说明利弊后 spec_create(user-login)。
+  userInput: '我倾向独立做用户登录，但你可以说明利弊\n好，就叫 user-login 吧',
 
   // 决策上下文（第 1 轮，已有 Spec A，建议复用）
   decisionContext: {

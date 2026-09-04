@@ -53,8 +53,12 @@ export const E09_ContextCooldown: FixtureDefinition = {
 
   // 预期动作
   expectedAction: 'spec_get',
+  // expectedArgs.spec 用全 id（01-00-login）：真实 AI 实测经 project_status/spec_list 看到的是服务端
+  // 权威全 id（scene 前缀 01-），传全 id 是正确行为（对照 e06a/e06b fixture expectedArgs.spec='01-00-user-login' 先例；
+  // 冒烟 sha-a 曾因期望短 id '00-login' 与 AI 全 id 不一致而误判 FAIL）。
+  // decisionContext.existing_specs 的 '00-login (completed...)' 是工作区描述文本，保持短 id 不变。
   expectedArgs: {
-    spec: '00-login',
+    spec: '01-00-login',
     scene: '01-user-management'
   },
 

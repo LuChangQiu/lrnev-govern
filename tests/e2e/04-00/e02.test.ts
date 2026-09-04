@@ -34,7 +34,9 @@ describe('E-02: 建议新建+明确复用', () => {
     // 验证预期动作（D-01 要求：最终 task_create(A)）
     expect(fixture.expectedAction).toBe('task_create');
     expect(fixture.expectedArgs!.scene).toBe('01-user-management');
-    expect(fixture.expectedArgs!.spec).toBe('00-user-login');
+    // expectedArgs.spec 用全 id（冒烟/R1 修正：AI 实测传全 id '01-00-user-login'——1dc13fa4 曾
+    // 以短 id '00-user-login' 匹配 fixture，fixture 修正后断言改回全 id，与 e06a/e06b 断言一致）
+    expect(fixture.expectedArgs!.spec).toBe('01-00-user-login');
     expect(fixture.allowedTools).toContain('task_create');
 
     // 验证严重度（D-01 标注"关键" = high）

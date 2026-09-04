@@ -16,7 +16,7 @@ describe('E-05: 偏好新建后确认', () => {
     expect(fixture.title).toBe('偏好新建后确认');
     expect(fixture.scenario).toBe('D-01 ⑤');
 
-    // 验证用户输入（D-01 要求：第 1 轮 "我倾向独立，但你可说明利弊"）
+    // 验证用户输入（自然对话流，裁决 2026-09-04：preferred+说明利弊 → 确认名字；断言覆盖关键语义词）
     expect(fixture.userInput).toContain('我倾向独立');
     expect(fixture.userInput).toContain('说明利弊');
     expect(fixture.userInput).toContain('user-login');
