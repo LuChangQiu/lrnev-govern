@@ -57,6 +57,8 @@ created: 2026-09-02
 
 #### 2.2.2 decision_context 结构
 
+> **注记（2026-09-07，研究文档修正）**：本节成稿于 2026-09-02（06-00 研究期），早于实现定稿，与当前实现不一致，**仅作研究追溯，集成实现一律以源码为准**（`src/mcp/types/decision-context-schema.ts` + `src/types/decision-context.ts` 的 `DecisionContextInput`）。实现版差异：`source`（固定 `client_asserted`）/`strength`/`summary` 必填；`direction` 条件必填——`explicit`/`preferred` 必须提供、`unspecified` 必须**省略**（不接受 `null`）；`target_ref` 可选且须非空；无 `staleness_signals` 字段（那是 04-00 观测形状 `DecisionContext`，见 `src/types/evidence-contract.ts`）；`reported_user_quote`/`user_quote` 已按 T-006 裁决（I6，2026-09-07）移除。§2.2.3 示例中 `direction: null` 的写法已不合法。
+
 ```typescript
 interface DecisionContext {
   strength: "explicit" | "preferred" | "unspecified";

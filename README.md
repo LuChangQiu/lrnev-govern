@@ -1,381 +1,239 @@
-# lrnev 🧭
+# lrnev
 
-> AI 协作开发的项目治理引擎 —— MCP 服务 + CLI 双形态，文件即真相，零模型依赖。
+> 确定性项目治理引擎：给 AI 协作开发加上 Scene → Spec → Task + Gate 的流程与档案。Markdown 文件即真相，零模型依赖；MCP 服务 + CLI 双形态。
 
-npm 包名 `lrnev`，当前版本 `2.3.0`。`lrnev` 是命令行，`lrnev-mcp` 是 MCP 服务入口。一行命令装好 👇
+名词家族：npm 包 **`lrnev`** · 命令 `lrnev`（CLI）与 `lrnev-mcp`（MCP 服务）· 源码仓库 `lrnev-govern` · 当前版本 **3.0.0**（要求 Node.js ≥ 20）
 
 ```bash
 npm install -g lrnev
 ```
 
----
-
-## 1. 这是什么、为什么用它 🤔
-
-一句话：**lrnev 给"AI 帮你写代码"这件事加了一套档案和流程**，让 AI 不再是"聊完就忘、每次从零开始猜你要什么"。
-
-### 不用它会怎样？（很多人遇到的痛）
-
-- 🌀 **AI 健忘**：今天聊好的需求，明天新开窗口它全忘了，你得从头再讲一遍。
-- 🤷 **没有依据**：AI 写了一堆代码，过两周你自己都说不清"这段当初是为了满足什么需求、验收标准是什么"。
-- 👥 **多窗口打架**：你开俩 AI 窗口同时干活，它俩改同一个文件，互相覆盖。
-- 🎲 **质量看运气**：需求写得糊，AI 就发挥得糊，没有人提醒"这个需求还没说清就别动手"。
-
-### 用了它，AI 会变好在哪？
-
-lrnev 把项目的"需求、设计、任务、决策、踩过的坑"都落成 **`.lrnev/` 目录下的普通 Markdown 文件**（你能直接看、能 git 提交）。于是：
-
-- 🧠 **AI 有记忆了**：新窗口、新对话，AI 调一下 `project_status` 就知道"这项目做到哪了、还剩什么活"，不用你重讲。
-- 📌 **每行代码可追溯**：每个任务都挂在一条需求(Spec)下，写之前先有验收标准，AI 不会闷头乱写。
-- 🚦 **质量有闸**：需求没填清楚（gate 不通过），AI 不会急着写代码。
-- 👥 **多窗口不打架**：谁在做哪个任务有登记，碰同一文件会提醒。
-
-> **什么是 Spec？** 就是"一个要交付的功能"的小档案夹，里面三份文件：要做什么(requirements)、怎么做(design)、拆成哪些活(tasks)。你不用手写，AI 用工具生成。
-
-### 核心宗旨：**只引导，不强制** 🕊️
-
-这是 lrnev 最重要的一点：**它不替 AI 做判断，也不锁死 AI 的手脚。**
-
-- lrnev 只做**确定性**的事：读写文件、分配 ID、状态机、结构检查 —— 这些有标准答案，它自己干，**全程不调用任何 LLM / Embedding，不联网、不烧你的 API**。
-- 凡是**需要判断**的事（这需求该拆几个、代码质量好不好、该不该开 Spec），lrnev 只通过 `ai_followup` **给 AI 提个醒**，最终怎么做还是 AI 和你定。它不会强行拦着不让你干活。
-
-所以你不会有"被工具绑架"的感觉——它更像个**贴身提醒的助理**，而不是**卡审批的流程官**。
-
-### 那会更费 token 吗？💰
-
-会费一点，但**比你想的少，而且很多场景反而更省**。诚实说清楚：
-
-- **固定开销（一次性）**：接入后，客户端会把 lrnev 的工具清单 + 用法说明注入对话，约 **2000 tokens 左右**。这是**每个 MCP 服务都有的标准开销**，不是 lrnev 特有，且通常一个会话只注入一次。
-- **每次调用**：调一个 lrnev 工具，返回的是一小段结构化 JSON + 下一步提示，约 **100~400 tokens**，很便宜。
-- **省回来的部分**：`project_status` 给的是**有界的接手快照**（只返活任务 + 计数），不让 AI 把整个代码库重读一遍；`.lrnev/` 里的需求/设计让 AI **不用每次重新理解项目**。在**长项目、多次接手**的场景，省下的远多于花掉的。
-
-> 一句话：**短平快的一次性小任务，lrnev 是净增开销，不划算**；**需要持续迭代、多窗口、要追溯的真实项目，它通常帮你省 token、更省你重复解释的时间**。按项目选用，别无脑全开。
-
-### 它具体怎么帮 AI 省 token（这些是真正的隐藏价值）🔍
-
-lrnev 的设计原则是**让 AI 永远只读"当前这一步需要的最小信息"，绝不让它把整个 `.lrnev/` 或代码库挨个读一遍**：
-
-- 📸 **接手只读"快照"不读全文**：`project_status` 只读各文档的 frontmatter（标题/状态）+ 任务状态，**不加载 requirements/design 正文、不读你的源码**。AI 一次调用就知道"项目做到哪、还剩什么活"，而不是把几十个文档全 read 进上下文。
-- 🪜 **分层摘要，按需下钻**：每个 Spec/Scene 文档可存 **L0（一句话）/ L1（概览）** 摘要（按文档键控的 `.<文档名>.abstract.md` / `.<文档名>.overview.md`）。AI 先读一句话判断"是不是我要找的"，确认了才读全文。找东西时不用把候选文档整篇拉出来。
-- 🔎 **关键词检索定位，而不是遍历**：`context_search` 按关键词 + 目录层级 + L0/L1 打分（v2.1 起用 **BM25** 排序，短而精准的文档不再被长文档高频词压过），命中 `#### F-xx`/`#### D-xx` 锚点段时**直接返回该段落 + `anchor` 字段**，AI 只去读那一个、甚至直接拿到那一段，而不是 for 循环读所有 spec 找匹配。
-- 🗺️ **一张治理地图直接跳转**（v2.1）：`governance_map` / `lrnev map` 把 scene→spec(状态/L0)→锚点标题 压成一张全景图（只读、只含标题级），AI 看图用 URI 直接定位，把"反复搜索 + 读文件"变成"看一眼地图就跳"，接手大项目尤其省。
-- 🩺 **一条命令做治理体检**（v2.2）：`lrnev report` / `lrnev_report` 零模型算出"做完没收口的 spec、没人验证的孤儿锚点、failed/blocked 任务"，每条债带可执行下一步。这是 lrnev 第一个**主要给人看**的工具——默认 text 体检单、`--md` 落档、`--json` 喂机器；是快照不是 CI gate（有债也 exit 0），看完由你拍板要不要让 AI 去收口。
-- 🎯 **要哪份给哪份**：查任务用 `task_list`、查某个 Spec 用 `spec_get`，返回的是结构化元信息，不会顺手把三份文档正文全塞回来。
-
-> 对比"裸用 AI"：你不挂 lrnev 时，AI 要了解项目现状，往往得 `read` 一堆文件、或你手动粘贴上下文——那才是真正烧 token 的地方。lrnev 把这步变成"一次小调用拿快照 + 按需精准下钻"。
-
-### lrnev 不做什么：代码语义理解 🤝
-
-要分清边界：lrnev 管的是**「AI 怎么写代码」的流程与档案**（需求/任务/决策/状态），它**不去理解你源码的语义**（哪个函数调哪个、改这里会影响什么）。
-
-如果你想要后者——让 AI 真正"读懂"整个代码库的结构和依赖——可以搭配 [**codegraph**](https://github.com/colbymchenry/codegraph)：它把整个项目解析成**代码知识图谱**（函数/类/文件之间的调用与依赖关系），AI 要改某处时，能顺着图谱知道"它关联哪些、动了会影响谁"。
-
-而且 codegraph 同样**帮 AI 省 token**——AI 不必把一堆源文件整篇读进上下文去猜调用关系，**直接查图谱就能精准定位相关代码**。所以二者是同一种思路在两个层面的体现：**lrnev 用快照/摘要让 AI 少读"项目档案"，codegraph 用图谱让 AI 少读"源码"，一个管流程治理，一个管代码理解，刚好互补** ⚡
-
-### 适合 / 不适合
-
-✅ 适合：一个人多 AI 窗口接力、想让代码有需求追踪和验收、做 MCP 工具想给用户治理骨架、长期迭代的项目。
-❌ 不太需要：改一两行的一次性小脚本、纯问答、玩具 demo —— 直接用 AI 就好，别为它套流程。
-
-**不绑定客户端**：Claude Code / Cursor / Codex / 任何支持 MCP 的都能用，不接 MCP 直接敲 CLI 也行 🆓
+装一个包，CLI 与 MCP 服务入口都有了。
 
 ---
 
-## 2. `.lrnev/` 工作区 📂
+## 1. lrnev 是什么（30 秒）
 
-`lrnev init` 在项目根创建。全是 markdown + frontmatter，人可直接读、AI 可直接写、`git add .lrnev/` 即可版本管理。不用数据库，不搞黑盒。
+AI 协作开发常见四个问题：**AI 健忘**（新会话不记得项目上下文）、**没有依据**（代码追溯不到需求与验收）、**多窗口打架**（多个 AI 会话改同一处）、**质量看运气**（需求没说清就动手）。lrnev 给这些场景补上"档案 + 流程"：
 
+- 把需求、设计、任务、决策与踩坑，落成项目内 `.lrnev/` 目录的普通 Markdown 文件——人可读、AI 可写、可 git 版本管理。
+- AI 通过 lrnev 的工具读写这些档案。lrnev 只做**有标准答案**的事（文件读写、ID 分配、状态机、结构校验），全程**不调用任何 LLM / Embedding、不联网、不产生模型费用**。
+- 需要**判断**的事（需求质量、任务拆分、该不该开 Spec），lrnev 只给建议与下一步（`ai_followup`），决定权始终在人与 AI——**只引导，不强制**。
+
+核心概念最小卡：
+
+| 概念 | 一句话 |
+|------|--------|
+| **Scene** | 业务域（如 `01-user-management`），下面是该域的多个 Spec |
+| **Spec** | 一个可独立交付的特性档案：`requirements.md`（`#### F-xx` 需求 + 验收）、`design.md`（`#### D-xx` 设计）、`tasks.md`（`T-xxx` 任务） |
+| **Task** | 执行单元 `T-xxx`，`validates` 挂到 F-xx / D-xx 锚点，做到哪、验证什么都有据可查 |
+| **Gate** | `creation` / `ready` / `completion` 三档结构契约门禁：只查"该有的都有、占位已清"，不判质量 |
+| **轻产物** | 小事不走 Spec：踩坑 → `error_record`，小决策/选型 → `adr_create`，约定 → `memory_save` |
+
+最小闭环：`lrnev spec create user-login` → 填 requirements（替换 `<!-- FILL: -->` 占位）→ `lrnev gate check ... --gate ready` → `lrnev task create ... --validates F-01` → 用 `lrnev task update` 推进 → `lrnev gate check ... --gate completion` 收口。可完整照抄的命令流见本文第 2 节。
+
+适合：一人多 AI 窗口接力同一项目、代码需要需求追踪与验收闭环、给 MCP 工具加治理骨架、长期迭代的项目。
+不适合：一次性小脚本、纯问答、玩具 demo——直接让 AI 做即可，不必套流程。
+
+**不绑定客户端**：Claude Code / Cursor / Codex 及任意支持 MCP 的客户端都能接入；不接 MCP 时 CLI 走同一套逻辑。
+
+---
+
+## 2. 快速上手（5 分钟）
+
+### 2.1 安装与初始化
+
+```bash
+npm install -g lrnev        # 要求 Node.js ≥ 20
+cd your-project
+lrnev init                  # 生成 .lrnev/（Markdown 档案，可 git add .lrnev/ 版本管理）
 ```
+
+### 2.2 接入 AI 客户端（MCP）
+
+在客户端的 MCP 配置里加一段：
+
+```json
+{
+  "mcpServers": {
+    "lrnev": {
+      "command": "lrnev-mcp",
+      "env": { "LRNEV_WORKSPACE": "/absolute/path/to/your-project" },
+      "args": ["--profile", "core"]
+    }
+  }
+}
+```
+
+- **`env.LRNEV_WORKSPACE`（强烈建议始终钉死）**：MCP 子进程的 cwd 常常不是项目根，不钉死时 lrnev 会向上查找 `.lrnev`，可能命中祖先目录里别的项目。CLI 侧的等价手段是全局参数 `lrnev --workspace <path>`；误命中时 server instructions 与 `lrnev_init` 都会警告。
+- **`args: ["--profile", "core"]`（可选）**：缺省 `full` 注册全部 **42** 个工具（与 2.3.0 一致）；`core` 裁掉 9 个"AI 不该主动选"的工具（`agent_*` 自动面 4 个 + `lrnev_hook_*` 配置面 5 个），保留 **33** 个。差异见 [docs/AI-ADAPTATION.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/AI-ADAPTATION.md)。
+- Claude Code / Cursor 使用同形 JSON；Codex 在 `~/.codex/config.toml` 配置（TOML 同字段，格式以 Codex 官方文档为准）：
+
+```toml
+[mcp_servers.lrnev]
+command = "lrnev-mcp"
+args = ["--profile", "core"]
+
+[mcp_servers.lrnev.env]
+LRNEV_WORKSPACE = "/absolute/path/to/your-project"
+```
+
+配好后新开会话，对 AI 说第一句：
+
+> 本项目用 lrnev 治理。先调 `lrnev_guide` 了解用法，再按指引推进。
+
+### 2.3 CLI 最小闭环
+
+命令流与 [examples/sample-project](https://github.com/LuChangQiu/lrnev-govern/blob/main/examples/sample-project/README.md) 的 11 步走查同构（此处省去可选步骤）：
+
+```bash
+lrnev spec create user-login --priority P1          # 1. 建 Spec（不传 scene → 00-default），产出三文档
+# 2. 编辑 .lrnev/scenes/00-default/specs/01-00-user-login/requirements.md，
+#    把 <!-- FILL: ... --> 哨兵换成真实内容（最小填法见 sample-project 走查）
+lrnev gate check --scene 00-default --spec 01-00-user-login --gate ready     # 3. ready：检查结构完整（通过后再拆任务）
+lrnev spec update 01-00-user-login --scene 00-default --status ready         # 4. 状态回填
+lrnev task create "实现登录 API" --scene 00-default --spec 01-00-user-login \
+  --validates F-01 D-01 --acceptance "登录成功" "错误密码 401"                 # 5. 拆任务，挂需求/设计锚点
+lrnev task update T-001 --scene 00-default --spec 01-00-user-login --status in_progress   # 6. 开始
+lrnev task update T-001 --scene 00-default --spec 01-00-user-login --status completed     # 7. 完成
+lrnev gate check --scene 00-default --spec 01-00-user-login --gate completion # 8. 收口 gate（会查 design 无 FILL）
+lrnev report                                                                 # 9. 治理体检（欠债快照，不是 gate）
+```
+
+> 完整 11 步带讲解与 requirements/design 最小填法见 [examples/sample-project/README.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/examples/sample-project/README.md)；gate / 哨兵 / 状态机语义见 [docs/GOVERNANCE-FLOW.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/GOVERNANCE-FLOW.md)；内置手册随时可看：`lrnev guide`。
+
+---
+
+## 3. 核心概念
+
+### `.lrnev/` 工作区
+
+全部是 Markdown + frontmatter（文件头的 YAML 元数据），人可读、AI 可写、可 git 版本管理，不依赖任何数据库。核心形状：
+
+```text
 .lrnev/
-├── PROJECT.md                      # 项目定位 + 团队约定（也是"已初始化"标记）
-├── ARCHITECTURE.md                 # 全局架构约束
-│
-├── steering/                       # 全局行为指引（AI 读这些决定怎么干活）
-│   ├── CORE_PRINCIPLES.md          # 核心原则
-│   ├── SCOPE_RULES.md              # 范围规则 + EARS 写作提示
-│   ├── ADR_TRIGGERS.md             # 什么情况下该建 ADR
-│   └── MEMORY_TRIGGERS.md          # 什么情况下该记一条 memory
-│
-├── scenes/                         # 业务场景
-│   ├── 00-default/                 # 默认 Scene（spec_create 不传 scene 时自动挂这里）
-│   │   ├── scene.md                # Scene 元信息（边界、术语、背景）
-│   │   ├── architecture.md         # 跨 Spec 共享的架构约束（可空）
-│   │   ├── roadmap.md              # 演进路线（可空）
-│   │   ├── decisions/adr/          # Scene 范围 ADR（编号 0001-）
-│   │   ├── errorbook/              # Scene 范围错误手册
-│   │   └── specs/                  # Scene 下所有 Spec
-│   │       └── 01-00-user-login/   # 格式：{NN}-{VV}-{kebab-name}
-│   │           ├── requirements.md # F-xx 需求 + 验收标准（L0/L1/L2 分层写作）
-│   │           ├── design.md       # 技术方案 + 关键决策
-│   │           └── tasks.md        # T-XXX 任务清单（HTML 注释承载状态机）
-│   │
-│   └── 01-user-management/         # 显式创建的业务 Scene
-│       └── ...（同结构）
-│
-├── decisions/
-│   └── adr/                        # 全局 ADR
-│
-├── errorbook/
-│   ├── incidents/                  # 踩坑记录（指纹去重）
-│   └── promoted/                   # 提升为手册的已验证错误
-│
-├── memory/                         # 5 类项目记忆（preferences/decisions/patterns/errors/facts）
-│
-├── auto/
-│   └── codebase.json               # 技术栈自动探测快照
-│
-├── config/
-│   └── hooks.json                  # Hooks 配置
-│
-├── agents/
-│   └── registry.json               # Agent 注册中心（会话存活,随进程生命周期判定;register 时自动 GC 死记录）
-│
-├── runtime/
-│   └── claims/                     # Task claim 运行态软占用（过期残留由自动 GC 清扫）
-│
-├── state/
-│   └── hook-log.jsonl              # Hook 执行日志
-│
-└── locks/                          # 运行时锁文件
+├── PROJECT.md · ARCHITECTURE.md    # 项目定位与团队约定 / 全局架构约束
+├── steering/                       # 给 AI 的行为指引（原则、范围、ADR/memory 触发条件）
+├── scenes/<NN-name>/               # 业务域；00-default 是不指定 scene 时的兜底
+│   └── specs/<NN-VV-name>/
+│       ├── requirements.md         # L0/L1/L2 分层 + #### F-xx 需求与验收
+│       ├── design.md               # #### D-xx 设计点
+│       └── tasks.md                # T-xxx 任务（标题注释承载状态机）
+├── decisions/adr/                  # 关键决策（ADR，0001- 起）
+├── errorbook/                      # 踩坑记录（指纹去重）
+├── memory/                         # 项目记忆（约定/偏好/模式等）
+├── config/hooks.json               # Hooks 配置
+└── agents/ · runtime/ · locks/ · state/   # 运行态（进程生命周期相关，可忽略并出库不跟踪）
 ```
 
-**ID 约定**：
-- Scene：`{NN}-{kebab-name}`，如 `01-user-management`。序号扫描目录 max+1，删除高位会被复用——所以引用一律用完整 ID，别把序号当永久标识。
-- Spec：`{NN}-{VV}-{kebab-name}`，如 `01-00-user-login`。`NN` Scene 内递增，`VV` 版本号。
-- Task：`T-001` 起 Spec 内递增，状态机在标题行注释里 `<!-- lrnev-task: status=completed, validates=F-01|D-02 -->`。
-- 锚点（v2.0 起）：`F-xx` = requirements 的 `#### F-xx` 需求点，`D-xx` = design 的 `#### D-xx` 设计点。task 的 `validates` **只接受这两种**且锚点必须真实存在（引用不存在的编号会被拒绝）；completion gate 会硬拦 requirements/design 残留的 FILL 占位——"任务做完"得同时"内容填完"。
+### ID 与锚点
 
-**三档分流**：踩坑→`error_record`；小决策/选型→`adr_create`；约定/要点→`memory_save`；可交付特性→`spec_create`。`assess_goal` 提供建议，AI 和用户一起决定。
+| 对象 | 格式 | 例子 |
+|------|------|------|
+| Scene | `{NN}-{kebab-name}` | `01-user-management` |
+| Spec | `{NN}-{VV}-{kebab-name}`（VV 是重写版号，非修订号） | `01-00-user-login` |
+| Task | `T-001` 起，Spec 内递增 | `T-001` |
+| 锚点 | `#### F-xx`（requirements）/ `#### D-xx`（design） | `F-01` / `D-01` |
+
+**序号可复用、锚点必须真实**：目录序号按 max+1 分配，删除高位会被复用，引用一律用完整 ID；task 的 `validates` 只接受真实存在的锚点（引用不存在的编号会被拒绝）；completion gate 会硬拦 requirements/design 残留的 FILL 占位——"任务做完"得同时"内容填完"。
+
+### 状态机与 Gate
+
+- Spec：`draft → ready → in-progress → completed → archived`（archived 是终态、只由用户决定；completed 可合法回退 in-progress 做维护增量）。
+- Task：`pending → in_progress → completed | blocked | failed`（completed 是终态，返工请新建 task）。
+- Gate 三档：`creation`（骨架与命名契约）→ `ready`（requirements 结构完整、无 FILL）→ `completion`（任务全 completed + requirements/design 无 FILL）。**Gate 只查结构契约，不判质量；status 不阻塞 gate**，`spec_gate_check` 随时可跑。
+
+### 写作与摘要约定
+
+- **L0 / L1 / L2**：一句话摘要 / 概览 / 详情的分层写作，AI 先读摘要判断、确认后再下钻。
+- **sidecar 摘要**：按文档键控的 `.<文档名>.abstract.md`（L0）/ `.<文档名>.overview.md`（L1）。lrnev 零模型，摘要由客户端 AI 生成（`summarize_save`），lrnev 只负责存取与检索。
+- **轻产物分流**：踩坑 → `error_record`；小决策/选型 → `adr_create`；约定/要点 → `memory_save`；只有需要追踪、拆任务、验收闭环的可交付特性才开 Spec。
 
 ---
 
-## 3. 使用 🚀
+## 4. MCP 响应契约（3.0.0，接入方必读）
 
-### 安装
+> AI 客户端直接读文本通道即可，无需适配；本节写给"严格客户端 / 脚本"。
+
+**双通道响应**：3.0.0 起每次工具调用同时返回
+
+- `content[0].text`：**按工具渲染的模型可见文本**（AI / 人直接读）——含角色前缀行（【事实】/【建议】/【决策边界】/【执行约束】/【下一步】等）、截断与修复 hint；未注册回退 JSON。这是辅助阅读通道，格式随版本演进，**不保证可被机器解析**。
+- `structuredContent`：**canonical 数据契约**——`response_version: '1'`、`ok`、`data`、`errors`、`ai_followup`，按场景出现 `anchor_context`（task 启动时回填的验收口径段落）/ `summary_context`（无 validates 时的 Spec 级摘要）。每工具随 `tools/list` 声明自己的 `outputSchema`。
+
+**成功与失败判定**：`ok: true` 才是成功；`ok: false` 的业务拒绝（参数错误、状态机冲突、**歧义引用 AMBIGUOUS_REF**、内部错误）一律 `isError: true`，错误文本按 `[code] message + hint` 渲染。
+
+**3.0.0 升级注意**：2.3.0 及以前 `content[0].text` 是 `JSON.stringify` 的 payload。曾用 `JSON.parse(content[0].text)` 消费结果的脚本/客户端，请迁移到 `structuredContent`（字段与旧 JSON 同构，另加 `response_version`）。
+
+**`decision_context`（可选入参，v1）**：`scene_create` / `spec_create` / `task_create` / `assess_goal` 四个工具接受 `decision_context`——`source: 'client_asserted'`、`strength: explicit | preferred | unspecified`、必填 `summary`，可选 `direction`（new_scene / new_spec / reuse_spec / no_spec / other）与 `target_ref`（完整稳定引用）。它声明"本次调用是照着用户的什么组织决定来的"，服务端只把它作为本次调用的客户端声明参与建议与【决策边界】行渲染：**不落盘、不阻断**；`explicit`/`preferred` 必须提供 `direction`、`unspecified` 必须省略（条件规则违反返回 INVALID_INPUT）。不传 = 未声明，行为与旧版一致。
+
+**常驻提示词（防长对话遗忘）**：MCP 的工具说明只在连接初始化时注入一次，长会话压缩后 AI 可能忘记 lrnev。完整模板（单 lrnev 版 / lrnev + 代码图谱组合版）见 [docs/AI-ADAPTATION.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/AI-ADAPTATION.md) 的"常驻提示词模板"节——贴进常驻提示槽（Claude Code `CLAUDE.md` / Cursor rules / Codex instructions 等）即可。README 不复制全文，该文档是唯一权威源。
+
+**Hooks（本地自动化扩展点）**：事件（Task 完成、gate 通过等）发生后自动执行项目脚本，配置在 `.lrnev/config/hooks.json`，写法见 [docs/HOOKS.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/HOOKS.md)。
+
+---
+
+## 5. 工具与 CLI 速查
+
+CLI 顶层命令按组（完整命令与选项以 `lrnev --help` / `lrnev <cmd> --help` 为权威）：
+
+| 组 | 命令 |
+|----|------|
+| 起步与全景 | `init` · `guide` · `status` · `map` · `report` · `doctor` · `search` |
+| 治理对象 | `scene` · `spec` · `task` · `gate` · `goal` |
+| 轻产物与记忆 | `adr` · `error` · `memory` · `summary` · `session` |
+| 运行面 | `hook` · `agent` |
+
+MCP 工具名与 CLI 子命令一一对应（`lrnev_guide` ↔ `lrnev guide`，`task_create_many` ↔ `lrnev task create-many`）。42 个 MCP 工具不在本文逐列：分组总览、core/full 差异、常驻提示模板与实测矩阵见 [docs/AI-ADAPTATION.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/AI-ADAPTATION.md)；严格消费方以客户端 `tools/list` 返回的 schema 为准。
+
+几个高频调用：
 
 ```bash
-npm install -g lrnev
+lrnev status                              # 接手：scenes / specs / active tasks 快照
+lrnev map                                 # scene→spec(状态/L0)→锚点标题 全景，按 URI 直达
+lrnev task create-many --scene 00-default --spec 01-00-user-login \
+  --from-file tasks.json                  # 整单拆任务（JSON 数组；批内依赖用临时 key；失败整批不写）
+lrnev report --scene 00-default --json    # 治理体检结构化输出（--md --out 可落档）
+lrnev doctor --migrate-todos              # 工作区结构自检（含旧 TODO 格式迁移）
 ```
 
-搞定 ✨ 想在本地改源码玩：
+> `doctor` 管工作区**结构健康**（目录/锁/坏引用），`report` 管**治理进度**（收口缺口/覆盖率/欠债 + 下一步）。`report` 是给人看的快照、不是 CI gate——有债也 exit 0。
+
+---
+
+## 6. 文档地图
+
+| 想解决什么问题 | 去哪读 |
+|----------------|--------|
+| 11 步 CLI 上手走查（含 requirements/design 最小填法） | [examples/sample-project/README.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/examples/sample-project/README.md) |
+| 接入方手册：跨客户端配置、双通道与 decision_context 语义、常驻提示词全文、实测矩阵 | [docs/AI-ADAPTATION.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/AI-ADAPTATION.md) |
+| 治理运行语义权威：gate / 哨兵 / 状态机 / 锚点 / 序号 / report 口径 | [docs/GOVERNANCE-FLOW.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/GOVERNANCE-FLOW.md) |
+| 配置键与默认值（完整键示例：[docs/examples/lrnev.json](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/examples/lrnev.json)） | [docs/CONFIG.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/CONFIG.md) |
+| Hooks 事件与配置写法（完整示例：[docs/examples/hooks.json](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/examples/hooks.json)） | [docs/HOOKS.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/HOOKS.md) |
+| 多 Agent 注册 / 心跳 / claim 接管 | [docs/MULTI-AGENT.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/MULTI-AGENT.md) |
+| 源码结构与设计原则 | [docs/ARCHITECTURE.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/ARCHITECTURE.md) |
+| 演进历史与版本升级注意 | [CHANGELOG.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/CHANGELOG.md) |
+| 如何参与贡献 | [CONTRIBUTING.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/CONTRIBUTING.md) |
+
+仓库里还有一些非用户文档，引用前先认清定位：
+
+- `dev-docs/` 与 `ai-discussions/`：研发内部档案（[dev-docs](https://github.com/LuChangQiu/lrnev-govern/tree/main/dev-docs)：设计讨论、实施观测与复审记录），非用户文档。
+- `tests/e2e/t027-baseline/`：T-027 三客户端真实观测资产（双 SHA 对照 harness、决策场景与证据库），见 [目录 README](https://github.com/LuChangQiu/lrnev-govern/blob/main/tests/e2e/t027-baseline/README.md)。
+
+---
+
+## 7. 开发与反馈
 
 ```bash
-git clone https://github.com/LuChangQiu/lrnev-govern.git
-cd lrnev-govern
-npm install && npm run build && npm link
+npm install && npm run build     # tsc 编译到 dist/
+npm run typecheck                # 类型检查（发布门禁：0 错误）
+npm test                         # 全量测试（3.0.0 基准 1051 条）
+npm run dev:mcp                  # tsx watch 热重载跑 MCP（入口 src/mcp/dev-entry.ts）
+npm run dev:inspect              # MCP Inspector 图形调试（同 dev-entry）
+npm run lrnev -- init            # 本地直跑 CLI
 ```
 
-### 接入 AI 客户端 🔌
+本地开发细节与提交规范见 [CONTRIBUTING.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/CONTRIBUTING.md)。
 
-在客户端 MCP 配置里加一行：
+问题反馈：请提 [Issue](https://github.com/LuChangQiu/lrnev-govern/issues)——bug 必修；暂不改的也会说明理由，不冷处理。
 
-```json
-{ "mcpServers": { "lrnev": { "command": "lrnev-mcp" } } }
-```
-
-搞定。首次对话对 AI 说一句就行：
-
-> 这个项目用 lrnev 治理。先调 lrnev_guide 了解怎么用，再按指引推进。
-
-**工具面分层（可选）**：默认接入全部 42 个工具。想让 AI 只看到决策/执行工具面时，可在配置 `args`
-加 `--profile core`，裁掉 9 个"AI 不该主动选"的工具（`agent_*` 由连接层自动调 + `lrnev_hook_*`
-由人配置期使用），保留 33 个（task/adr/error/memory/session_commit/doctor/report/guide 全留）：
-
-```json
-{ "mcpServers": { "lrnev": { "command": "lrnev-mcp", "args": ["--profile", "core"] } } }
-```
-
-core/full 差异与各客户端配置示例见 [`docs/AI-ADAPTATION.md`](docs/AI-ADAPTATION.md)。
-
-### 防长对话遗忘 💤
-
-MCP 的工作流说明只在连接时注入一次。聊了几十轮之后 AI 可能"忘了"要用 lrnev——正常现象。把下面这段贴进客户端的**常驻提示槽**（不会被压缩），AI 每轮都被提醒：
-
-- **Claude Code**：项目根 `CLAUDE.md`
-- **Cursor**：`.cursor/rules` 或 Settings → Rules
-- **Codex / 其他**：自定义 instructions
-
-更完整的客户端适配说明见 [`docs/AI-ADAPTATION.md`](docs/AI-ADAPTATION.md) 的“常驻提示词模板”。
-
-```
-本项目用 lrnev 治理。规则：
-
-  1. **先分清"只读"还是"要改"**：纯查代码、定位、解释、回答问题这类不改任何文件的事，直接做——不用先
-  project_status，也不用开 spec。下面的流程只在"要动手改代码或推进治理(建/改 spec、task)"时才走。
-
-  2. **要改且不确定进度时**，先调 `project_status` 接手现状，别凭记忆直接改代码。也可调 `governance_map` 看 scene→spec
-  全景压缩视图，快速定位上下文。
-
-  3. **该不该开 spec、开在哪**，自己判断、别对着清单匹配。按从便宜到贵判断：
-     - ① 写不出独立"WHEN…THEN"验收的小改动（改文档/排版/注释/小重构/调参数/答问题）→ 直接做，不开 spec/task
-     - ② 给已完成特性加东西、能落到某现有 spec → 先 `context_search` 找到它，`task_create` 落位（不新开 spec，scene
-  沿用；completed spec 可 `spec_update` 回退到 in-progress）
-     - ③ 真正独立可交付的新特性才开
-  spec——(a)能写出一条有意义的"WHEN…THEN"验收吗？(b)是可独立交付的特性吗？两个都"是"才开 spec。优先归入已有匹配业务域
-  scene；只有用户明确确认、或上下文非常清楚这是会承载多个 spec 的新业务域，才 `scene_create`
-     - ④ 确实无稳定业务域、又是零散小型独立特性，才落 00-default（兜底，不是默认堆放处）
-     - scene / 00-default 是结构决策、事后难迁：该新建 scene 还是落 00-default 拿不准时就问我，别默认。
-
-  4. **踩坑→`error_record`，技术决策→`adr_create`，约定→`memory_save`**；都不沾的小事直接做。
-
-  5. **多特性需求**先按拆分标尺判断单/多 Spec（可用 `assess_goal` 辅助，它返回 single-spec / multi-spec-program /
-  research-program），别把多个特性塞进一个 Spec。
-
-  6. **改代码前**确认对应 task 已 `task_update(in_progress)`，完成后 `task_update(completed)`；纯只读/答问题不涉及
-  task。
-
-  7. **不清楚怎么用**就调 `lrnev_guide`。
-
-  8. **Gate 门禁**：spec 创建/就绪/完成各有对应门禁（creation / ready / completion），用 `spec_gate_check` 传 `gate`
-  参数验证是否达标。
-
-  9. 想看治理欠债、收口缺口或 validates 覆盖率，可让我调 `lrnev_report`；它是给人看的只读体检，不是必走 gate。
-
-  10. **工作区结构异常**：遇到目录缺失、命名不规范等问题，可先调 `lrnev_doctor` 做健康诊断。
-```
-
-### 常用命令 👇
-
-```bash
-# 初始化工作区（不传 --project-name 则默认用当前文件夹名）
-lrnev init
-
-# 接手一个项目 —— 先看做到哪了
-lrnev status
-
-# 治理地图：scene→spec(状态/L0)→锚点标题 的压缩全景，一眼看清全貌、按 URI 直接跳
-lrnev map
-
-# 新建 Spec（不传 scene 自动挂 00-default）
-lrnev spec create user-login --priority P0
-
-# 跑 ready gate（检查需求结构是否完整）
-lrnev gate check --scene 00-default --spec 01-00-user-login --gate ready
-
-# 建任务（validates 关联到需求锚点 F-01）
-lrnev task create "实现登录 API" \
-  --scene 00-default --spec 01-00-user-login \
-  --validates F-01 \
-  --acceptance "POST /login 200" "错误密码 401"
-
-# 批量建任务（v2.3：spec ready 后一次性拆任务；JSON 数组或 {"tasks":[...]}，传 - 读 stdin）
-# 批内依赖用 key 临时键（禁 T-xxx 格式）；任一条校验失败整批不写并一次返回全部错误
-lrnev task create-many --scene 00-default --spec 01-00-user-login --from-file tasks.json
-
-# 推任务状态（in_progress/claim 会回填 anchor_context 验收口径段落；无 validates 则回填 spec 级 summary_context）
-lrnev task update T-001 --scene 00-default --spec 01-00-user-login --status in_progress
-lrnev task update T-001 --scene 00-default --spec 01-00-user-login --status completed
-
-# 全部完成跑 completion gate
-lrnev gate check --scene 00-default --spec 01-00-user-login --gate completion
-
-# 治理体检（给人看的"分红"）：做完没收口 / failed-blocked / validates 覆盖率，每条债带可执行下一步
-lrnev report                      # 默认 text 体检单
-lrnev report --scene 00-default   # 只看某业务域
-lrnev report --json               # 结构化输出，供脚本/AI 消费
-lrnev report --md --out NOTES.md  # markdown 落盘（--out 才写文件）
-lrnev report --release-notes      # 顺带草拟已完成清单
-
-# 工作区体检 / 旧 TODO 迁移 / 使用手册
-lrnev doctor
-lrnev doctor --migrate-todos
-lrnev doctor --migrate-summaries
-lrnev guide
-```
-
-> `report` 与 `doctor` 分工：`doctor` 管工作区**结构健康**（目录/锁/坏引用详细修复/stale）；`report` 管**治理进度**（收口缺口/覆盖率/欠债 + 下一步）。`report` 是给人看的快照、不是 CI gate——有债也 exit 0，不提供 `--fail-on`。
-
-完整命令：`lrnev --help`。MCP 工具名跟 CLI 子命令一一对应，同一个能力两条路都能走 🚶‍♂️
-
----
-
-## 4. 主要流程 🔄
-
-### 新建特性
-
-```mermaid
-flowchart TD
-  Start([用户提出需求]) --> Assess[assess_goal 判断粒度]
-  Assess -->|可交付特性| SpecCreate[spec_create\n生成三文档]
-  Assess -->|踩坑/小决策/约定| Light[error_record / adr_create / memory_save]
-  Light --> Done([完])
-
-  SpecCreate --> Fill[填 requirements\n替换 FILL 哨兵]
-  Fill --> ReadyGate{spec_gate_check ready}
-  ReadyGate -->|失败| Fill
-  ReadyGate -->|通过| Review[ai_followup: 请暂停\n把 requirements 给用户审需求方向\n建议 ADR？EARS 验收示范]
-  Review --> TaskCreate[task_create]
-  TaskCreate --> TaskProgress[task_update in_progress\nai_followup 回填 anchor_context\n验收口径段落 / summary_context]
-  TaskProgress --> TaskDone[task_update completed]
-  TaskDone -->|还有 task| TaskProgress
-  TaskDone -->|全部完成| CompletionGate{spec_gate_check completion}
-  CompletionGate -->|通过| End([完结\n逐条核对验收])
-```
-
-### 接手项目
-
-```mermaid
-flowchart LR
-  Resume([新 AI 会话]) --> Status[project_status\n一次拿全部状态]
-  Resume -.可选.-> Map[governance_map / lrnev map\nscene→spec→锚点标题 全景导航]
-  Resume -.可选.-> Report[lrnev report\n治理欠债体检 + 下一步]
-  Status --> Read[active_tasks / active_agents / specs]
-  Map -.看图按 URI 跳.-> Read
-  Report -.人看完决定是否收口.-> Read
-  Read -->|in_progress task| Continue[继续推进那个 task]
-  Read -->|全部空闲| New[从 free_tasks_count > 0 的 Spec 领活]
-```
-
-### AI 的视角 👀
-
-```
-step 1: 连上 → server instructions 告诉它"lrnev 是什么 + 新建/接手怎么走"
-step 2: 懵了 → 调 lrnev_guide 拿完整手册
-step 3: 每调一个工具 → ai_followup 推给它下一步该干嘛
-step 4: 搞砸了 → 错误 hint 告诉它怎么修（不用回头问用户）
-```
-
----
-
-## 5. 文档与示例 📚
-
-| 用户文档 | 内容 |
-|----------|------|
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 源码结构与设计原则 |
-| [`docs/GOVERNANCE-FLOW.md`](docs/GOVERNANCE-FLOW.md) | Gate 语义、哨兵、状态机、resume、adopt、与 OV 边界 |
-| [`docs/CONFIG.md`](docs/CONFIG.md) | `.lrnev/config/lrnev.json` 全部配置键与默认值 |
-| [`docs/HOOKS.md`](docs/HOOKS.md) | Hooks 配置写法与事件列表 |
-| [`docs/MULTI-AGENT.md`](docs/MULTI-AGENT.md) | 多 Agent 注册、心跳与 claim 接管 |
-| [`docs/AI-ADAPTATION.md`](docs/AI-ADAPTATION.md) | 跨客户端适配、LRNEV_WORKSPACE、42 工具总览与实测矩阵 |
-
-| 示例 | 内容 |
-|------|------|
-| [`examples/sample-project`](examples/sample-project) | 从初始化到 gate 通过的 CLI 上手 demo |
-
----
-
-## 6. 开发 🛠️
-
-```bash
-npm install && npm run build
-npm test            # 692 条测试 ✅
-npm run dev:mcp     # tsx watch 跑 MCP
-npm run dev:inspect # MCP Inspector 调试
-npm run lrnev -- init   # 本地跑 CLI
-```
-
-想一起搞？先看 [`CONTRIBUTING.md`](CONTRIBUTING.md) 🤝
-
----
-
-## 7. 问题反馈 💬
-
-遇到问题？有灵感？欢迎 [提 Issue](https://github.com/LuChangQiu/lrnev-govern/issues) 🙋
-
-不保证每个反馈都会改，但**每一条都会认真看、认真想** 🧠。是 bug → 🔨 一定修。暂不改 → 📝 也会在 Issue 里说清楚为什么，不冷处理。
-
----
-
-## 许可证
-
-[MIT](LICENSE)
+许可证：[MIT](https://github.com/LuChangQiu/lrnev-govern/blob/main/LICENSE)

@@ -27,7 +27,7 @@ MCP Conformance != lrnev Guidance Profile
 1. `spec_create` 不会因为已有相似 Spec 而在执行层拒绝创建。
 2. `GoalAssessor` 是不调用 LLM 的复杂度启发式评估器，输入是 `goal: string`，不是完整用户对话。
 3. `AiFollowup.instructions` 当前是扁平 `string[]`，注释把它描述为按顺序执行的自然语言待办指令。
-4. 当前所有工具结果都被 JSON 序列化进 `content[].text`，没有 outputSchema/structuredContent。
+4. （2026-09-07 修订：本条原为"当前所有工具结果都被 JSON 序列化进 `content[].text`，没有 outputSchema/structuredContent"，随 03-00 M1/M2 实施已过时）当前工具结果走**双通道**：`content[].text` 是按工具渲染的模型可见文本（ModelVisibleContract 渲染器，含角色前缀行与修复 hint，未注册回退 legacy JSON）；`structuredContent` 携带 canonical 信封（`response_version: '1'` / `ok` / `data` / `errors` / `ai_followup` / `anchor_context` / `summary_context`），各工具随 tools/list 声明 `outputSchema`；`ok=false`（含 AMBIGUOUS_REF）统一 `isError=true`。实现见 `src/mcp/helpers/tool-result-adapter.ts`、`src/mcp/helpers/model-visible-contract.ts`、`src/mcp/types/response-envelope.ts`。
 5. Guidance 分布在 server instructions、tool descriptions/input descriptions、resources、manager followup、错误、Scene/Spec guidance、文档和客户端常驻规则多个入口。
 6. `scene_create.intent` 是 Scene 的业务意图描述，不等于用户对 Spec 组织方式的最终决定。
 

@@ -28,8 +28,8 @@
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "vitest run tests/e2e",
-    "dev:mcp": "tsx watch src/mcp/server.ts",
-    "dev:inspect": "npx @modelcontextprotocol/inspector tsx src/mcp/server.ts",
+    "dev:mcp": "tsx watch src/mcp/dev-entry.ts",
+    "dev:inspect": "npx @modelcontextprotocol/inspector tsx src/mcp/dev-entry.ts",
     "lrnev": "tsx src/cli/index.ts",
     "clean": "rimraf dist",
     "prepublishOnly": "npm run clean && npm run build && npm test"

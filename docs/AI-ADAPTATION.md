@@ -165,54 +165,111 @@ MCP 客户端在配置的 `args` 里追加 `--profile core`（缺省 full，不�
 
 ### 常驻提示词模板（防长对话遗忘）
 
-把下面这段贴进客户端的常驻提示槽，避免多轮压缩后 AI 忘记用 lrnev：
+MCP 的工具说明与 server instructions 只在连接初始化时注入一次。长会话经过多轮压缩后，模型可能忘记“先看 lrnev 再动手”——把模板贴进客户端的**常驻提示槽**（每轮可见、不随压缩丢失）是最有效的防遗忘手段。粘贴位置：
 
 - Claude Code：项目根 `CLAUDE.md`
 - Cursor：`.cursor/rules` 或 Settings → Rules
-- Codex：自定义 instructions
+- Codex：项目根 `AGENTS.md`（或自定义 instructions）
+- 其他客户端 / 自研 Agent：等效的常驻 instructions 文件
+
+按项目形态二选一粘贴（只贴一份，别叠加）：
+
+| 模板 | 适用项目 | 说明 |
+|------|----------|------|
+| 模板 B：单 lrnev（推荐默认） | 中小代码库 / 治理驱动项目，内置 grep/glob/read 足够导航 | 零额外依赖；对弱模型、工具面板拥挤的客户端最友好 |
+| 模板 A：lrnev + 代码图谱 | 中大型 / 多包代码库，日常需要符号级定位与影响面分析 | 需要环境挂代码图谱类 MCP 工具且项目已建索引；图谱工具名按环境替换占位 |
+
+> 两模板正文按 2026-09-07 的 src 引导措辞生成（`src/mcp/guidance.ts`、`src/core/SpecGuidance.ts`、`src/core/guidance-semantics.ts`），与工具描述 / ai_followup 同口径；若日后与工具实际描述不一致，以工具描述与 `lrnev_guide` 为准。README 不再复制本文内容，本文件是常驻提示词的唯一权威源。
+
+#### 模板 B：单 lrnev（推荐默认）
 
 ```text
-本项目用 lrnev 治理。规则：
+# 工具栈与工作流
 
-  1. **先分清"只读"还是"要改"**：纯查代码、定位、解释、回答问题这类不改任何文件的事，直接做——不用先
-  project_status，也不用开 spec。下面的流程只在"要动手改代码或推进治理(建/改 spec、task)"时才走。
+本项目用 **lrnev** 治理：Scene/Spec/Task、gate 门禁与轻产物全走它；查代码用 grep/glob/read（lrnev 不查源码）。`agent_*`/`hook_*` 由连接层/配置期处理，不必主动选。
 
-  2. **要改且不确定进度时**，先调 `project_status` 接手现状，别凭记忆直接改代码。也可调 `governance_map` 看 scene→spec
-  全景压缩视图，快速定位上下文。
+## 工具速查（[核心] 档为主）
 
-  3. **该不该开 spec、开在哪**，自己判断、别对着清单匹配。按从便宜到贵判断：
-     - ① 写不出独立"WHEN…THEN"验收的小改动（改文档/排版/注释/小重构/调参数/答问题）→ 直接做，不开 spec/task
-     - ② 给已完成特性加东西、能落到某现有 spec → 先 `context_search` 找到它，`task_create` 落位（通常无需新开 spec，scene
-  沿用；completed spec 可 `spec_update` 回退到 in-progress）
-     - ③ 真正独立可交付的新特性才开
-  spec——(a)能写出一条有意义的"WHEN…THEN"验收吗？(b)是可独立交付的特性吗？两个都"是"才开 spec。优先归入已有匹配业务域
-  scene；只有用户明确确认、或上下文非常清楚这是会承载多个 spec 的新业务域，才 `scene_create`
-     - ④ 确实无稳定业务域、又是零散小型独立特性，才落 00-default（兜底，不是默认堆放处）
-     - scene / 00-default 是结构决策、事后难迁：该新建 scene 还是落 00-default 拿不准时就问我，别默认。
-     
-     **三条判断标尺**（补充复用/新建/开新版的分流逻辑）：
-     - **整体推翻**：若新需求整体推翻已有 requirements 或 design（而非增量补充），通常建议开新版（version+1），保留旧版供对照。
-     - **独立特性**：若新特性独立且可验收（有明确的 WHEN...THEN 验收标准），通常建议开新 Spec，而非强行扩展已有 Spec 的范围。
-     - **上下文冷却**：若旧 Spec 出现上下文冷却信号（长时间未动、已 completed、tasks 已清空），建议先调用 `context_search` 读取摘要，确认旧 Spec 实际范围，再决定复用、开新版还是创建独立 Spec。
-     
-     **用户决定优先**：以上建议不是强制规则。若用户已明确要求（如"帮我新建一个 Spec"、"开一个独立的 Spec"），即使已有相似 Spec 可以承载，也应尊重用户决定，直接调用对应工具（如 `spec_create`）。
+- 接手：project_status 快照；governance_map 全景；context_search 检索治理文档
+- 生命周期：spec_create 开 Spec；spec_gate_check 门禁；spec_update 回填（归档只按用户要求）；spec_get/spec_list/scene_list/task_list 查明细
+- 执行：task_create 补单+登记增量；task_create_many 整单拆解；task_update 推进
+- 轻产物与辅助：error_record/adr_create/memory_save；assess_goal；lrnev_report 体检、lrnev_doctor 诊断、lrnev_guide 手册
 
-  4. **踩坑→`error_record`，技术决策→`adr_create`，约定→`memory_save`**；都不沾的小事直接做。
+## 核心规则
 
-  5. **多特性需求**先按拆分标尺判断单/多 Spec（可用 `assess_goal` 辅助，它返回 single-spec / multi-spec-program /
-  research-program），别把多个特性塞进一个 Spec。
+1. 只读 vs 要改：纯查代码/解释 → 直接做；流程只在要改代码或推进治理时走。
+2. 要改且不知进度 → project_status；全景 governance_map；文档 context_search。
+3. 开不开 spec 便宜先：
+   - ① 写不出 WHEN…THEN 独立验收的小改动 → 直接做；
+   - ② 开发/扩展请求（加/实现/补充）→ 定位承载 Spec（context_search/spec_get）→ **task_create 登记再实施**；直接编辑 requirements/design 只许需求细化/文档维护；completed spec 登记后可回退 in-progress（合法转换）；
+   - ③ 独立可交付才 spec_create（两“是”）：优先已有 scene；新域经用户确认才 scene_create；无稳定域落 00-default（兜底）；
+   - ④ 整体推翻 → 新版 version+1 留旧版对照；archived 终态只由用户定；
+   - ⑤ 旧 Spec 久未动/已 completed/任务清空（冷却）→ 先 context_search 读摘要，再定复用/新版/新建；
+   - ⑥ 用户点名建 spec/scene → 直接照做。
+4. 踩坑→error_record；决策→adr_create；约定→memory_save。
+5. 多特性需求 assess_goal 辅助拆分（建议可跳过）。
+6. 改前 task_update(in_progress)；完成 task_update(completed)。
+7. 不懂调 lrnev_guide；结构异常先 lrnev_doctor。
+8. Gate：spec_gate_check(gate=creation/ready/completion)，按 hint 修后 spec_update 推进；lrnev_report 只读体检非必走。
 
-  6. **改代码前**确认对应 task 已 `task_update(in_progress)`，完成后 `task_update(completed)`；纯只读/答问题不涉及
-  task。
+## 快速参考
 
-  7. **不清楚怎么用**就调 `lrnev_guide`。
+- Spec：draft→ready→in-progress→completed；completed→in-progress 合法（维护新增）；archived 终态只由用户定。Task：pending→in_progress→completed；completed 终态，返工新建 task。
+- Gate：ready 查必填章节与 FILL 哨兵；completion 查任务全 completed + requirements/design 无 FILL 残留；EARS（WHEN…THEN）是推荐写法非硬规则。
+- 自救：AMBIGUOUS_REF → 选完整 id 重调；ready/completion 未过 → 按 checks 的 hint 修；INVALID_STATUS_TRANSITION → 按状态机走；broken/缺文件 → lrnev_doctor。
+- 收尾：阶段完成 summarize_save 更新 L0/L1 摘要；会话压缩/结束前 session_commit 沉淀候选记忆。
+```
 
-  8. **Gate 门禁**：spec 创建/就绪/完成各有对应门禁（creation / ready / completion），用 `spec_gate_check` 传 `gate`
-  参数验证是否达标。
+#### 模板 A：lrnev + 代码图谱组合版（可选）
 
-  9. 想看治理欠债、收口缺口或 validates 覆盖率，可让我调 `lrnev_report`；它是给人看的只读体检，不是必走 gate。
+适用于中大型 / 多包代码库的开发实现类会话：lrnev 管“该不该做 / 做到哪 / 怎么验收 / 留什么记录”，代码图谱工具管“在哪定义 / 谁调用 / 改动波及谁”。粘贴前把下方 CodeGraph 占位替换为你环境实际暴露的工具面——只读查询类工具，命名随环境各异；未挂同类工具时用模板 B 即可。若挂的是其他架构图谱工具（如 Understand Anything），按“与 CodeGraph 同类：只读、先查后读、结果以源码为准”并入本模板的 CodeGraph 节即可，不必单独成版。
 
-  10. **工作区结构异常**：遇到目录缺失、命名不规范等问题，可先调 `lrnev_doctor` 做健康诊断。
+```text
+# 工具栈与工作流
+
+双工具分工：**lrnev** 管治理——该不该做/做到哪/怎么验收/留什么记录；**CodeGraph** 管代码——在哪定义/谁调用/改动波及谁。纯查代码走 CodeGraph；要改代码或推进治理才走 lrnev 流程。
+
+## 工具速查表
+
+| 工具 | 职责一句话 |
+|---|---|
+| lrnev 接手（只读） | project_status 现状快照；governance_map scene→spec 全景；context_search 检索治理文档；spec_get 读三文档 |
+| lrnev 落位推进 | spec_create 开 Spec；task_create(_many) 登记任务；task_update 推进；spec_gate_check 门禁；spec_update 状态回填 |
+| lrnev 轻产物 | error_record 踩坑；adr_create 决策；memory_save 约定；assess_goal 单多 Spec 判断 |
+| CodeGraph 查询工具（主力，名称以你环境为准） | 一次命中符号+来源文件+调用路径（X 在哪/谁调 X/波及谁） |
+
+## lrnev 核心规则
+
+1. **只读 vs 要改**：纯查代码/定位/解释/回答 → 直接做，不 project_status、不开 spec；以下流程只在要改代码或推进治理时走。
+2. **要改且不确定进度** → 先 `project_status`；全景 `governance_map`；找相关文档 `context_search`。
+3. **开不开 spec、开在哪，自己判断、便宜先**：
+   - ① 写不出独立 WHEN…THEN 验收的小改动（改文档/注释/排版/小重构/调参…）→ 直接做；
+   - ② **开发/扩展请求（加/实现/补充某能力）一律先登记再实施**：`context_search`/`spec_get` 定位承载 Spec → `task_create` 登记 → 再动手。直接编辑 requirements/design 只许需求细化/文档维护，不能替代登记；Spec 已 completed 时登记会提示：可 `spec_update` 合法回退 in-progress（维护态新增）；
+   - ③ 独立可交付新特性才 `spec_create`：能写 WHEN…THEN 验收 + 可独立交付，两“是”才开。优先归已有 scene；新业务域经用户确认才 `scene_create`；无稳定域小特性才落 00-default（兜底）；scene/00 拿不准问用户；
+   - ④ 整体推翻需求/设计 → 开新版（version+1，VV 是重写版号非修订号）留旧版对照；archived 是终态，归档/撤销只由用户定——AI 不自动归档，刚建的 Spec 不得自行回退；
+   - ⑤ 旧 Spec 上下文冷却（久未动/已 completed/任务已清空）→ 先 `context_search` 读摘要，再决定复用（task_create 落位）、开新版还是新建；
+   - ⑥ 用户点名要建 spec/scene → 尊重决定直接建（以上均可被用户要求覆盖）。
+4. **踩坑→`error_record`，决策→`adr_create`，约定→`memory_save`**；不沾的直接做。
+5. **多特性需求**先判断单/多 Spec（`assess_goal`：single-spec / multi-spec-program / research-program，建议可跳过）。
+6. **改前** task_update(in_progress)，**完成** task_update(completed)。
+7. 不清楚工具/流程或 gate 报错 → `lrnev_guide`。
+8. **Gate**：`spec_gate_check`(gate=creation/ready/completion)，未过按 checks 的 hint 修，达标再 spec_update 推进。
+9. `lrnev_report` 是给人看的只读体检（欠债/收口/validates），想看欠债时调，非必走 gate。
+10. 结构/状态异常（broken/缺文件）→ 先 `lrnev_doctor`。
+
+## CodeGraph 使用规则（按你环境实际暴露的工具调整）
+
+- 只读查询、不改文件；查代码用它，治理判断与动作仍走 lrnev。
+- **先查后读**：先让图谱查询工具命中符号/文件再 read，别盲扫文件树。
+- **图谱查询是主力**：一次覆盖多符号，返回来源+调用路径+影响面。
+- 工具命名随环境各异（通常是一组只读查询工具）：粘贴前按实际名单替换占位。
+- 索引是本地派生物（不进 git、可重建）：查不到/疑似过期 → 重建或 grep/read 核源码——源码是真相。
+
+## 串联流程
+
+1. 只读请求：CodeGraph 定位 → read → 直接答；要回看验收口径再只读 spec_get/context_search。
+2. 要改请求：按规则 2/3 定落点（便宜先）——小改直接做；已有 Spec 增量 → context_search 定位 → **task_create 登记** → 实施（CodeGraph 定位代码、spec_get 对照口径）；新特性 → spec_create → 填 requirements → ready gate → 拆任务（整单 task_create_many、补单 task_create）。
+3. 执行收尾：任务前后 task_update；全完成 → completion gate → spec_update 回填 completed → 回看 L0 与验收；轻产物按规则 4；不懂 lrnev_guide、异常 lrnev_doctor。
 ```
 
 ### 好 Prompt
@@ -317,7 +374,7 @@ MCP 客户端在配置的 `args` 里追加 `--profile core`（缺省 full，不�
 | 模型 | 档位 | 客户端 | 分数 | 走通情况 | 卡点 | 后续改进项 |
 |------|------|--------|------|----------|------|------------|
 | Claude Opus 4.7 | 强 | Claude Code (CLI) | — | ✅ 全面通过（开发全程使用 CLI 创建/更新/gate/claim） | 无 | — |
-| GPT-5 coding agent | 强 | Codex CLI 0.136.0 | 8/8 | ✅ 41 个 MCP 工具全调通，全生命周期自主走完 | 无（自主修复 ready gate 章节标题） | — |
+| GPT-5 coding agent | 强 | Codex CLI 0.136.0 | 8/8 | ✅ 42 个 MCP 工具全调通，全生命周期自主走完 | 无（自主修复 ready gate 章节标题） | — |
 | DeepSeek V4 Flash Free | 中 | OpenCode 1.15.13 | 8/8 | ✅ 黄金路径 + 能力域全覆盖，真实 Java 项目探测验证通过 | 首次未设 LRNEV_WORKSPACE 时向上误命中父级 .lrnev，设环境变量后通过 | 向上命中护栏（v1.0.0 已修复：init 时命中祖先 .lrnev 会提示设 LRNEV_WORKSPACE） |
 | GPT-5.5 | 强 | Codex CLI 0.142.5（v2.3 盲测） | 8/8 | ✅ 只靠自带引导走通全流程；自主选用 task_create_many，原子拒绝/压缩返回验证通过 | 英文化章节标题被 ready gate 拦（事后 hint 清晰）；assess_goal 保守判 multi-spec | 均已在 v2.3 整改（spec_create 标题警示、assess_goal override 指引） |
 | DeepSeek V4 Pro | 中 | OpenCode 1.17.13（v2.3 盲测） | 8/8 | ✅ 全流程通过；自主发现并选用 task_create_many | init 后引导可更明确"这是接入完成标志"；task_create 连用无批量提示 | 后者已在 v2.3 整改（task_create 描述提示批量工具） |

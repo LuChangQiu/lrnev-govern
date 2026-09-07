@@ -35,6 +35,7 @@ lrnev-govern/
 │   │   ├── AgentRegistry.ts
 │   │   ├── AutoAnalyzer.ts
 │   │   ├── ClaimStore.ts
+│   │   ├── decision-context.ts     # decision_context 非阻断边界行渲染（05-00，纯函数）
 │   │   ├── Doctor.ts
 │   │   ├── ErrorbookManager.ts
 │   │   ├── GateGuidance.ts          # gate 通过/失败的 followup 文案（CLI/MCP 共用，v2.1）
@@ -48,6 +49,7 @@ lrnev-govern/
 │   │   ├── ProjectStatus.ts
 │   │   ├── GovernanceMap.ts         # 治理地图：scene→spec(状态/L0)→锚点标题 全景（v2.1）
 │   │   ├── GovernanceReport.ts      # 治理体检：收口缺口/覆盖率/欠债+下一步，给人看（v2.2）
+│   │   ├── guidance-semantics.ts    # 引导语义：五角色前缀/用户决定优先/判断标尺（08-00）
 │   │   ├── SceneManager.ts
 │   │   ├── Searcher.ts              # 目录优先检索：BM25 排序 + 锚点段抽取（v2.1）
 │   │   ├── SessionCommit.ts
@@ -67,13 +69,24 @@ lrnev-govern/
 │   │   └── WorkspaceLocator.ts     # 定位 `.lrnev` 工作区
 │   │
 │   ├── mcp/                        # MCP 协议层
-│   │   ├── server.ts               # Server 实例、capabilities、stdio transport
-│   │   ├── guidance.ts             # 工具说明、使用提示和错误后续动作
+│   │   ├── server.ts               # Server 组装、capabilities、stdio transport、--profile 解析
+│   │   ├── dev-entry.ts            # 仅开发用启动入口（npm run dev:mcp / dev:inspect；生产走 bin/lrnev-mcp.mjs）
+│   │   ├── guidance.ts             # server instructions、工具说明、使用提示和错误后续动作
+│   │   ├── helpers/                # MCP 响应适配与渲染层（03-00）
+│   │   │   ├── tool-result-adapter.ts    # 业务响应 → content + structuredContent + isError（canonical 单源）
+│   │   │   ├── model-visible-contract.ts # 渲染器注册表 + 统一逃逸出口（MVC，D-04）
+│   │   │   ├── guidance-profile.ts       # Guidance Profile 纯函数库（分类/构建/诊断，05-00）
+│   │   │   └── renderers/                # 逐工具渲染器 43 项（42 工具 + 1 错误路径）
 │   │   ├── tools/
-│   │   │   └── index.ts            # 注册所有 MCP tools
-│   │   └── resources/
-│   │       ├── index.ts            # 注册 context:// resources
-│   │       └── handlers.ts         # resource handler 实现
+│   │   │   └── index.ts            # 注册全部 MCP tools（profile 分层 + decision_context 接线）
+│   │   ├── resources/
+│   │   │   ├── index.ts            # 注册 context:// resources
+│   │   │   └── handlers.ts         # resource handler 实现
+│   │   └── types/                  # MCP 层契约类型（03-00 / 05-00）
+│   │       ├── response-envelope.ts       # canonical 信封：response_version/ok/data/errors/ai_followup/context
+│   │       ├── output-schemas.ts          # 各工具严格 outputSchema（与 handler 真实返回对齐）
+│   │       ├── decision-context-schema.ts # decision_context 输入校验：结构层 + 条件规则（05-00）
+│   │       └── guidance-profile.ts        # Guidance Profile 契约类型（role/text/profile_version，05-00）
 │   │
 │   ├── cli/                        # CLI 层
 │   │   └── index.ts                # commander 入口和全部子命令注册
@@ -83,8 +96,10 @@ lrnev-govern/
 │   │   ├── agent.ts
 │   │   ├── auto-analyzer.ts
 │   │   ├── claim.ts
+│   │   ├── decision-context.ts     # DecisionContextInput：decision_context 客户端输入契约（05-00）
 │   │   ├── doctor.ts
 │   │   ├── errorbook.ts
+│   │   ├── evidence-contract.ts    # T-027 观测证据契约（evidence-contract.schema.json 的 TS 镜像）
 │   │   ├── gate.ts
 │   │   ├── goal.ts
 │   │   ├── governance-map.ts
