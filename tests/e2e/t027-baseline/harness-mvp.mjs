@@ -258,7 +258,9 @@ async function buildEvidenceV2(result, overrides = {}) {
   const runId = overrides.runId || `${fixture.id.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   // B3 对照（2026-09-04）：sha-c 快照 git_sha 支持——按 worktree 标签解析，
   // 未知标签回退 sha-b（历史行为）。sha-a/sha-b 结果与历史完全一致。
-  const KNOWN_SHA_WORKTREES = ['sha-a', 'sha-b', 'sha-c'];
+  // B4 本地补丁（2026-09-07，未提交）：sha-d 快照 git_sha 支持（镜像 9959688 sha-c 先例；
+  // 2b3c8fa 只更新了 schema/TS，漏此列表——不加则 sha-d evidence 误记 sha-b git_sha）。
+  const KNOWN_SHA_WORKTREES = ['sha-a', 'sha-b', 'sha-c', 'sha-d'];
   const gitSha = KNOWN_SHA_WORKTREES.includes(sha)
     ? await getFullGitSha(sha)
     : await getFullGitSha('sha-b');
@@ -2380,7 +2382,7 @@ async function getFullGitSha(shaLabel) {
     // 修复1：检查 worktree 是否存在
     if (!existsSync(worktreePath)) {
       console.error(`⚠️  Worktree 不存在: ${worktreePath}`);
-      resolvePromise(shaLabel === 'sha-a' ? '45a86e15c896c446a41e48324e646d32c27fb76a' : (shaLabel === 'sha-c' ? '918581e73007c099c7e7002a29b26556a2d21590' : '6383e996caa636db9e704d24f4de7a8a30b3d3ee'));
+      resolvePromise(shaLabel === 'sha-a' ? '45a86e15c896c446a41e48324e646d32c27fb76a' : (shaLabel === 'sha-c' ? '918581e73007c099c7e7002a29b26556a2d21590' : (shaLabel === 'sha-d' ? '2b3c8fa28b1e395af876d6449d4a13e81a213c07' : '6383e996caa636db9e704d24f4de7a8a30b3d3ee')));
       return;
     }
 
@@ -2405,14 +2407,14 @@ async function getFullGitSha(shaLabel) {
         resolvePromise(stdout.trim());
       } else {
         console.error(`⚠️  git rev-parse 失败 (code ${code}): ${stderr}`);
-        resolvePromise(shaLabel === 'sha-a' ? '45a86e15c896c446a41e48324e646d32c27fb76a' : (shaLabel === 'sha-c' ? '918581e73007c099c7e7002a29b26556a2d21590' : '6383e996caa636db9e704d24f4de7a8a30b3d3ee'));
+        resolvePromise(shaLabel === 'sha-a' ? '45a86e15c896c446a41e48324e646d32c27fb76a' : (shaLabel === 'sha-c' ? '918581e73007c099c7e7002a29b26556a2d21590' : (shaLabel === 'sha-d' ? '2b3c8fa28b1e395af876d6449d4a13e81a213c07' : '6383e996caa636db9e704d24f4de7a8a30b3d3ee')));
       }
     });
 
     // 修复4：处理 spawn 错误
     child.on('error', (err) => {
       console.error(`⚠️  git spawn 失败: ${err.message}`);
-      resolvePromise(shaLabel === 'sha-a' ? '45a86e15c896c446a41e48324e646d32c27fb76a' : (shaLabel === 'sha-c' ? '918581e73007c099c7e7002a29b26556a2d21590' : '6383e996caa636db9e704d24f4de7a8a30b3d3ee'));
+      resolvePromise(shaLabel === 'sha-a' ? '45a86e15c896c446a41e48324e646d32c27fb76a' : (shaLabel === 'sha-c' ? '918581e73007c099c7e7002a29b26556a2d21590' : (shaLabel === 'sha-d' ? '2b3c8fa28b1e395af876d6449d4a13e81a213c07' : '6383e996caa636db9e704d24f4de7a8a30b3d3ee')));
     });
   });
 }
