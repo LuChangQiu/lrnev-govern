@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 /**
- * T-027 双 SHA wrapper
+ * T-027 多 SHA wrapper
  *
  * 功能：读取 current-sha.txt 指针，切换到对应 worktree 启动 MCP server
- * SHA A = 45a86e15 (B0 基线)
- * SHA B = 6383e99 (收尾后，不含 Profile)
+ * SHA 演进：sha-a = 45a86e15 (B0 基线)；sha-b = 6383e99 (M2 收尾，无 Profile)；
+ *           sha-c = 918581e (B3 对照快照)；sha-d = 2b3c8fa (B4 发布内容快照)
  *
  * SHA 选择优先级（D4，放量编排）：
- * - 环境变量 T027_SHA=sha-a|sha-b 优先（每 session 锁定，避免共享指针文件竞态）
+ * - 环境变量 T027_SHA=sha-a|sha-b|sha-c|sha-d 优先（每 session 锁定，避免共享指针文件竞态）
  * - 未设 env 时回退读 .claude/t027-worktrees/current-sha.txt（历史行为）
  *
  * 使用：
- * - 切换到 SHA A: echo "sha-a" > .claude/t027-worktrees/current-sha.txt
- * - 切换到 SHA B: echo "sha-b" > .claude/t027-worktrees/current-sha.txt
+ * - 切换到 sha-a: echo "sha-a" > .claude/t027-worktrees/current-sha.txt
+ * - 切换到 sha-d: echo "sha-d" > .claude/t027-worktrees/current-sha.txt
  * - 启动 server: node tests/e2e/t027-baseline/wrapper.mjs
  *
  * 代理录制模式（T-027 Q1-A，环境变量启用，默认关闭）：

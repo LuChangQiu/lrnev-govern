@@ -85,7 +85,7 @@ lrnev-mcp 启动时按「`LRNEV_WORKSPACE` 环境变量 → 进程工作目录�
 }
 ```
 
-误命中时 lrnev 不会沉默：server instructions 与 `lrnev_init` 返回都会警告"工作区根定位到 X（向上查找命中）"，并提示设 `LRNEV_WORKSPACE` 修正。CLI 侧的等价手段是全局参数 `lrnev --workspace <path>`（MCP 工具没有该参数，只认环境变量）。
+误命中时 lrnev 不会沉默：server instructions 与 `lrnev_init` 返回都会警告"工作区根定位到 X（向上查找命中）"，并提示设 `LRNEV_WORKSPACE` 修正。CLI 侧的等价手段是全局参数 `lrnev --workspace <path>`（MCP 工具没有 workspace 全局参数，日常只认环境变量；唯一例外是 `lrnev_init` 的 `root` 参数，可在初始化时显式指定项目根）。
 
 ### CLI 兜底
 
@@ -105,6 +105,8 @@ CLI 与 MCP 共用 core 逻辑；差异只在入口层。
 
 MCP 工具名与 CLI 子命令一一对应（如 `task_create_many` ↔ `lrnev task create-many`）。每个工具的完整自描述以 listTools 返回为准，这里给分组速览：
 
+> **响应形状（双通道）**：每次工具调用同时返回 `content`（按工具渲染的模型可见文本，AI / 人直接读；如 `task_update` / `task_claim` 会把回填的锚点/摘要上下文连同截断状态行投影进文本）和 `structuredContent`（canonical 数据信封：`response_version/ok/data/errors/ai_followup`，必要时带 `anchor_context/summary_context`）。信封字段与 `decision_context` 入参语义的权威描述在根 README「MCP 响应契约（3.0.0，接入方必读）」节，docs 不重复定义；`text_status` / `query_meta` 等截断与省略元数据的治理语义见 [GOVERNANCE-FLOW.md](./GOVERNANCE-FLOW.md)「截断与省略的显式元数据」节。
+
 | 分组 | 工具 |
 |------|------|
 | 入口与手册 | `lrnev_guide`、`lrnev_init`、`lrnev_doctor` |
@@ -120,7 +122,7 @@ MCP 工具名与 CLI 子命令一一对应（如 `task_create_many` ↔ `lrnev t
 
 ## 工具面分层：`--profile core` / `full`
 
-42 个工具服务的消费方不同：`agent_*` 自动面由连接层在会话初始化时自动调用（AI 不该主动选），
+42 个工具服务的消费方不同：`agent_*` 自动面由连接层驱动（连接初始化自动注册、断开自动注销、存活随进程判定——AI 不该主动选），
 `lrnev_hook_*` 配置面由人在配置期使用。lrnev-mcp 支持注册期裁剪（默认 `full`，向后兼容）：
 
 | profile | 工具数 | 说明 |

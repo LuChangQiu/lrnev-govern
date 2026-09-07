@@ -16,7 +16,7 @@ updated: '2026-09-07'
 
 - TypeScript（ESM，Node >= 20）
 - 运行依赖：`@modelcontextprotocol/sdk`（MCP）、`commander`（CLI）、`glob`、`gray-matter`（frontmatter）、`zod`（schema 校验）
-- 开发/测试：`vitest`（1055 测试，unit/integration/e2e）、`tsx`、`tsc`；tests 另有独立类型门禁 `typecheck:test`（tsconfig.test.json）
+- 开发/测试：`vitest`（1079 测试，unit/integration/e2e）、`tsx`、`tsc`；tests 另有独立类型门禁 `typecheck:test`（tsconfig.test.json）
 - 双入口（import dist）：`bin/lrnev.mjs`（CLI）、`bin/lrnev-mcp.mjs`（MCP stdio 服务）；开发入口 `src/mcp/dev-entry.ts`（`dev:mcp`）
 
 ### 模块分层
@@ -95,7 +95,7 @@ updated: '2026-09-07'
 - **Gate 只查结构契约**：不判断 prose 质量；ready/completion gate 章节标题须与中文模板完全一致（契约），FILL 哨兵 / 孤儿 / 坏引用等确定性硬校验自 2.0 起为常态。
 - **多 Agent 存活按进程生命周期惰性判定**：同主机 pid 探活为主、跨主机 last_heartbeat 兜底；无后台线程、无定时心跳要求。
 - **引导有效性取决于送达时刻与动作绑定**：动作点引导（工具描述 / 决策时刻）优先于过程点建议（真机观测 2026-09，scene 04）。
-- **行为变更须有测试**：既有 `.lrnev/` 数据持续可读，变更须覆盖——当前 1055 测试 + `typecheck:test` 门禁。
+- **行为变更须有测试**：既有 `.lrnev/` 数据持续可读，变更须覆盖——当前 1079 测试 + `typecheck:test` 门禁。
 
 ### 外部依赖
 

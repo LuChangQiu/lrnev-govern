@@ -159,6 +159,7 @@ lrnev report                                                                 # 9
 
 - `content[0].text`：**按工具渲染的模型可见文本**（AI / 人直接读）——含角色前缀行（【事实】/【建议】/【决策边界】/【执行约束】/【下一步】等）、截断与修复 hint；未注册回退 JSON。这是辅助阅读通道，格式随版本演进，**不保证可被机器解析**。
 - `structuredContent`：**canonical 数据契约**——`response_version: '1'`、`ok`、`data`、`errors`、`ai_followup`，按场景出现 `anchor_context`（task 启动时回填的验收口径段落）/ `summary_context`（无 validates 时的 Spec 级摘要）。每工具随 `tools/list` 声明自己的 `outputSchema`。
+- **截断元数据显式化（3.0.0，F-04）**：锚点/摘要上下文的截断标记是 `meta: { text_status: 'complete' | 'truncated_by_budget' | 'incomplete_source', original_length?, returned_length }`（预算截断与源残缺语义分离，残缺段落不回填占位噪声）；查询类工具带 `query_meta: { returned_count, total_count, truncated, omitted }`（`context_search` 的 `data.query_meta`、`project_status` 各 Spec 的 `claimable_meta`、`task_create_many` 的 `data.query_meta`），`total_count` 恒可得。文本通道同步投影截断提示（如「命中 N 条，仅返回 M 条」）。字段细节与消费指引见 [docs/GOVERNANCE-FLOW.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/GOVERNANCE-FLOW.md)。
 
 **成功与失败判定**：`ok: true` 才是成功；`ok: false` 的业务拒绝（参数错误、状态机冲突、**歧义引用 AMBIGUOUS_REF**、内部错误）一律 `isError: true`，错误文本按 `[code] message + hint` 渲染。
 
@@ -216,7 +217,7 @@ lrnev doctor --migrate-todos              # 工作区结构自检（含旧 TODO 
 
 仓库里还有一些非用户文档，引用前先认清定位：
 
-- `dev-docs/`：研发内部档案（[dev-docs](https://github.com/LuChangQiu/lrnev-govern/tree/main/dev-docs)：设计讨论、实施观测、复审记录与归档），非用户文档；`ai-discussions/` 为本机讨论区（Agent 三方讨论与复审流水），不上 GitHub。06-00 曾以正式文档发布的 `client-integration-guide` / `mcp-response-conformance` 两稿（内容与 3.0.0 实现不符）经终审裁决退回 dev-docs 档案定位、不作为 3.0.0 用户文档收录——接入方无需另读，语义以本文 §4 与 [AI-ADAPTATION](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/AI-ADAPTATION.md) 为准。
+- `dev-docs/`：研发内部档案（[dev-docs](https://github.com/LuChangQiu/lrnev-govern/tree/main/dev-docs)：设计讨论、实施观测、复审记录与归档），非用户文档。06-00 曾以正式文档发布的 `client-integration-guide` / `mcp-response-conformance` 两稿（内容与 3.0.0 实现不符）经终审裁决退回 dev-docs 档案定位、不作为 3.0.0 用户文档收录——接入方无需另读，语义以本文 §4 与 [AI-ADAPTATION](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/AI-ADAPTATION.md) 为准。
 - `tests/e2e/t027-baseline/`：T-027 三客户端真实观测资产（双 SHA 对照 harness、决策场景与证据库），见 [目录 README](https://github.com/LuChangQiu/lrnev-govern/blob/main/tests/e2e/t027-baseline/README.md)。
 
 ---

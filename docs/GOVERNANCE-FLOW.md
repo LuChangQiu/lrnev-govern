@@ -131,7 +131,7 @@ status 不阻塞 gate。用 `spec_update` 工具按状态机改 Spec 状态(非�
 两个有意为之的口径（v2.3 文档化）：
 
 - **空的 `00-default` 不出现在 scenes 列表**（与治理地图口径一致）——它是惰性兜底 Scene，没有 Spec 时列出只是噪音；`scene_list` 仍会显示它。
-- **`claimable_next` 是预览不是全量**：每个 Spec 最多展示 `project_status.claimable_preview`（默认 5）条，全量数量看 `free_tasks_count`；条目带 `depends_on` 时表示有前置依赖——依赖未完成**不阻断**领取（软提醒哲学），领取与推进时 followup 会点名提醒。
+- **`claimable_next` 是预览不是全量**：每个 Spec 最多展示 `project_status.claimable_preview`（默认 5）条，全量数量看 `free_tasks_count`；条目带 `depends_on` 时表示有前置依赖——依赖未完成**不阻断**领取（软提醒哲学），领取与推进时 followup 会点名提醒。预览与全量的核对关系另有结构化字段：每个 Spec 的 `claimable_meta`（QueryMeta，语义见文末「截断与省略的显式元数据」节）。
 
 ## 治理体检 report（v2.2）
 
@@ -185,7 +185,7 @@ Task 可以带可选的需求 / 设计锚点（validates）：
 
 **锚点体系**：`F-xx` 指 requirements 的功能需求（`#### F-xx` 标题），`D-xx` 指 design 的设计点（`#### D-xx` 标题），两者对称。**validates 只接受这两种格式**，并做存在性硬校验——引用 requirements/design 里不存在的编号会被 `task_create` 拒绝、不落盘（与 depends_on 坏引用同类处理）。lrnev 仍不判断需求/设计写得好不好，只判断“这个编号在不在”。旧式 `design#3.2` 自由写法已废弃（design 里没有稳定章节号，无法确定性校验），会被拒绝并提示改用 `D-xx`。
 
-当 Task 改为 `in_progress`（或经 `task_claim` 领取）时，除文字提醒外还**把验收口径作为结构化字段随返回回填**（v2.1）：带 `validates` 时返回顶层 `anchor_context`——从 requirements/design 抽出对应 `#### F-xx`/`#### D-xx` 段落（按句末/换行边界截断，D-xx 默认首行+标题）；不带 `validates` 时退化为 `summary_context`——spec 级 L0/L1 摘要（**读取契约：sidecar 优先、requirements 内联兜底**）；两者皆无才退回纯文字"回看本 Spec 目标与验收"。followup 始终保留"仍需回看原文"，`task_claim` 同样回填（堵旁路）。
+当 Task 改为 `in_progress`（或经 `task_claim` 领取）时，除文字提醒外还**把验收口径作为结构化字段随返回回填**（v2.1）：带 `validates` 时返回顶层 `anchor_context`——从 requirements/design 抽出对应 `#### F-xx`/`#### D-xx` 段落（按句末/换行边界截断，D-xx 默认首行+标题）；不带 `validates` 时退化为 `summary_context`——spec 级 L0/L1 摘要（**读取契约：sidecar 优先、requirements 内联兜底**）；两者皆无才退回纯文字"回看本 Spec 目标与验收"。followup 始终保留"仍需回看原文"，`task_claim` 同样回填（堵旁路）。回填块自带截断/残缺元数据（`meta.text_status`），且 `task_update` / `task_claim` 的 content 文本会把这些块连同状态行一并投影——语义见下节「截断与省略的显式元数据」。
 
 Task 也可以记录父子关系：
 
@@ -198,3 +198,29 @@ Task 也可以记录父子关系：
 **批量创建（v2.3）**：spec ready 后一次性拆任务清单用 `task_create_many` / CLI `task create-many --from-file`——两阶段原子执行（全量校验通过才单次写入 tasks.md），任一条失败整批不写并一次性返回全部错误明细（index/field/message）；批内依赖用元素级 `key` 临时键（禁 `T-\d+` 格式，落盘时解析为真实 ID），`parent` 仍只接受已存在的真实 Task ID。校验口径与单条 `task_create` 完全一致（同一份代码）；ID 按数组顺序 max+1 连续分配，落盘产物与逐条创建等价，hook `task.create` 逐任务触发。临时补单个任务仍用 `task_create`。
 
 lrnev 不 spawn agent、不调度子任务、不裁决源码文件冲突。它只记录父子状态并保护 `tasks.md`。真正并行执行由客户端负责，而且只有在子任务修改的源码文件不重叠时才值得并行。
+
+## 截断与省略的显式元数据（3.0.0，F-04）
+
+lrnev 返回内容可能因**体积预算**或**源残缺**而"给一部分"——此时显式标注而非静默省略。两类元数据与 `structuredContent` 同源，`content` 文本通道也同步渲染（文本-only 客户端不必解析 JSON 也能收到同等信号）。
+
+### 段落级：`anchor_context[].meta` / `summary_context.meta`
+
+`text_status` 三态（类型见 `src/types/truncation.ts`）：
+
+| `text_status` | 含义 | 客户端处置 |
+|---|---|---|
+| `complete` | 正文完整返回 | 直接使用 |
+| `truncated_by_budget` | 预算截断：源内容完整，但受体积上限省略了尾部 | 只用于快速定向，关键判断前查原文 |
+| `incomplete_source` | 源残缺：锚点/摘要标题在但正文未填（如仍是 `<!-- FILL -->` 占位） | 先去补写 requirements/design；lrnev 不会把占位噪声当正文回填 |
+
+非 `complete` 时附 `original_length`（截断/残缺前原始长度）；三态恒有 `returned_length`（= 实际返回的 `text` 长度）。`task_update(in_progress)` / `task_claim` 的 content 文本会逐块投影「锚点上下文 {anchor}（requirements.md/design.md）+ 正文 + 状态：text_status=…」行，`summary_context` 同理（`Spec 摘要上下文（sidecar/内联）` + L0/L1 + 状态行）。
+
+### 查询级：QueryMeta 四件套
+
+`returned_count`（实际返回条数）/ `total_count`（截断前候选总数，lrnev 先全量收集再截断，**恒可得**）/ `truncated`（是否因预算省略）/ `omitted`（省略详情，只可能是 `{kind:"none"}` 或 `{kind:"exact", count: N}`）。出现位置与消费指引：
+
+- **`context_search` 的 `data.query_meta`**：`total_count` = 全量召回命中数，`returned_count` = 按 `top_k` 截断后的返回数。`truncated: true` 表示还有命中被省略（`omitted.count` 条）——若在意被省略的命中，换更精确的关键词或加 `scope` 缩小范围重试；不要把"只返回 N 条"误读成"只有 N 条命中"。
+- **`project_status` 每个 Spec 的 `claimable_meta`**：`total_count` = 该 Spec 的 `free_tasks_count`（可领任务全量），`returned_count` = `claimable_next` 预览条数。`truncated: true` 表示预览只取了前 `project_status.claimable_preview` 条。
+- **`task_create_many` 的 `data.query_meta`**：核对信息（`created` 条数 = 请求批、`truncated` 恒为 `false`）——批量是原子 all-or-nothing，超 `task.max_batch_create` 在上限处直接报错，不是截断。
+
+> 严格契约边界：这些字段的 canonical 定义与信封（structuredContent）语义以根 README「MCP 响应契约」节为权威，本文件只解释治理语义与消费方式。

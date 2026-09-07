@@ -41,6 +41,7 @@ lrnev-govern/
 │   │   ├── GateGuidance.ts          # gate 通过/失败的 followup 文案（CLI/MCP 共用，v2.1）
 │   │   ├── GateRunner.ts
 │   │   ├── GoalAssessor.ts
+│   │   ├── DetachedHookTracker.ts    # 在飞 async hook 链追踪：进程退出 drain 超时补写 timed_out（ADR-0003）
 │   │   ├── HookLog.ts
 │   │   ├── HookManager.ts
 │   │   ├── HookRunner.ts
@@ -116,6 +117,7 @@ lrnev-govern/
 │   │   ├── summary.ts
 │   │   ├── task.ts
 │   │   ├── templates.ts
+│   │   ├── truncation.ts            # F-04 截断/省略元数据：TextMeta 三态 + QueryMeta 四件套（ADR-0001）
 │   │   └── workspace.ts
 │   │
 │   ├── schemas/                    # JSON Schema 契约文件

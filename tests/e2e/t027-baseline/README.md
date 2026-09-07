@@ -1,19 +1,23 @@
-# T-027 Phase 1 基建文档
+# T-027 对照基建文档
 
 ## 概述
 
-T-027 双 SHA 对照基建，用于验证 guidance 迁移（B0 → M2）的行为等价性。
+T-027 多 SHA 对照基建，用于验证 guidance 迁移（B0 → M2）的行为等价性，并在 B3/B4 阶段扩展为真实客户端真机对照（结构基线 + 真机判定双层）。
 
-**关键时序**：必须在 05-00 Profile 合入前执行，保证 SHA B 不含 Profile 变量。
+**关键时序（历史）**：B0→B2b 结构基线必须在 05-00 Profile 合入前执行，保证 SHA B 不含 Profile 变量；B3/B4 真机对照在 Profile 合入后执行（sha-c/sha-d，不受原时序约束）。
 
 ---
 
-## 双 SHA 定义
+## SHA 定义（演进）
 
 | SHA | 描述 | Commit | 状态 |
 |-----|------|--------|------|
-| **SHA A** | B0 基线 | 45a86e15 | B0-s 结构基线，无 Profile |
-| **SHA B** | 收尾后 | 6383e99 | M2 完成 + 收尾，无 Profile |
+| **sha-a** | B0 基线（v2.3.0 发布点） | 45a86e1 | B0-s 结构基线，无 Profile |
+| **sha-b** | M2 收尾后 | 6383e99 | M2 完成 + 收尾，无 Profile |
+| **sha-c** | B3 对照快照 | 918581e | B3 真实客户端对照（claude/opencode，G1-G4 + 05-00 Profile 后） |
+| **sha-d** | B4 发布内容快照 | 2b3c8fa | B4 真机复测（发布内容定稿，证据契约 2.0.2） |
+
+> sha-a/b 的 B0~B2b 是 fixture 驱动的结构基线（E-01~E-11，无真实 LLM）；B3/B4 是真实客户端对照（判定口径 PASS/5，录制件存 `.evidences/`，PASS 判定与汇总见 `dev-docs/ai-guidance-standardization/deliverables/04-00-final-observation-report.md`「B3/B4 补充观测」节与 `dev-docs/decisions/`）。harness 支持任意 `sha-<tag>` worktree 标签（校验 `/^sha-[a-z]+$/`）。
 
 ---
 

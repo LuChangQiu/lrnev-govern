@@ -176,7 +176,9 @@ console.log(process.env.LRNEV_EVENT, payload.task_id);
 - `stdout_tail`
 - `stderr_tail`
 
-文件达到 10MB 前会自动 rotate，并压缩成 `hook-log.YYYYMMDD.jsonl.gz`。
+**进程退出 drain（3.0.0，ADR-0003）**：async hook 触发瞬间即先落一条 `invoked` 记录作为"已触发"证据；MCP 服务进程退出（stdio 断开 / SIGINT / SIGTERM）时，会等待在飞 async hook 链最多 5 秒——期间完成的照常写终态记录，超时仍未完成的补写 `timed_out` 记录（`exit_code` 省略，进程可能仍在运行），hook 日志不会在退出时静默丢失。
+
+hook 日志大小达到轮转阈值（默认 10MB，可配 `hooks.log_rotate_bytes`）后，下一次写入前会自动 rotate：先把现有内容压缩成 `hook-log.YYYYMMDD.jsonl.gz`（同一天多次轮转追加 `.1` / `.2` 后缀），再清空原文件续写。
 
 读取最近日志：
 
