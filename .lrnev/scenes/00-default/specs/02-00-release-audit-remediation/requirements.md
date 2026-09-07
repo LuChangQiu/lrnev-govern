@@ -101,7 +101,7 @@ v2.3.0 发布前审计整改：三客户端真机 E2E（codex/gpt-5.5、opencode
 
 ### 验收标准
 
-<!-- 审计来源：三客户端真机 E2E 报告（dev-docs/E2E-REPORT-*-V23-2026-07-06.md）+ 全文档对照源码审核（2026-07-06） -->
+<!-- 审计来源：三客户端真机 E2E 报告（dev-docs/archive/E2E-REPORT-*-V23-2026-07-06.md）+ 全文档对照源码审核（2026-07-06） -->
 - [x] guide 与 server instructions 可检索到 v2.1~v2.3 关键工具。
 - [x] 干净目录经 MCP 场景（预存 .lrnev/agents/）init 返回 was_new:true。
 - [x] 6 个零覆盖工具在用户文档各有落点；CONFIG.md 覆盖全部配置组。

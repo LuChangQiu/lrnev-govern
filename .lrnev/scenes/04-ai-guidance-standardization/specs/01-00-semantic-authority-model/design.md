@@ -100,7 +100,7 @@ RESULT: 通过服务端校验则创建；不因 Recommendation 自动改成 task
 
 #### D-06 规范产物与引用
 
-- 规范产物：`dev-docs/ai-guidance-standardization/semantic-authority-model.md`。
+- 规范产物：`dev-docs/ai-guidance-standardization/notes/semantic-authority-model.md`。
 - `v0.1` 稳定锚点：文本角色、三维分析、真实约束、决策来源、案例、兼容边界。
 - 运行时常量、静态 Markdown 和测试可以引用/校验规范，但不能各自成为互相冲突的权威来源。
 - `05-00-lrnev-guidance-profile` 已获建设决策；其最小 Profile `v1` 按本规范实施，新增可选字段是否保留或回退由 `04-00` 的 B3 证据决定。客户端传入的 decision context 只能标为 `client_asserted`，服务端不得输出未经声明的 USER_DECISION。

@@ -28,6 +28,7 @@ lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-stand
 
 - **严格客户端 -32602 输出契约缺陷**（T-027 发现 #3）：frontmatter 全展开泄漏裁剪（Scene/Spec/Memory 白名单化，spec_update 写路径 round-trip 不丢用户键）+ outputSchema/DataSchema 对齐（task_create_many 数组错配、ADR 嵌套 body、6 处 SimpleConfirmation 误用）——opencode 33 错 → 0。
 - **async hook 日志在进程退出时丢失（ADR-0003 落地，2026-09-07 收口窗口补 P0 悬空账）**：async hook 不再裸 fire-and-forget——触发即先写 `invoked` 记录（Q4 先写保证）；进程退出（stdio 断开 / SIGINT / SIGTERM）统一 drain 最多 5s，超时未完成的链补写 `timed_out` 记录（保留触发原事件，与 invoked/终态记录可关联）；`Doctor` 健康统计剔除 invoked 脚手架记录防误报；`lrnev_hook_tail_log` 是排查 hook 的唯一手段，此前用户看不到"被触发但没跑完"的 hook。
+- **task_update/task_claim 锚点上下文对 content-only 客户端不可见（F-03 可见性闭环，2026-09-07 真机验证发现并修复）**：`anchor_context` / `summary_context` 此前只回填在 structuredContent，opencode 真机验证发现只看 content 文本的客户端读不到任务启动上下文，而 ai_followup 指引文案又指向它——悬空提示。修复：task_update(in_progress)/task_claim 两入口的 ModelVisibleContract 渲染器把 envelope 顶层锚点/摘要上下文一并投影进 `content[0].text`（正文 + F-04.1 截断状态标注，与结构化字段同源同格式）。
 - 渲染器输出 undefined（`data.scene`/`data.task_id` → `data.id`）。
 - `dev:mcp`/`dev:inspect` 脚本实际无法启动 MCP 服务。
 - CLI 两处 JSON.parse 裸抛误归 INTERNAL_ERROR（改 INVALID_INPUT）。
@@ -35,7 +36,7 @@ lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-stand
 
 ### Tests
 
-- 全量 **1076 条全绿**（81 文件；3.0.0 前夜 09-04 为 1051，其后文档守护、转义回归、guide profile 自适应、收口引导增至 1062，再补 F-04 截断元数据与 hook drain 语义断言 +14）。新增覆盖：输出契约严格镜像（data-output-contract）、错误路径转义、--profile 42/33 集合差、归档边界语义（G5）、decision_context 负向校验、E-06 v2 判定（真实续接双轮）、F-04.1 三态（incomplete_source 残缺段/truncated_by_budget 聚合/长度一致性）、F-04.2 query_meta（截断 exact 省略/未截断 none/archived 0/0）、hook quiescence 六用例（invoked 先写 / drain 等待 / drain 超时补写 timed_out / 幂等）。
+- 全量 **1079 条全绿**（81 文件；3.0.0 前夜 09-04 为 1051，其后文档守护、转义回归、guide profile 自适应、收口引导增至 1062，再补 F-04 截断元数据与 hook drain 语义断言 +14（至 1076），收口窗口最后补渲染器投影闭环用例 +3）。新增覆盖：输出契约严格镜像（data-output-contract）、错误路径转义、--profile 42/33 集合差、归档边界语义（G5）、decision_context 负向校验、E-06 v2 判定（真实续接双轮）、F-04.1 三态（incomplete_source 残缺段/truncated_by_budget 聚合/长度一致性）、F-04.2 query_meta（截断 exact 省略/未截断 none/archived 0/0）、hook quiescence 六用例（invoked 先写 / drain 等待 / drain 超时补写 timed_out / 幂等）、task_update/task_claim 渲染器锚点上下文投影（F-03 content-only 客户端可见性）。
 
 ### 升级指南
 
@@ -59,7 +60,7 @@ lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-stand
 
 ### Changed
 
-- **发布前审计整改（三客户端盲测 + 全文档对照源码审核，2026-07-06）**：用 codex(gpt-5.5)、opencode(deepseek-v4-pro)、claude-sonnet-4-6 在干净真实项目上只靠 lrnev 自带引导盲测全流程（报告见 `dev-docs/E2E-REPORT-*-V23-2026-07-06.md`；v2.3 新特性全部真机验证通过，三家均自主发现并选用 `task_create_many`），收敛整改：
+- **发布前审计整改（三客户端盲测 + 全文档对照源码审核，2026-07-06）**：用 codex(gpt-5.5)、opencode(deepseek-v4-pro)、claude-sonnet-4-6 在干净真实项目上只靠 lrnev 自带引导盲测全流程（报告见 `dev-docs/archive/E2E-REPORT-*-V23-2026-07-06.md`；v2.3 新特性全部真机验证通过，三家均自主发现并选用 `task_create_many`），收敛整改：
   - **`was_new` 判定改为 PROJECT.md 存在性**（README 既定的"已初始化"标记）——修复 MCP 连接自动注册预建 `.lrnev/agents/` 导致经 MCP 调 init 永远返回 `was_new:false` 的失真（三家模型均困惑）。
   - **guide 与 server instructions 同步 v2.1~v2.3**：`lrnev_guide` 与连接注入的工作流概览此前停在 v2.0 之前，补齐 `task_create_many` / `governance_map` / `lrnev_report` / `spec_update` / `assess_goal`（instructions 预算护栏 480→600，内容准确性优先于凑字数）。
   - **引导前置化**：spec_create followup 加"章节标题勿翻译/改名（模板契约）"警示（codex 实撞后才知）；ready gate 通过 followup 加无条件"先把 design.md 的 FILL 填完（completion 会硬拦）"（两家都到 completion 才发现）；assess_goal 判 multi-spec 时给出"用户已明确单特性可按 single-spec 继续"的 override 指引；`agent_register` 描述补 gc 字段语义；`task_create` 描述提示多条请用批量工具。

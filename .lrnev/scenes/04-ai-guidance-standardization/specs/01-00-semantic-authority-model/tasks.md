@@ -15,7 +15,7 @@ created: '2026-08-26'
 ### T-001 编写语义权威模型 v0.1 规范 <!-- lrnev-task: status=completed, created=2026-08-27T07:53:07.252Z, updated=2026-08-27T09:44:54.432Z, validates=F-01|F-02|F-03|D-01|D-02|D-03|D-06 -->
 <!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-08-27T09:18:55.747Z","reason":"开始编写并冻结 v0.1 语义权威模型文档。"},{"from":"in_progress","to":"completed","at":"2026-08-27T09:44:54.432Z","reason":"语义权威模型 v0.1 文档与对应静态契约测试已完成；定向测试 4/4 通过，UTF-8 无 BOM 二轮校验通过。"}] -->
 
-在 dev-docs/ai-guidance-standardization/semantic-authority-model.md 发布唯一权威规范，完整定义 FACT、RECOMMENDATION、DECISION_BOUNDARY、EXECUTION_CONSTRAINT、ACTION_HINT 的责任主体、允许语气、正反例和兼容边界；同时说明 provenance/role/enforcement 仅为评审框架、不得引入通用三维必填字段或数字 priority，并明确 USER_DECISION 只能来自用户/客户端声明。
+在 dev-docs/ai-guidance-standardization/notes/semantic-authority-model.md 发布唯一权威规范，完整定义 FACT、RECOMMENDATION、DECISION_BOUNDARY、EXECUTION_CONSTRAINT、ACTION_HINT 的责任主体、允许语气、正反例和兼容边界；同时说明 provenance/role/enforcement 仅为评审框架、不得引入通用三维必填字段或数字 priority，并明确 USER_DECISION 只能来自用户/客户端声明。
 
 **验收**：
 - 文档包含五种角色、三维分析、决策来源边界、适用范围、稳定章节锚点、兼容原则和未决问题。
@@ -47,7 +47,7 @@ created: '2026-08-26'
 ### T-004 冻结 v0.1 并完成规范发布验收 <!-- lrnev-task: status=completed, created=2026-08-27T07:53:07.252Z, updated=2026-08-28T04:18:25.332Z, depends_on=T-001|T-002|T-003, validates=F-06|D-06|D-07 -->
 <!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-08-28T04:14:35.793Z"},{"from":"in_progress","to":"completed","at":"2026-08-28T04:18:25.332Z","reason":"v0.1 freeze completed: 全部 6 项需求追溯完成、47 条约束核验、5 类案例验证、20 个测试通过、无第二权威来源冲突、兼容 AiFollowup.instructions、明确排除三项未实现内容"}] -->
 
-审查 semantic-authority-model.md 与源码核验、案例/静态检查的输出，确认 v0.1 最小五项边界完整后冻结版本；记录后续扩展只能通过版本演进且运行时常量、文案和测试不得形成相互冲突的第二权威来源。
+审查 dev-docs/ai-guidance-standardization/notes/semantic-authority-model.md 与源码核验、案例/静态检查的输出，确认 v0.1 最小五项边界完整后冻结版本；记录后续扩展只能通过版本演进且运行时常量、文案和测试不得形成相互冲突的第二权威来源。
 
 **验收**：
 - F-01 至 F-06 的交付物和证据可从规范或测试结果追溯。

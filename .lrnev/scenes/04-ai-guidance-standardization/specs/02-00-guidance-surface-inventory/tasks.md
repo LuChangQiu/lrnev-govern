@@ -30,7 +30,7 @@ created: '2026-08-26'
 **验收**：
 - 每个条目均有精确路径、符号/字段、触发条件、消费者和生命周期，不按文件名猜测覆盖。
 - resources 的 description、URI、实际内容及自动注入声明均被记录；result 和错误传输层无漏项。
-- 输出人工可审阅的 guidance-surface-inventory-v2.md（同目录 v2.json 为机器可读版）。
+- 输出人工可审阅的 dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v2.md（同目录机器可读版：dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v2.json）。
 
 **依赖**：T-001
 
@@ -59,7 +59,7 @@ created: '2026-08-26'
 **依赖**：T-002, T-003
 
 ### T-005 冻结迁移前 Surface 基线并验证归属边界 <!-- lrnev-task: status=completed, created=2026-08-27T07:55:01.162Z, updated=2026-08-31T02:14:18.776Z, depends_on=T-001|T-002|T-003|T-004, validates=F-01|F-02|F-03|F-04|F-05|F-06|F-07|D-05|D-06 -->
-<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-08-31T02:01:59.028Z"},{"from":"in_progress","to":"completed","at":"2026-08-31T02:14:18.776Z","reason":"冻结迁移前 Surface 基线并验证归属边界完成。证据链验证完整（T-001~T-004 产物齐全），归属边界清晰（02/04/05/06 职责不越界），双机 hash 标准化（LF 归一化），17 个 mcp_resource 人工核对完成（14 Pass + 3 Minor，0 Fail），不可变基线已发布（BASELINE-FREEZE-v2.0.md）。F-01~F-07 全部达成，验收通过。"}] -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-08-31T02:01:59.028Z"},{"from":"in_progress","to":"completed","at":"2026-08-31T02:14:18.776Z","reason":"冻结迁移前 Surface 基线并验证归属边界完成。证据链验证完整（T-001~T-004 产物齐全），归属边界清晰（02/04/05/06 职责不越界），双机 hash 标准化（LF 归一化），17 个 mcp_resource 人工核对完成（14 Pass + 3 Minor，0 Fail），不可变基线已发布（dev-docs/ai-guidance-standardization/evidence/baseline-freeze-v2.0.md）。F-01~F-07 全部达成，验收通过。"}] -->
 
 复核运行扫描器、全量清单、人工语义标注和基线报告，将变更前基线作为不可变对照发布；确认静态 capability 仅登记，04 以 surface_id/hash 记录运行时证据，05/06 只引用 04 的结论。
 

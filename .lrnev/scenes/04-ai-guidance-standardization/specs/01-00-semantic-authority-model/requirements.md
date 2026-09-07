@@ -75,7 +75,7 @@ updated: '2026-09-07'
 
 #### F-06 v0.1 产物与冻结条件
 
-- 验收：规范产物固定为 `dev-docs/ai-guidance-standardization/semantic-authority-model.md`，包含版本、适用范围、稳定章节锚点、兼容原则和未决问题；五项最小边界完成后冻结 `v0.1`，运行时常量和文案引用规范而不成为新的架构真相源。
+- 验收：规范产物固定为 `dev-docs/ai-guidance-standardization/notes/semantic-authority-model.md`，包含版本、适用范围、稳定章节锚点、兼容原则和未决问题；五项最小边界完成后冻结 `v0.1`，运行时常量和文案引用规范而不成为新的架构真相源。
 
 ### 非功能性需求
 
@@ -90,5 +90,5 @@ updated: '2026-09-07'
 - [ ] 服务端不得生成 USER_DECISION 的边界明确。
 - [ ] 真实 Constraint 清单经过源码逐项核验。
 - [ ] 五类案例有客户端、服务端和可观察结果。
-- [ ] `semantic-authority-model.md` 达到 `v0.1` 冻结条件。
+- [ ] `dev-docs/ai-guidance-standardization/notes/semantic-authority-model.md` 达到 `v0.1` 冻结条件。
 - [ ] 未引入通用三维字段、数字 priority 或未经证据支持的协议扩展。

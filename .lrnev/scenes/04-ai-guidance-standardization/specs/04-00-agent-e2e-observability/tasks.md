@@ -662,7 +662,7 @@ created: '2026-08-31'
 **依赖**：T-012, T-013
 
 ### T-015 生成 B0 证据清单 <!-- lrnev-task: status=completed, created=2026-08-31T03:04:50.843Z, updated=2026-09-01T02:26:30.442Z, depends_on=T-014, validates=F-04 -->
-<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-01T02:25:25.075Z","reason":"B0 证据清单已生成：dev-docs/ai-guidance-standardization/b0-evidence-manifest.json（546 行，12 条证据 = E-01~E-11 含 E-06a/E-06b），每条含完整 24 字段 + c_class_basis 逐字段标注来源（推断值/测试专用值/服务端不可采）"},{"from":"in_progress","to":"completed","at":"2026-09-01T02:26:30.442Z","reason":"B0-s 证据清单完成：546 行、12 条证据（E-01~E-11 含 E-06a/E-06b），24 字段齐全 + c_class_basis 逐字段标注来源。黑名单标记项：实测 is_blacklist_phrase 全为 false，已核实触及的 2 个 surface（workflow_overview、spec_update:description）原文确无强制语言，是真实结果非漏检；但仅覆盖 2/346，不构成\"346 surface 无黑名单\"的结论，全量黑名单扫描归 02-00 scan-high-risk-wording.ts 职责"}] -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-01T02:25:25.075Z","reason":"B0 证据清单已生成：dev-docs/ai-guidance-standardization/evidence/b0-evidence-manifest.json（546 行，12 条证据 = E-01~E-11 含 E-06a/E-06b），每条含完整 24 字段 + c_class_basis 逐字段标注来源（推断值/测试专用值/服务端不可采）"},{"from":"in_progress","to":"completed","at":"2026-09-01T02:26:30.442Z","reason":"B0-s 证据清单完成：546 行、12 条证据（E-01~E-11 含 E-06a/E-06b），24 字段齐全 + c_class_basis 逐字段标注来源。黑名单标记项：实测 is_blacklist_phrase 全为 false，已核实触及的 2 个 surface（workflow_overview、spec_update:description）原文确无强制语言，是真实结果非漏检；但仅覆盖 2/346，不构成\"346 surface 无黑名单\"的结论，全量黑名单扫描归 02-00 scan-high-risk-wording.ts 职责"}] -->
 
 从 B0 采集数据生成证据清单 JSON。
 
@@ -674,7 +674,7 @@ created: '2026-08-31'
 **依赖**：T-014
 
 ### T-016 对照 02-00 冻结基线 <!-- lrnev-task: status=completed, created=2026-08-31T03:04:50.843Z, updated=2026-09-01T02:27:00.110Z, depends_on=T-015, validates=F-05 -->
-<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-01T02:25:27.682Z","reason":"已对照 02-00 冻结基线（guidance-surface-inventory-v2.json，346 surfaces）：2 个 surface_id 全部存在于基线、无孤儿 ID；覆盖率 2/346（0.58%）；零消费按 channel 统计完整（input_schema 121/121、governance_doc 76/76、tool_annotations 42/42、mcp_resource 17/17、ai_followup 5/5、tool_metadata 83/84）"},{"from":"in_progress","to":"completed","at":"2026-09-01T02:27:00.110Z","reason":"已对照 02-00 冻结基线（346 surfaces）：2 个 surface_id 全部存在、无孤儿 ID；覆盖率 2/346 (0.58%)；零消费按 channel 完整统计（input_schema 121/121、governance_doc 76/76、annotations 42/42、mcp_resource 17/17、ai_followup 5/5、tool_metadata 83/84、server_instructions 0/1）。高频排名：workflow_overview ×11、spec_update:description ×1。黑名单清单本轮为空且已核实是真实结果（2 个 surface 原文无强制语言），但不代表 346 全量结论"}] -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-01T02:25:27.682Z","reason":"已对照 02-00 冻结基线（dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v2.json，346 surfaces）：2 个 surface_id 全部存在于基线、无孤儿 ID；覆盖率 2/346（0.58%）；零消费按 channel 统计完整（input_schema 121/121、governance_doc 76/76、tool_annotations 42/42、mcp_resource 17/17、ai_followup 5/5、tool_metadata 83/84）"},{"from":"in_progress","to":"completed","at":"2026-09-01T02:27:00.110Z","reason":"已对照 02-00 冻结基线（346 surfaces）：2 个 surface_id 全部存在、无孤儿 ID；覆盖率 2/346 (0.58%)；零消费按 channel 完整统计（input_schema 121/121、governance_doc 76/76、annotations 42/42、mcp_resource 17/17、ai_followup 5/5、tool_metadata 83/84、server_instructions 0/1）。高频排名：workflow_overview ×11、spec_update:description ×1。黑名单清单本轮为空且已核实是真实结果（2 个 surface 原文无强制语言），但不代表 346 全量结论"}] -->
 
 对照 02-00 冻结基线（346 surfaces），识别零消费/低消费 surfaces。
 
@@ -713,7 +713,7 @@ created: '2026-08-31'
 **依赖**：T-017
 
 ### T-019 生成 B1 证据清单 <!-- lrnev-task: status=completed, created=2026-08-31T03:04:50.843Z, updated=2026-09-01T09:05:28.379Z, depends_on=T-018, validates=F-06 -->
-<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-01T09:05:13.015Z"},{"from":"in_progress","to":"completed","at":"2026-09-01T09:05:28.379Z","reason":"B1 证据清单已生成（dev-docs/ai-guidance-standardization/b1-evidence-manifest.json，558 行，12 条证据）。验收：格式与 B0-s 一致（24 字段结构）、补充 content_hash_legacy 字段（12/12 与 B0-s content_hash 一致，证明原文未动）、baseline_ref=\"08-00 五角色迁移后\"、git_sha=45a86e15。可直接与 B0-s 对比"}] -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-01T09:05:13.015Z"},{"from":"in_progress","to":"completed","at":"2026-09-01T09:05:28.379Z","reason":"B1 证据清单已生成（dev-docs/ai-guidance-standardization/evidence/b1-evidence-manifest.json，558 行，12 条证据）。验收：格式与 B0-s 一致（24 字段结构）、补充 content_hash_legacy 字段（12/12 与 B0-s content_hash 一致，证明原文未动）、baseline_ref=\"08-00 五角色迁移后\"、git_sha=45a86e15。可直接与 B0-s 对比"}] -->
 
 从 B1 采集数据生成证据清单 JSON。
 
@@ -749,7 +749,7 @@ created: '2026-08-31'
 **依赖**：T-020
 
 ### T-022 生成 B2a 证据清单 <!-- lrnev-task: status=completed, created=2026-08-31T03:04:50.843Z, updated=2026-09-01T09:51:08.276Z, depends_on=T-021, validates=F-06 -->
-<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-01T09:50:54.620Z"},{"from":"in_progress","to":"completed","at":"2026-09-01T09:51:08.276Z","reason":"B2a 证据清单已生成（dev-docs/ai-guidance-standardization/b2a-evidence-manifest.json，12 条证据，582 行）。格式与 B0/B1 一致（24 字段结构 + content_hash_legacy），新增 B2a 专属字段（structured_content_present/content_channel）。manifest note 含诚实性声明（代码路径推断值，非真实客户端观测，真实验证归 T-027）。已入库 fd4fffd"}] -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-01T09:50:54.620Z"},{"from":"in_progress","to":"completed","at":"2026-09-01T09:51:08.276Z","reason":"B2a 证据清单已生成（dev-docs/ai-guidance-standardization/evidence/b2a-evidence-manifest.json，12 条证据，582 行）。格式与 B0/B1 一致（24 字段结构 + content_hash_legacy），新增 B2a 专属字段（structured_content_present/content_channel）。manifest note 含诚实性声明（代码路径推断值，非真实客户端观测，真实验证归 T-027）。已入库 fd4fffd"}] -->
 
 从 B2a 采集数据生成证据清单。
 
@@ -759,7 +759,7 @@ created: '2026-08-31'
 **依赖**：T-021
 
 ### T-023 运行 B2b 测试套件 <!-- lrnev-task: status=completed, created=2026-08-31T03:04:50.843Z, updated=2026-09-02T05:55:29.502Z, depends_on=T-020, validates=F-06 -->
-<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-01T09:51:18.445Z"},{"from":"in_progress","to":"blocked","at":"2026-09-01T09:52:01.188Z","reason":"B2b 需等待 03-00 M2（结构重构）完成。当前 M1 已合入（131e6f3），M2 尚未开始。B2a 阶段已完成（T-021/T-022 + B2a vs B1 对照验证通过），下一步应进入 T-027（B0' 双 SHA 对照，真实客户端）而非 B2b"},{"from":"blocked","to":"in_progress","at":"2026-09-02T05:54:19.885Z","reason":"M2 已完成（T-004/T-005/T-006 completed，42/42 渲染器，869/869 测试通过），解除阻塞开始 B2b 测试套件"},{"from":"in_progress","to":"completed","at":"2026-09-02T05:55:29.502Z","reason":"B2b 测试套件运行完成：12/12 测试文件通过、43/43 测试通过、12 条证据生成（b2b-evidence-manifest.json git_sha=69b3da0）、证据格式符合 B0-pre 契约。提交 277a069"}] -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-01T09:51:18.445Z"},{"from":"in_progress","to":"blocked","at":"2026-09-01T09:52:01.188Z","reason":"B2b 需等待 03-00 M2（结构重构）完成。当前 M1 已合入（131e6f3），M2 尚未开始。B2a 阶段已完成（T-021/T-022 + B2a vs B1 对照验证通过），下一步应进入 T-027（B0' 双 SHA 对照，真实客户端）而非 B2b"},{"from":"blocked","to":"in_progress","at":"2026-09-02T05:54:19.885Z","reason":"M2 已完成（T-004/T-005/T-006 completed，42/42 渲染器，869/869 测试通过），解除阻塞开始 B2b 测试套件"},{"from":"in_progress","to":"completed","at":"2026-09-02T05:55:29.502Z","reason":"B2b 测试套件运行完成：12/12 测试文件通过、43/43 测试通过、12 条证据生成（dev-docs/ai-guidance-standardization/evidence/b2b-evidence-manifest.json git_sha=69b3da0）、证据格式符合 B0-pre 契约。提交 277a069"}] -->
 
 运行 **03-00 Milestone M2**（结构重构）完成后的测试套件。
 
@@ -772,7 +772,7 @@ created: '2026-08-31'
 **依赖**：T-020
 
 ### T-024 生成 B2b 证据清单 <!-- lrnev-task: status=completed, created=2026-08-31T03:04:50.843Z, updated=2026-09-02T05:57:32.367Z, depends_on=T-023, validates=F-06 -->
-<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-02T05:57:29.105Z","reason":"开始验证 B2b 证据清单格式"},{"from":"in_progress","to":"completed","at":"2026-09-02T05:57:32.367Z","reason":"B2b 证据清单已生成（T-023 运行 --stage=B2b 时产出）。格式验证通过：与 B0/B1/B2a 清单结构一致（spec/stage/baseline_ref/git_sha/evidences 等字段完整），12 条证据（scenario_id E-01~E-11 + E-06a/E-06b），文件 dev-docs/ai-guidance-standardization/b2b-evidence-manifest.json 已落库（提交 277a069）"}] -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-02T05:57:29.105Z","reason":"开始验证 B2b 证据清单格式"},{"from":"in_progress","to":"completed","at":"2026-09-02T05:57:32.367Z","reason":"B2b 证据清单已生成（T-023 运行 --stage=B2b 时产出）。格式验证通过：与 B0/B1/B2a 清单结构一致（spec/stage/baseline_ref/git_sha/evidences 等字段完整），12 条证据（scenario_id E-01~E-11 + E-06a/E-06b），文件 dev-docs/ai-guidance-standardization/evidence/b2b-evidence-manifest.json 已落库（提交 277a069）"}] -->
 
 从 B2b 采集数据生成证据清单。
 
@@ -793,7 +793,7 @@ created: '2026-08-31'
 **依赖**：T-022, T-024
 
 ### T-026 输出最终观测报告 <!-- lrnev-task: status=completed, created=2026-08-31T03:04:50.843Z, updated=2026-09-02T06:09:50.672Z, depends_on=T-025, validates=F-06 -->
-<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-02T06:07:34.579Z","reason":"开始输出 04-00 最终观测报告"},{"from":"in_progress","to":"completed","at":"2026-09-02T06:09:50.672Z","reason":"T-026 完成（提交 66660d0）。产出：04-00-最终观测报告.md（324 行），覆盖 B0-s → B1 → B2a → B2b 全链。验收达成：① 最终报告包含四阶段（B3 待 05-00）；② 归属边界声明（04 只观测，证据引用契约 F-06）。核心结论：行为等价性 12/12 保持 ✅、内容演变符合预期 ✅、消费率稳定 91.7% ✅、03-00 迁移成功 ✅。遗留项：T-027（真实客户端）+ 收尾工作（renderers 拆分等）"}] -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-02T06:07:34.579Z","reason":"开始输出 04-00 最终观测报告"},{"from":"in_progress","to":"completed","at":"2026-09-02T06:09:50.672Z","reason":"T-026 完成（提交 66660d0）。产出：dev-docs/ai-guidance-standardization/deliverables/04-00-final-observation-report.md（324 行），覆盖 B0-s → B1 → B2a → B2b 全链。验收达成：① 最终报告包含四阶段（B3 待 05-00）；② 归属边界声明（04 只观测，证据引用契约 F-06）。核心结论：行为等价性 12/12 保持 ✅、内容演变符合预期 ✅、消费率稳定 91.7% ✅、03-00 迁移成功 ✅。遗留项：T-027（真实客户端）+ 收尾工作（renderers 拆分等）"}] -->
 
 输出 04-00 最终观测报告：零消费 surfaces + 高频 surfaces + 等价性验证。
 

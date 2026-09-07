@@ -71,7 +71,7 @@ created: '2026-08-26'
 **依赖**：T-004
 
 ### T-006 验证 M2 内容契约、按工具回退与 B2b 对照 <!-- lrnev-task: status=completed, created=2026-08-27T07:58:03.188Z, updated=2026-09-02T05:41:00.067Z, depends_on=T-003|T-004|T-005, validates=F-03|F-04|F-05|F-06|F-07|F-08|F-09|D-04|D-05|D-06|D-07|D-08 -->
-<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-02T05:40:58.352Z","reason":"开始落库：M2 验证实质已完成"},{"from":"in_progress","to":"completed","at":"2026-09-02T05:41:00.067Z","reason":"M2 验证完成：855+14=869 测试基线（867/869 通过，2 失败待定位），B2b 证据完整（dev-docs/ai-guidance-standardization/b2b-evidence-manifest.json git_sha=f4511b9），按工具回退路径已测试，协议契约全量验证通过。DeepSeek M2 第4批及收口复审通过 2026-09-02"}] -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-02T05:40:58.352Z","reason":"开始落库：M2 验证实质已完成"},{"from":"in_progress","to":"completed","at":"2026-09-02T05:41:00.067Z","reason":"M2 验证完成：855+14=869 测试基线（867/869 通过，2 失败待定位），B2b 证据完整（dev-docs/ai-guidance-standardization/evidence/b2b-evidence-manifest.json git_sha=f4511b9），按工具回退路径已测试，协议契约全量验证通过。DeepSeek M2 第4批及收口复审通过 2026-09-02"}] -->
 
 对所有工具类别执行 content contract/快照、schema、分页/截断、错误/降级和协议版本全量验证，并交由 04-00 的 B2b 对照测量 renderer 切换前后模型可见文本与行为。若触发退化门禁，只回退受影响工具至 M1 renderer，记录丢失/误读字段和复测结论。
 
