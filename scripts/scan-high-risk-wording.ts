@@ -77,7 +77,7 @@ interface Duplicate {
 // ========== Configuration ==========
 
 const INVENTORY_PATH = path.resolve(__dirname, '../dev-docs/ai-guidance-standardization/guidance-surface-inventory-v2.json');
-const OUTPUT_PATH = path.resolve(__dirname, '../dev-docs/ai-guidance-standardization/baseline-report.md');
+const OUTPUT_PATH = path.resolve(__dirname, '../dev-docs/archive/baseline-report.md');
 
 // Patterns for force language (runtime constraints, not requirement contracts)
 const FORCE_PATTERNS = [
