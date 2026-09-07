@@ -34,7 +34,7 @@ lrnev --help
 ## 二、协议接入层（最关键，单测测不到）
 
 - [ ] **握手**：client 连上 `lrnev-mcp` stdio，不报错、不超时。
-- [ ] **工具发现**：`listTools` 返回 **42 个**工具（v2.3；含 `task_create_many`、`governance_map`、`lrnev_report`、`spec_update`）。
+- [ ] **工具发现**：`listTools` 返回 **42 个**工具（v2.3/3.0.0 工具集均 42、无删改；含 `task_create_many`、`governance_map`、`lrnev_report`、`spec_update`；3.0.0 起 `--profile core` 时只注册 33 个，见"六、v3.0.0 新增验证面"）。
 - [ ] **adr_suggest 已删**：列表里**没有** `adr_suggest`、也没有 `lock_acquire/lock_release/lock_list`。
 - [ ] **新工具在**：`lrnev_hook_tail_log` 在列表里。
 - [ ] **描述渲染**：每个工具 description 可见且含"何时用"。
@@ -63,7 +63,7 @@ lrnev --help
 
 > v2.1~v2.3 新增验证面（真机走查时重点）：`anchor_context`/`summary_context` 任务启动回填（task_update/task_claim 两入口）、需求审核门（ready 通过后的"请暂停"+ 无条件填 design 提示）、BM25 排序与锚点抽段、治理地图、`lrnev report` 治理债口径、register 机会式 GC（`data.gc` 字段）、`task_create_many` 原子批量与错误明细、`was_new` 以 PROJECT.md 判定。v2.3 三客户端盲测报告见 `E2E-REPORT-*-V23-2026-07-06.md`。
 
-## 四、各能力域逐项（42 工具全覆盖，v2.3）
+## 四、各能力域逐项（42 工具全覆盖，v2.3/3.0.0 工具集一致）
 
 | 域 | 工具 | 看什么 |
 |----|------|--------|
@@ -99,7 +99,7 @@ lrnev --help
 
 ---
 
-## 五、重点：08/09 新行为（刚加的，务必真机验）
+## 五、重点：08/09 新行为（v2.1~v2.3 期引入；此后各版发版前回归面）
 
 - [ ] **scene_create 拆分标尺**：传含"以及/同时/多个/端到端"的 `intent` → followup 出现三条标尺(独立验收 / 共享验收标准 / 需否调研) + **multi 辅助信号** + 建议 `assess_goal`。
 - [ ] 传单一特性 `intent` → single 信号，但**三条标尺仍在**。
@@ -112,7 +112,19 @@ lrnev --help
 
 ---
 
-## 六、边界与错误处理（自救体验）
+## 六、v3.0.0 新增验证面（scene04 标准化战役，2026-09-07 3.0.0 语境）
+
+> 3.0.0 破坏性变更：`content[0].text` 不再是 JSON（机器数据改读 `structuredContent`）。以下清单项为 dev-docs 终审（2026-09-07）测试清单，发版前真机走查重点；对应回归见"十二、CI 可自动化的测试"的测试规模与 CHANGELOG 3.0.0 Tests 节。
+
+- [ ] **双通道 MVC 文本**：每次工具调用 `content[0].text`（逐工具 ModelVisibleContract 渲染文本，含角色前缀行）与 `structuredContent`（canonical 信封 `response_version:'1'`/`ok`/`data`/`errors`/`ai_followup`）内容一致；`tools/list` 全工具带 `outputSchema`；曾 `JSON.parse(content[0].text)` 的接入方迁到 `structuredContent` 后行为不变。
+- [ ] **isError 统一**：`ok:false` 业务拒绝（参数错误、状态机冲突、歧义引用 AMBIGUOUS_REF、内部错误）一律 `isError:true`——AMBIGUOUS_REF 不再被客户端误判成功。
+- [ ] **错误路径统一转义**（D-04.1 防注入契约）：错误 message/hint 含用户可控文本时经统一转义出口（错误路径不再绕过转义）。
+- [ ] **decision_context 负向校验**：`scene_create`/`spec_create`/`task_create`/`assess_goal` 传 `decision_context`——`explicit`/`preferred` 缺 `direction` 或 `unspecified` 带 `direction` → `INVALID_INPUT` 拒绝，模型据错误自纠后成功；不传 = 未声明，行为与旧版一致；不落盘、不阻断。
+- [ ] **`--profile core|full` 集合差**：默认 `full` 注册 42 工具（与 2.3.0 一致）；`core` 注册 33 = `full` − `agent_*` 自动面 4 + `lrnev_hook_*` 配置面 5 共 9 个"AI 不该主动选"工具；`tools/list` 断言两档集合差恰为这 9 个；`core` 下对应工具不可调、其余行为不受影响。
+- [ ] **spec_get 分层引导 + 归档边界**：未完成 Spec 的 `spec_get` 给"开发/扩展请求先 `task_create` 登记"【决策边界】引导；archived 为终态、只由用户决定——用户改主意不构成自动归档依据（G5 归档边界，B4 真机验证归档率 4/5→0/5）。
+- [ ] **工具描述档位标记**：工具 description 带 `[核心]/[自动]/[配置]` 档位标记，与 `--profile` 分层一致（模型可判断"该不该主动选"）。
+
+## 七、边界与错误处理（自救体验）
 
 - [ ] **ready gate 未过**：checks 含 name/message/**hint**，AI 能照 hint 修。
 - [ ] **非法状态跃迁**(pending 直接 completed) → `INVALID_STATUS_TRANSITION` + 可读 hint。
@@ -122,7 +134,7 @@ lrnev --help
 
 ---
 
-## 七、真实环境特性（单测 mock 不了）
+## 八、真实环境特性（单测 mock 不了）
 
 - [ ] **真实项目 init**：在有真实 `package.json`/`go.mod` 的项目里 init → AutoAnalyzer 探到技术栈、预填 ARCHITECTURE。
 - [ ] **BOM/编码**：Windows 下 init 真实文件 → 不再解析失败(本轮已修)。
@@ -132,16 +144,16 @@ lrnev --help
 
 ---
 
-## 八、体验层（AI 视角，最能暴露问题）
+## 九、体验层（AI 视角，最能暴露问题）（v2.1~v2.3 期累积；3.0.0 回归面——常驻提示模板自 3.0.0 起单源化于 docs/AI-ADAPTATION.md，含 --profile A/B 两版）
 
 - [ ] **ai_followup 真驱动**：写工具返回后，AI 是否**真按 followup 的下一步走**(而非空转/乱来)。
 - [ ] **接手连贯**：新会话只调 `project_status` 能接着干。
-- [ ] **长对话不忘**：贴了常驻提示模板(见 AI-ADAPTATION)后，压缩多轮 AI 仍记得用 lrnev。
+- [ ] **长对话不忘**：贴了常驻提示模板（docs/AI-ADAPTATION.md，3.0.0 起单源）后，压缩多轮 AI 仍记得用 lrnev。
 - [ ] **不确定时**：AI 卡住调 `lrnev_guide` 能否自救。
 
 ---
 
-## 九、多模型验证矩阵
+## 十、多模型验证矩阵
 
 | 模型 | 黄金路径(三) | 接手 | 多窗口 | 新行为(五) | 备注 |
 |------|------|------|--------|------|------|
@@ -152,7 +164,7 @@ lrnev --help
 
 ---
 
-## 十、性能基准（参考）
+## 十一、性能基准（参考）
 
 | 场景 | 目标 | 实测 |
 |------|------|------|
@@ -163,10 +175,10 @@ lrnev --help
 
 ---
 
-## 十一、CI 可自动化的测试
+## 十二、CI 可自动化的测试
 
 每次 `npm test` 覆盖：
-- 测试规模：以 `npm test` 实跑输出为准（v2.3 审计整改后为 46 个测试文件、692 条）。
+- 测试规模：以 `npm test` 实跑输出为准（**3.0.0 实测为 80 个测试文件、1055 条**；v2.3 审计整改后为 46 个测试文件、692 条）。
 - 覆盖：所有 Manager、MCP 协议、CLI、并发、状态机、gate、agent 心跳、hooks、guide。
 - 执行：`npm test`；构建：`npm run build`(应零警告)。
 
