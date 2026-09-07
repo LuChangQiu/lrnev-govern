@@ -81,7 +81,7 @@ lrnev spec create user-login --priority P1
 依赖用户表已存在。
 
 ### 验收标准
-- [ ] 登录成功率 > 99%
+- [x] 登录成功率 > 99%
 ```
 
 ---
@@ -93,6 +93,8 @@ lrnev gate check --scene 00-default --spec 01-00-user-login --gate ready
 ```
 
 如果哨兵没填完，gate 会精确指出哪几行；填完后 `passed: true`，`ai_followup` 还会建议你"把 spec.status 改成 ready"并询问"是否需要 ADR"。
+
+> 注意：ready gate 的 `requirements_acceptance_checked` 会拦验收标准里未勾选的清单项（`- [ ]` 会被精确指出行号，需改为 `- [x]`）。整体验收项要记得勾选——§4 demo 的填法已经按勾选态（`[x]`）写好。
 
 ```bash
 lrnev spec update 01-00-user-login --scene 00-default --status ready --reason "demo ready gate 通过"
@@ -162,7 +164,7 @@ lrnev task create "实现登录 API" \
   --validates F-01 D-01 \
   --acceptance "POST /login 200 含 session cookie" "错误密码 401"
 
-# 已经想好完整任务清单？用批量创建一次落盘（v2.3）：JSON 数组，批内依赖用 key 临时键，
+# 已经想好完整任务清单？用批量创建一次落盘（自 v2.3 引入，当前 v3.0.0）：JSON 数组，批内依赖用 key 临时键，
 # 任一条校验失败整批不写并一次返回全部错误
 # lrnev task create-many --scene 00-default --spec 01-00-user-login --from-file tasks.json
 
