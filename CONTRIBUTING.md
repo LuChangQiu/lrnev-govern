@@ -11,16 +11,18 @@
 
 ## 本地调试
 
+前置要求：**Node.js ≥ 20**（见 `package.json` 的 `engines` 字段；版本过低请先升级）。
+
 ```bash
 git clone https://github.com/LuChangQiu/lrnev-govern.git
 cd lrnev-govern
-npm install
+npm ci              # 推荐：按 package-lock.json 安装锁版本依赖；没有 lock 时首次用 npm install
 
-# 构建
-npm run build
-
-# 跑全部测试
-npm test
+# 发布门禁（提交前全部要过）
+npm run typecheck        # src 类型检查：0 错误
+npm run typecheck:test   # 测试代码类型检查：0 错误（tsconfig.test.json）
+npm test                 # 全量测试全绿
+npm run build            # tsc 编译到 dist/，零警告
 
 # 本地 CLI（bin 走 dist，需先 npm run build）
 node bin/lrnev.mjs init --project-name demo
@@ -52,9 +54,9 @@ node bin/lrnev-mcp.mjs
 
 1. Fork 本仓库
 2. 建分支:`feat/something` 或 `fix/something`
-3. 改代码 + 跑 `npm test` 全绿 + `npm run build` 零警告
-4. 如有新功能,补测试
-5. 提交 PR,标题写清楚做了什么、为什么
+3. 改代码 + 发布门禁全过：`npm run typecheck`（src 0 错误）+ `npm run typecheck:test`（测试代码 0 错误）+ `npm test` 全绿 + `npm run build` 零警告
+4. 如有新功能，补测试（测试代码同样受 `typecheck:test` 类型门禁约束）
+5. 提交 PR，标题写清楚做了什么、为什么
 
 ## 行为准则
 
