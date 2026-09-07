@@ -8,7 +8,7 @@ lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-stand
 
 ### Added
 
-- **MCP 响应双通道（03-00 M1/M2）**：每次工具调用同时返回 `structuredContent`（canonical 信封 `response_version:'1'` / `ok` / `data` / `errors` / `ai_followup` / `anchor_context` / `summary_context`）与 `content[0].text`（逐工具 ModelVisibleContract 渲染文本，43 个渲染器）；全工具在 `tools/list` 声明 `outputSchema`（此前无结构化机器通道）。
+- **MCP 响应双通道（03-00 M1/M2）**：每次工具调用同时返回 `structuredContent`（canonical 信封 `response_version:'1'` / `ok` / `data` / `errors` / `ai_followup` / `anchor_context` / `summary_context`）与 `content[0].text`（逐工具 ModelVisibleContract 渲染文本：42 个工具渲染器 + 错误路径渲染器，共 43 项）；全工具在 `tools/list` 声明 `outputSchema`（此前无结构化机器通道）。
 - **Guidance Profile v1 语义体系（05-00）**：五角色引导前缀（【事实】【建议】【决策边界】【执行约束】【下一步】）+ `classifyInstructions`/`buildGuidanceView`/`diagnoseGuidance` 纯函数库；spec_get 分层引导（未完成 Spec 给"开发请求先 task_create 登记"边界）、归档边界语义（archived 终态、用户改主意不构成自动归档依据——B4 真机验证归档率 4/5→0/5）、工具描述档位标记（[核心]/[自动]/[配置]）。
 - **`decision_context` 可选入参（05-00 T-002/T-003）**：`scene_create`/`spec_create`/`task_create`/`assess_goal` 接受 client_asserted 决策上下文（strength/summary/direction/target_ref）；只影响本次调用、不落盘、不阻断；条件规则（缺失≠unspecified、explicit 强制 direction 等）由真实链路负向校验验证（缺 direction 被拒后模型自纠）。
 - **工具面分层 `--profile core|full`（L7）**：MCP 服务启动参数；`core`（33）= full − 9 个"AI 不该主动选"（agent_* 自动面 + hook_* 配置面），弱模型客户端受益；默认 `full` 向后兼容。
