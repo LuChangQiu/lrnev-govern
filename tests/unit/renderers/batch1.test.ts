@@ -528,6 +528,72 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
 
       expect(content).toContain('完成后调 task_update 改为 completed');
     });
+
+    it('F-03/T-027：带 anchor_context 的 payload → 文本含锚点正文与 text_status 三态标注', () => {
+      // 投影闭环验证：anchor_context 此前只在 structuredContent，文本-only 客户端看不到；
+      // 修复后 content 文本须含锚点正文（服务端已截断）与 F-04.1 三态状态标注。
+      const payload = {
+        response_version: '1',
+        ok: true,
+        data: { id: 'T-001', title: '实现登录', status: 'in_progress' },
+        anchor_context: [
+          {
+            anchor: 'F-01',
+            source: 'requirements',
+            text: '- 用户用用户名+密码登录，密码错误时返回明确错误并提示找回密码。\n- 验收：登录失败 5 次锁定账号。',
+            meta: { text_status: 'complete', returned_length: 50 },
+          },
+          {
+            anchor: 'F-02',
+            source: 'requirements',
+            text: '- 登录成功后建立会话并返回会话标识；（此段正文超预算被服务端截断的样例）',
+            meta: { text_status: 'truncated_by_budget', original_length: 900, returned_length: 60 },
+          },
+          {
+            anchor: 'D-01',
+            source: 'design',
+            text: '',
+            meta: { text_status: 'incomplete_source', original_length: 0, returned_length: 0 },
+          },
+        ],
+      } as Parameters<typeof taskUpdateRenderer.render>[0];
+
+      const content = taskUpdateRenderer.render(payload);
+
+      // 完整态：正文 + 状态标注
+      expect(content).toContain('锚点上下文 F-01（requirements.md）：');
+      expect(content).toContain('密码错误时返回明确错误');
+      expect(content).toContain('状态：text_status=complete（正文完整返回）');
+      // 预算截断态：处置指引
+      expect(content).toContain('锚点上下文 F-02（requirements.md）：');
+      expect(content).toContain('状态：text_status=truncated_by_budget（预算截断，建议缩小范围或查原文）');
+      // 源残缺态：正文为空给占位提示 + 补写指引（design 源标 design.md）
+      expect(content).toContain('锚点上下文 D-01（design.md）：');
+      expect(content).toContain('（本锚点无正文回填）');
+      expect(content).toContain('状态：text_status=incomplete_source');
+      expect(content).toContain('补写 requirements/design');
+    });
+
+    it('F-03/T-027：带 summary_context 的 payload → 文本含 L0/L1 与状态标注', () => {
+      const payload = {
+        response_version: '1',
+        ok: true,
+        data: { id: 'T-001', title: '测试', status: 'in_progress' },
+        summary_context: {
+          source: 'sidecar',
+          l0: '登录与会话管理：校验用户名密码、签发会话、登出失效。',
+          l1: '概览：登录流程与会话生命周期。',
+          meta: { text_status: 'complete', returned_length: 44 },
+        },
+      } as Parameters<typeof taskUpdateRenderer.render>[0];
+
+      const content = taskUpdateRenderer.render(payload);
+
+      expect(content).toContain('Spec 摘要上下文（sidecar 摘要）：');
+      expect(content).toContain('L0: 登录与会话管理');
+      expect(content).toContain('L1: 概览：登录流程与会话生命周期。');
+      expect(content).toContain('状态：text_status=complete（正文完整返回）');
+    });
   });
 
   describe('task_claim 渲染器', () => {
@@ -588,6 +654,45 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
       expect(content).toContain('重叠');
       expect(content).toContain('T-002');
       expect(content).toContain('agent-b');
+    });
+
+    it('F-03/T-027：带 anchor_context/summary_context → 与 task_update 同口径投影', () => {
+      // claim 与 task_update 共用 buildAnchorContext（堵 claim 旁路），文本通道投影须同源同格式。
+      const payload = {
+        response_version: '1',
+        ok: true,
+        data: {
+          claim: { task: 'T-001', claimed_by: 'agent-a', expires_at: '2026-09-02T10:00:00Z' },
+          claimed: true,
+        },
+        anchor_context: [
+          {
+            anchor: 'F-01',
+            source: 'requirements',
+            text: '- 验收：登录失败 5 次锁定账号。',
+            meta: { text_status: 'complete', returned_length: 19 },
+          },
+        ],
+        summary_context: {
+          source: 'inline',
+          l0: '登录与会话管理。',
+          meta: { text_status: 'truncated_by_budget', original_length: 500, returned_length: 30 },
+        },
+      } as Parameters<typeof taskClaimRenderer.render>[0];
+
+      const content = taskClaimRenderer.render(payload);
+
+      // 原 claim 字段不受影响
+      expect(content).toContain('已登记 claim');
+      expect(content).toContain('agent-a');
+      // anchor 投影与状态标注
+      expect(content).toContain('锚点上下文 F-01（requirements.md）：');
+      expect(content).toContain('登录失败 5 次锁定账号');
+      expect(content).toContain('状态：text_status=complete（正文完整返回）');
+      // summary 投影（inline 来源标注 + 预算截断标注）
+      expect(content).toContain('Spec 摘要上下文（requirements 内联摘要）：');
+      expect(content).toContain('L0: 登录与会话管理。');
+      expect(content).toContain('状态：text_status=truncated_by_budget（预算截断，建议缩小范围或查原文）');
     });
   });
 });

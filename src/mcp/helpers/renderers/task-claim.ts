@@ -1,6 +1,7 @@
 import type { ModelVisibleRenderer } from '../model-visible-contract.js';
 import type { LrnevToolPayload } from '../../types/response-envelope.js';
 import type { TaskClaimResult } from '../../../types/claim.js';
+import { projectTaskContexts } from './task-update.js';
 
 /**
  * task_claim 渲染器
@@ -12,6 +13,10 @@ import type { TaskClaimResult } from '../../../types/claim.js';
  * - conflict（如有冲突）
  * - overlaps（如有重叠提示）
  * - ai_followup.instructions（如有）
+ *
+ * T-027 修复：与 task_update 同源（buildAnchorContext 共用），把 envelope 顶层的
+ * anchor_context / summary_context 投影进 content 文本，closure 文本通道（见
+ * task-update.ts 头注与 projectTaskContexts 实现，两工具口径一致）。
  */
 export const taskClaimRenderer: ModelVisibleRenderer<TaskClaimResult> = {
   render(payload: LrnevToolPayload<TaskClaimResult>): string {
@@ -44,6 +49,9 @@ export const taskClaimRenderer: ModelVisibleRenderer<TaskClaimResult> = {
       }
       lines.push('');
     }
+
+    // F-03/T-027：投影 anchor_context / summary_context（正文 + F-04.1 状态标注）
+    projectTaskContexts(lines, payload);
 
     // 投影 ai_followup
     if (payload.ai_followup?.instructions) {
