@@ -6,6 +6,8 @@ created: '2026-08-26'
 
 # 09-00 Structured Ai Followup - 任务清单
 
+> **注记（2026-09-07）**：本 Spec 暂缓执行、待重写（与 requirements.md 顶部 ⚠️ 一致——user_decision 来源悖论 / priority 表概念错误 / 修复位置错误 / doctor 迁移伪需求），尚未创建任何任务。
+
 > 任务由 lrnev `task_create` 工具创建，不要手编。
 > 状态机：pending → in_progress → completed / failed；blocked 可回 in_progress；failed 可回 pending 重试。
 

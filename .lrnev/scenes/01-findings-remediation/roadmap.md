@@ -9,7 +9,7 @@ created: '2026-06-11'
 
 ## 当前阶段
 
-需求定义完成、待实现。7 个 Spec 的 requirements 已全部填写并通过 ready gate，并对照 `dev-docs/archive/FINDINGS-CHECKLIST.md` 与测试报告核对一致。下一步按优先级逐个进入实现（填 design → 建 task → 改源码 → completion gate）。在 `fix/findings-checklist` 分支推进。
+首批 7 个 Spec（S1-S7）已全部 completed 收口：requirements/design/tasks 三文档齐备、completion gate 全绿，修复已固化进源码与回归测试并随后续版本发布。08-00（S8，2026-08-26 追加）实现完成后于 2026-09-07 回填 completed（发布前终审，DeepSeek 复核）；09-00（S9，2026-08-26 追加）因设计缺陷暂缓执行、待重写（见其 requirements ⚠️ 注记），未创建任务。
 
 ## 已完成
 
@@ -21,7 +21,7 @@ created: '2026-06-11'
 
 ## 进行中
 
-- 本 Scene 的需求/文档对齐（scene 架构与路线图本次补全）
+- S9（09-00 structured-ai-followup）待重写后再规划执行（暂缓，未创建任务）；下表的 S1-S7 实现计划已执行完毕，仅作历史记录。
 
 ## 计划中
 

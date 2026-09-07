@@ -11,7 +11,7 @@ intent: '落实 2026-06-11 全面测试发现的清单:CLI/MCP对齐、确定性
 
 ## L0 摘要
 
-落实 2026-06-11 lrnev 全面真机测试发现的清单（17+1 条），按特性拆成 7 个 Spec 修复与文档化。
+落实 2026-06-11 lrnev 全面真机测试发现的清单（17+1 条），按特性拆成 7 个 Spec（S1-S7）修复与文档化；2026-08-26 追加 S8/S9 两个跟进 Spec（guidance 语义边界 / 结构化 followup）。
 
 ## L1 概览
 
@@ -42,6 +42,8 @@ intent: '落实 2026-06-11 全面测试发现的清单:CLI/MCP对齐、确定性
 - S5 维护与可见性（I-12 agent GC / I-17 supersedes 读时计算）
 - S6 design 锚点 D-xx 规范化（I-18 + I-5 的 D-xx 校验）
 - S7 治理边界文档化（I-9 / I-13 / I-14）
+- S8 guidance 语义边界（08-00，2026-08-26 追加：建议 vs 规则，优先尊重用户决定，已完成）
+- S9 结构化 followup（09-00，2026-08-26 追加：ai_followup 结构化，因设计缺陷暂缓重写）
 
 **不包含**：
 - 已验证健全项（I-15/I-16，已固化为 e2e）
@@ -57,7 +59,9 @@ intent: '落实 2026-06-11 全面测试发现的清单:CLI/MCP对齐、确定性
 
 ### 相关 Scene
 
-- 无（首个治理 Scene）
+- **02-context-delivery**：本 scene「写入时挡坏引用」的互补面——「使用时递好内容」；S6 的锚点体系（F-xx/D-xx + `extractAnchorSections`）是其定位升级的地基。
+- **03-workspace-hygiene**：S5 的显式 agent GC 思路延伸为 scene 03 的机会式自动 GC（register 时机会式清理运行态残留）。
+- **04-ai-guidance-standardization**：S8（08-00）确立的「建议 vs 规则」语义边界在 scene 04 落地为 Guidance Semantic Authority Model v0.1 与全族规格的语义标注。
 
 ## 维护说明
 
