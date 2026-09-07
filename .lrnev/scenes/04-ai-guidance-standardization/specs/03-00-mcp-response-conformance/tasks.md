@@ -82,3 +82,22 @@ created: '2026-08-26'
 
 **依赖**：T-003, T-004, T-005
 
+### T-007 落地 F-04 两维截断元数据（TextStatus/TextMeta + QueryMeta） <!-- lrnev-task: status=completed, created=2026-09-07T04:19:26.385Z, updated=2026-09-07T04:19:37.838Z, validates=F-04 -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-07T04:19:37.603Z","reason":"开始实施 F-04 落地（2026-09-07，3.0.0 收口窗口）"},{"from":"in_progress","to":"completed","at":"2026-09-07T04:19:37.838Z","reason":"F-04 落地完成：truncation.ts 类型 + AnchorContext/SummaryContext meta 化（含 incomplete_source 源残缺判定）+ Searcher/ProjectStatus/task_create_many query_meta + schema/渲染器两通道同步。typecheck 0 错、全量 1076 测试全绿（81 文件）。外部复审（2026-09-07 落实矩阵）确认的 P0 悬空项至此闭合"}] -->
+
+按 ADR-0001 补 P0 遗漏：AnchorContext/SummaryContext 从单布尔 truncated 升级为 meta{text_status(complete|truncated_by_budget|incomplete_source),original_length?,returned_length}；Searcher.search/context_search 与 project_status claimable_preview 返回 query_meta{returned_count,total_count,truncated,omitted}；task_create_many data 增加 query_meta（原子恒全量）；schema/渲染器两通道同步
+
+**验收**：
+- response.ts 无 truncated 残留
+- anchor 残缺段以 incomplete_source 呈现不回填占位
+- context_search/project_status 输出含 query_meta 且渲染文本同步
+- 全量测试 1076 全绿
+
+### T-008 落地 ADR-0003 hook drain（DetachedHookTracker + 退出 drain + invoked/timed_out） <!-- lrnev-task: status=completed, created=2026-09-07T04:19:30.663Z, updated=2026-09-07T04:19:38.269Z -->
+<!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-07T04:19:38.070Z","reason":"开始实施 hook drain（2026-09-07，3.0.0 收口窗口）"},{"from":"in_progress","to":"completed","at":"2026-09-07T04:19:38.269Z","reason":"ADR-0003 落地完成：invoked 先写 + DetachedHookTracker + server 退出统一 drain(5s) 超时补写 timed_out + Doctor/renderer 适配 + CLI/MCP 触发路径单例化。hook 相关 28 用例全绿（含 quiescence 6 新用例）。偏离草案 event:drain→保留原事件已在代码注释与 ADR-0003 实施注记说明"}] -->
+
+按 ADR-0003 补 P0 遗漏：HookRunner.runAsync 先写 invoked 记录再启动链并返回 Promise；新增 DetachedHookTracker 跟踪在飞 async 链；HookManager 持 tracker 并暴露 drainDetached(5000)；server 退出路径（onclose/EOF/SIGINT/SIGTERM）统一 drain 后退出，超时补写 timed_out 记录（event 保留原事件，偏离草案 event:drain 已在代码注明）；Doctor 健康统计剔除 invoked 脚手架记录；hook tail-log/list 渲染 exit_code optional 容错；CLI/MCP 手动触发路径改用 getHookManager 单例使链入 tracker
+
+**验收**：
+- hook-quiescence 测试覆盖 invoked 先写/drain 等待/drain 超时 timed_out/幂等
+- Doctor 不因 invoked 记录误报慢性失败

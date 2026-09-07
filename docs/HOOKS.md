@@ -165,9 +165,14 @@ console.log(process.env.LRNEV_EVENT, payload.task_id);
 - `event`
 - `hook`
 - `mode`
-- `status`：`success` / `failed` / `timeout`
+- `status`（ADR-0003「Hook Drain 边界与超时策略」五态）：
+  - `success` — 子进程退出码 0
+  - `failed` — 子进程非零退出或 spawn 失败
+  - `timeout` — hook 自身超时被杀（`timeout_ms`）
+  - `invoked` — async hook 已触发（先写证据记录，`duration_ms` 为 0、无 `exit_code`）
+  - `timed_out` — 进程退出 drain 等待超时，hook 可能仍在运行（与 `failed` 区分）
 - `duration_ms`
-- `exit_code`
+- `exit_code`（`invoked` / `timed_out` 记录无此字段）
 - `stdout_tail`
 - `stderr_tail`
 

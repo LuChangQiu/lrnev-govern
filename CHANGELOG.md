@@ -9,6 +9,7 @@ lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-stand
 ### Added
 
 - **MCP 响应双通道（03-00 M1/M2）**：每次工具调用同时返回 `structuredContent`（canonical 信封 `response_version:'1'` / `ok` / `data` / `errors` / `ai_followup` / `anchor_context` / `summary_context`）与 `content[0].text`（逐工具 ModelVisibleContract 渲染文本：42 个工具渲染器 + 错误路径渲染器，共 43 项）；全工具在 `tools/list` 声明 `outputSchema`（此前无结构化机器通道）。
+- **F-04 截断与模型可见完整性（ADR-0001 落地，2026-09-07 收口窗口补 P0 悬空账）**：`AnchorContext` / `SummaryContext` 的截断标记从单 `truncated: boolean` 升级为显式截断元数据 `meta: { text_status: 'complete' | 'truncated_by_budget' | 'incomplete_source', original_length?, returned_length }`——预算截断（建议缩小范围/换参数再查）与源残缺（段落空/模板占位未补写，建议去补写源文件）语义分离，残缺段落不再把占位噪声当正文回填；`context_search` / `project_status`（claimable_preview）返回 `query_meta: { returned_count, total_count, truncated, omitted: none|exact+count|unknown }`（lrnev 查询先全量后截断，`total_count` 恒可得不为 null）；`task_create_many` data 带同构 `query_meta` 供请求/返回核对；MVC 渲染文本与 structuredContent 两通道同步（截断时追加省略提示行）。
 - **Guidance Profile v1 语义体系（05-00）**：五角色引导前缀（【事实】【建议】【决策边界】【执行约束】【下一步】）+ `classifyInstructions`/`buildGuidanceView`/`diagnoseGuidance` 纯函数库；spec_get 分层引导（未完成 Spec 给"开发请求先 task_create 登记"边界）、归档边界语义（archived 终态、用户改主意不构成自动归档依据——B4 真机验证归档率 4/5→0/5）、工具描述档位标记（[核心]/[自动]/[配置]）。
 - **`decision_context` 可选入参（05-00 T-002/T-003）**：`scene_create`/`spec_create`/`task_create`/`assess_goal` 接受 client_asserted 决策上下文（strength/summary/direction/target_ref）；只影响本次调用、不落盘、不阻断；条件规则（缺失≠unspecified、explicit 强制 direction 等）由真实链路负向校验验证（缺 direction 被拒后模型自纠）。
 - **工具面分层 `--profile core|full`（L7）**：MCP 服务启动参数；`core`（33）= full − 9 个"AI 不该主动选"（agent_* 自动面 + hook_* 配置面），弱模型客户端受益；默认 `full` 向后兼容。
@@ -26,6 +27,7 @@ lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-stand
 ### Fixed
 
 - **严格客户端 -32602 输出契约缺陷**（T-027 发现 #3）：frontmatter 全展开泄漏裁剪（Scene/Spec/Memory 白名单化，spec_update 写路径 round-trip 不丢用户键）+ outputSchema/DataSchema 对齐（task_create_many 数组错配、ADR 嵌套 body、6 处 SimpleConfirmation 误用）——opencode 33 错 → 0。
+- **async hook 日志在进程退出时丢失（ADR-0003 落地，2026-09-07 收口窗口补 P0 悬空账）**：async hook 不再裸 fire-and-forget——触发即先写 `invoked` 记录（Q4 先写保证）；进程退出（stdio 断开 / SIGINT / SIGTERM）统一 drain 最多 5s，超时未完成的链补写 `timed_out` 记录（保留触发原事件，与 invoked/终态记录可关联）；`Doctor` 健康统计剔除 invoked 脚手架记录防误报；`lrnev_hook_tail_log` 是排查 hook 的唯一手段，此前用户看不到"被触发但没跑完"的 hook。
 - 渲染器输出 undefined（`data.scene`/`data.task_id` → `data.id`）。
 - `dev:mcp`/`dev:inspect` 脚本实际无法启动 MCP 服务。
 - CLI 两处 JSON.parse 裸抛误归 INTERNAL_ERROR（改 INVALID_INPUT）。
@@ -33,13 +35,14 @@ lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-stand
 
 ### Tests
 
-- 全量 **1062 条全绿**（v2.3.0 为 692；3.0.0 前夜 09-04 达 1051，其后文档守护、转义回归、guide profile 自适应与收口引导增至 1062）。新增覆盖：输出契约严格镜像（data-output-contract）、错误路径转义、--profile 42/33 集合差、归档边界语义（G5）、decision_context 负向校验、E-06 v2 判定（真实续接双轮）。
+- 全量 **1076 条全绿**（81 文件；3.0.0 前夜 09-04 为 1051，其后文档守护、转义回归、guide profile 自适应、收口引导增至 1062，再补 F-04 截断元数据与 hook drain 语义断言 +14）。新增覆盖：输出契约严格镜像（data-output-contract）、错误路径转义、--profile 42/33 集合差、归档边界语义（G5）、decision_context 负向校验、E-06 v2 判定（真实续接双轮）、F-04.1 三态（incomplete_source 残缺段/truncated_by_budget 聚合/长度一致性）、F-04.2 query_meta（截断 exact 省略/未截断 none/archived 0/0）、hook quiescence 六用例（invoked 先写 / drain 等待 / drain 超时补写 timed_out / 幂等）。
 
 ### 升级指南
 
 - **接入方必读（破坏性）**：`content[0].text` 不再是 JSON——机器数据改读 `structuredContent`（`response_version:'1'` 信封，字段同旧 payload：ok/data/errors/ai_followup/anchor_context/summary_context）；`ok:false` 一律 `isError=true`（此前需特判 AMBIGUOUS_REF）。
 - 工具集 42 = 42 无删改；`--profile` 默认 full 零配置变化；`.lrnev` 数据文件格式不变。
 - `lrnev-mcp --profile core` 可选裁剪（弱模型/工具面板拥挤客户端）。
+- hook-log 消费方须知（非破坏）：`.lrnev/state/hook-log.jsonl` 记录新增 `invoked`（async hook 触发先写证据）与 `timed_out`（进程退出 drain 超时）两种状态，`exit_code` 变为可选；老记录仍可读，状态枚举只增不改。`anchor_context` / `summary_context` 的截断标记为 `meta`（text_status/长度三件套）、查询类工具新增 `query_meta`——均为 3.0.0 新字段，无 2.x 迁移负担。
 
 ## [2.3.0] - 2026-07-06
 
@@ -141,7 +144,7 @@ lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-stand
 
 ## [2.0.0] - 2026-06-12
 
-把治理保障从「依赖模型听话」迁移到「协议层强制」：确定性事实（FILL 残留、引用目标存在性）硬校验，需判断的语义仍交 AI。源于一轮全面真机测试发现的 17+1 项清单（`dev-docs/FINDINGS-CHECKLIST.md`，Claude/GPT 双向复评 + 用户逐条裁决），按 7 个 spec 用 lrnev 自身治理实现（scene `01-findings-remediation`），每个 spec 经 codex(GPT-5.5) 只读复核。
+把治理保障从「依赖模型听话」迁移到「协议层强制」：确定性事实（FILL 残留、引用目标存在性）硬校验，需判断的语义仍交 AI。源于一轮全面真机测试发现的 17+1 项清单（`dev-docs/archive/FINDINGS-CHECKLIST.md`，Claude/GPT 双向复评 + 用户逐条裁决），按 7 个 spec 用 lrnev 自身治理实现（scene `01-findings-remediation`），每个 spec 经 codex(GPT-5.5) 只读复核。
 
 ### ⚠️ Breaking Changes
 

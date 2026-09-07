@@ -107,3 +107,13 @@ interface QueryMeta {
 - deepseek-harness `packages/util/output-retention/README.md`："`truncated` means the retainer omitted otherwise-available content because of a budget. It does **not** mean the upstream was incomplete."
 - 三方统一确认（修正版）§1："DeepSeek 审查意见 §1 — 恢复 omitted 三态、去掉 total_count:null、truncated 对齐 F-04 措辞"
 - 会话日志 `ai-discussions/log/session-log.jsonl` seq 489-490：ClaudeCode 接受 DeepSeek 修正
+
+## 实施状态（2026-09-07，3.0.0 收口窗口补落地）
+
+- 本 ADR 属 03-00 P0 输入；2026-09-02 的 T-004/5/6 以原则性验收覆盖了"渲染不静默省略"主线，但**类型级落地被遗漏且无显式回退**（外部复审落实矩阵 2026-09-07 确认）。
+- 2026-09-07 在 3.0.0 发布窗口内按本 ADR 补齐实现（commit `18626e1`，03-00 T-007）：
+  - `src/types/truncation.ts` 新增 TextStatus/TextMeta/QueryMeta/Omitted 类型与 `queryMetaOf` / `textMetaForClamped`；
+  - `AnchorContext` / `SummaryContext`（`src/types/response.ts`）由单 `truncated: boolean` 升级为 `meta`；锚点段落正文空/全为模板占位 → `incomplete_source`（不再把占位噪声当正文）；`Summarizer.readSpecSummary` 增加源残缺级探测；
+  - `Searcher.search`（context_search）、`project_status.claimable_preview` 返回 `query_meta`；`task_create_many` data 带 `query_meta`（原子 all-or-nothing 恒全量）；zod schema 与 MVC 渲染文本两通道同步。
+  - 全量 1076 测试全绿（81 文件）。
+

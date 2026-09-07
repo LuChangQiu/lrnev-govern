@@ -255,6 +255,17 @@ interface HookRecord {
 - 会话日志 `ai-discussions/log/session-log.jsonl` seq 23：ClaudeCode 完全同意 drain 边界
 - 会话日志 seq 387：DeepSeek 完全同意 drain 边界
 
+## 实施状态（2026-09-07，3.0.0 收口窗口补落地）
+
+- 本 ADR 属 03-00 P0 输入但从未排入任务（外部复审落实矩阵 2026-09-07 确认：accepted 未实现未回退）。
+- 2026-09-07 在 3.0.0 发布窗口内补齐实现（commit `18626e1`，03-00 T-008）：
+  - `HookRunner.runAsync` 先写 `invoked` 记录再启动子进程链，返回 Promise 且永不 reject；
+  - 新增 `src/core/DetachedHookTracker.ts`（track/drain：并发共享等待、per-chain reported 标记幂等）；
+  - `HookManager` 持 tracker 并暴露 `drainDetached(timeoutMs=5000)`；进程退出路径（server onclose / stdin EOF / SIGINT / SIGTERM）统一 drain 后退出，超时补写 `timed_out` 记录；
+  - `Doctor` 健康统计剔除 invoked 脚手架记录；`lrnev_hook_tail_log` / `lrnev_hook_list` 渲染 exit_code optional；CLI/MCP 手动触发路径改用 `getHookManager` 单例使链入 tracker。
+  - 测试：`hook-quiescence.test.ts`（invoked 先写 / drain 等待 / 超时补写 / 幂等）等 28 用例全绿。
+- **偏离草案一处（已记录）**：草案超时合成记录用 `event: 'drain'`；实现保留**触发原事件**——tail-log 按事件过滤排查，`status: 'timed_out'` 已足够表意，且与同链 invoked/终态记录 event 一致便于关联。代码注释与测试断言均按此口径。
+
 ## 未来增强
 
 ### 可配置超时

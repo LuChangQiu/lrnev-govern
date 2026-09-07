@@ -1,11 +1,14 @@
 ---
 title: 'lrnev AI Guidance Standardization'
-status: 'draft'
+status: 'stable'
 created: '2026-08-26'
+updated: '2026-09-08'
 scene: '04-ai-guidance-standardization'
 ---
 
 # lrnev AI Guidance Standardization
+
+> **现状（2026-09）**：Scene 04 战役已收口——01-00~05-00 全部 spec 完成（03-00 M1/M2 双通道契约、04-00 E-01~09 + B0~B2b/B3/B4 对照、05-00 Profile 随 3.0.0 发布）；06-00 交付物按 3.0.0 实现归档。2026-09-07 收口窗口补齐 P0 悬空账：ADR-0001 两维截断（TextStatus/TextMeta/QueryMeta）与 ADR-0003 hook drain 按决策落地（03-00 T-007/T-008，commit 18626e1，全量 1076 测试全绿——详见 ADR 实施状态注记）。本目录现为**战役档案**：先读 `06-00-e2e-evidence-index.md`（唯一证据索引）与 `dev-docs/decisions/README.md`（审定决策档案）；讨论区过程记录（意见轮次/会话日志）留在本机 `ai-discussions/`。下方历史内容（目标/原则/待决问题）是战役期的过程快照，不代表当前决策状态。
 
 这份文档是 Scene `04-ai-guidance-standardization` 的跨 Agent 讨论入口。它用于让 Codex、DeepSeek Web 和本地 Agent 在同一组架构事实、边界和待决问题上继续讨论。
 
