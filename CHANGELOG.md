@@ -20,6 +20,8 @@ lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-stand
 - **业务拒绝统一 `isError=true`**：`ok:false` 的业务拒绝（参数错误、状态机冲突、歧义引用 AMBIGUOUS_REF、内部错误）一律置 isError（2.x 的 AMBIGUOUS_REF 不带 isError，易被客户端当成功）；`INTERNAL_ERROR` 不再回传异常原文（只给 code/message）。
 - **引导措辞收敛（真机驱动）**：开发/扩展功能请求 → 先 `task_create` 登记再实施（直接编辑 requirements/design 只限需求细化/文档维护，不能替代登记——E-02 四 SHA 0/5 直写观测驱动）；用户决定优先条款显式化；状态机提示与合法回退（failed/blocked→pending）表述修正。
 - **错误路径统一转义出口**（D-04.1 防注入契约）：错误 message/hint 含用户可控文本时经统一转义（此前错误路径绕过转义出口）。
+- **Profile 字段按证据回退（05-00 T-006 负决策）**：`payload.guidance` 结构化运行时挂载回退——三客户端实测零消费 + 每次挂载 ≈24.2% 响应体积纯重复税（380 录制件无任何引用），五角色文本通道保留为唯一消费通道（G5 归档边界行为效果实证走文本）；`reported_user_quote` 输入字段移除（380 录制件 0 命中、服务端零使用）。`classifyInstructions`/`buildGuidanceView`/`diagnoseGuidance` 纯函数库保留为契约测试面，schema 不再对 MCP 响应声明 guidance 字段——"逐字段门禁、无用即删"的公开兑现。
+- **文档（3.0.0 动作量最大的一次）**：README 全量重写（中文单语、双通道契约与破坏性迁移说明、常驻提示词单源化指向 AI-ADAPTATION、全绝对链接）；AI-ADAPTATION 更新（`--profile` 用法、工具档位、常驻模板 A/B）；ARCHITECTURE 目录树与 .lrnev PROJECT/ARCHITECTURE 治理文档刷新到 3.0.0；dev-docs 研究档案收敛（11 份被取代报告归档、2 个异常快照删除）；审定决策档案镜像层 `dev-docs/decisions/`（09-04~09-07 DeepSeek 裁决/汇总 17 份——发布声称的 GitHub 可核验依据）；06-00 spec 交付物（client-integration-guide/mcp-response-conformance）为研究期草案且与 3.0.0 实现不符，保持 dev-docs 研究档案定位（正式客户端文档待 06-00 收口时重写，2026-09-07 裁决 ADR 0002）。
 
 ### Fixed
 
