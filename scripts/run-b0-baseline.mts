@@ -2,6 +2,11 @@
 /**
  * 04-00 Agent E2E Observability - 基线证据生成器
  *
+ * ⚠️ 历史工具（scene04 研究期；3.0.0 起由 T-027 体系接替，勿随意执行）：
+ * 重跑会覆写 dev-docs/ai-guidance-standardization/ 下受管的
+ * <stage>-evidence-manifest.json（b0/b1/b2a/b2b/b3 各代受管 manifest），
+ * git_sha/note/evidence 会整体漂移——场景观测资产已冻结，无新场景不要重生成。
+ *
  * 运行全部 04-00 fixture，通过 EvidenceCollector 采集证据，
  * 生成 `<stage>-evidence-manifest.json`，落库到
  * dev-docs/ai-guidance-standardization/ 目录。

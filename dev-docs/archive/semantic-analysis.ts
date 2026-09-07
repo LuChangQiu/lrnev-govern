@@ -1,6 +1,13 @@
 /**
  * T-003 Semantic Analysis Script
  *
+ * ⚠️ 已归档（11064ad3 发布前终审 2026-09-07）：scene04 研究期一次性分析脚本。
+ * 原输入 v1 清单（guidance-surface-inventory.json）已于 0464c2e 删除，
+ * 且 L318 硬编码本机绝对路径——现状实跑必然 ENOENT，保留无维护价值，移入 archive/。
+ * 如需复用请自改输入为现存 v2 清单
+ * （dev-docs/ai-guidance-standardization/guidance-surface-inventory-v2.json）。
+ * 原位置 scripts/semantic-analysis.ts 无代码/测试引用（仅两份历史报告提及，路径不改写）。
+ *
  * 1. Run checkSemanticViolations on all 346 surfaces
  * 2. Review auto-annotations (especially input_schema and governance_doc)
  * 3. Identify unclassifiable items

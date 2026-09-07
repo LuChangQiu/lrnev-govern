@@ -2,6 +2,10 @@
 /**
  * High-Risk Wording Scanner for Guidance Surface Inventory
  *
+ * ⚠️ 历史工具（scene04 研究期；3.0.0 起由 T-027 体系接替，勿随意重跑）：
+ * 输出为归档冻结报告 dev-docs/archive/baseline-report.md——重跑会改写冻结产物
+ * （报告头哈希一并漂移，破坏归档留档口径）。
+ *
  * Scans guidance-surface-inventory-v2.json for:
  * 1. High-risk wording (force language in governance_doc, etc.)
  * 2. Conflicts (same trigger, different instructions)

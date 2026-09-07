@@ -2,6 +2,10 @@
 /**
  * B1 Invertibility Validation Script
  *
+ * ⚠️ 历史工具（scene04 研究期；3.0.0 起由 T-027 体系接替，勿随意重跑）：
+ * 纯只读校验（只读冻结清单 guidance-surface-inventory-v3-08-00.json，无副作用），
+ * 用途仅为 346/346 可逆性结论的复核留档。
+ *
  * Validates that all 346 surfaces in v3 can be byte-perfectly reconstructed
  * from text_v1 fragments back to text_legacy.
  *

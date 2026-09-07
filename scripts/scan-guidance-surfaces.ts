@@ -1,6 +1,12 @@
 /**
  * Guidance Surface 扫描器
  *
+ * ⚠️ 历史工具（scene04 研究期；3.0.0 起由 T-027 体系接替，勿随意重跑）：
+ * 02-00 guidance-surface-inventory 研究收尾产物，扫描口径随 3.0.0 源码已过时
+ * （严格校验阈值/正则假定与现行 tools/index.ts 注册形态不保证对齐）。
+ * 输出固定为 -v4 续版文件名，避免复活已被 0464c2e 删除的 v1 活档
+ * （guidance-surface-inventory.md/.json）；重跑只新写 v4 文件，不覆盖现有档案。
+ *
  * 扫描 lrnev-govern 代码库中所有会影响客户端 AI 判断或 MCP 数据交付的 Guidance Surface。
  *
  * Spec: 02-00-guidance-surface-inventory
@@ -10,7 +16,8 @@
  *   npx tsx scripts/scan-guidance-surfaces.ts
  *
  * 输出：
- *   - dev-docs/ai-guidance-standardization/guidance-surface-inventory.md
+ *   - dev-docs/ai-guidance-standardization/guidance-surface-inventory-v4.md
+ *   - dev-docs/ai-guidance-standardization/guidance-surface-inventory-v4.json
  */
 
 import { createHash } from 'node:crypto';
@@ -897,15 +904,15 @@ function main(): void {
     throw new Error(`Scan validation failed: resources=${resourceCount} (expected ≥17)`);
   }
 
-  // 生成 Markdown 报告
+  // 生成 Markdown 报告（v4 续版名——v1 名已于 0464c2e 删除，勿改回以免复活活档）
   const markdown = generateMarkdownReport(inventory);
-  const outputPath = resolve(PROJECT_ROOT, 'dev-docs/ai-guidance-standardization/guidance-surface-inventory.md');
+  const outputPath = resolve(PROJECT_ROOT, 'dev-docs/ai-guidance-standardization/guidance-surface-inventory-v4.md');
 
   writeFileSync(outputPath, markdown, 'utf-8');
   console.log(`Inventory written to: ${outputPath}`);
 
   // 同时输出 JSON（用于机器可读）
-  const jsonPath = resolve(PROJECT_ROOT, 'dev-docs/ai-guidance-standardization/guidance-surface-inventory.json');
+  const jsonPath = resolve(PROJECT_ROOT, 'dev-docs/ai-guidance-standardization/guidance-surface-inventory-v4.json');
   writeFileSync(jsonPath, JSON.stringify(inventory, null, 2), 'utf-8');
   console.log(`JSON inventory written to: ${jsonPath}`);
 
