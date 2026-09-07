@@ -24,7 +24,7 @@ import { ErrorbookManager } from '../../core/ErrorbookManager.js';
 import { MemoryManager } from '../../core/MemoryManager.js';
 import { SessionCommit } from '../../core/SessionCommit.js';
 import { Doctor } from '../../core/Doctor.js';
-import { HookManager } from '../../core/HookManager.js';
+import { getHookManager, HookManager } from '../../core/HookManager.js';
 import { ProjectStatus } from '../../core/ProjectStatus.js';
 import { GovernanceMap } from '../../core/GovernanceMap.js';
 import { GovernanceReport } from '../../core/GovernanceReport.js';
@@ -1114,7 +1114,10 @@ function getManagers(): {
   const memories = new MemoryManager(fs, scenes);
   const sessionCommit = new SessionCommit(memories);
   const doctor = new Doctor(fs);
-  const hooks = new HookManager(fs);
+  // ADR-0003：hooks 必须走 per-root 单例——手动触发（lrnev_hook_trigger）的
+  // async hook 链若挂在瞬态实例的 tracker 上，进程退出 drain（server shutdown
+  // 经 getHookManager(root) 单例）将覆盖不到，日志仍会在信号退出时丢失。
+  const hooks = getHookManager(root);
   const agents = new AgentRegistry(fs);
   const projectStatus = new ProjectStatus(fs, scenes);
   const governanceMap = new GovernanceMap(fs, scenes);

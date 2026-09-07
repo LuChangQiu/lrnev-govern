@@ -33,7 +33,8 @@ export const lrnevHookTailLogRenderer: ModelVisibleRenderer<HookRecord[]> = {
         lines.push(`   状态: ${record.status}`);
         lines.push(`   模式: ${record.mode}`);
         lines.push(`   耗时: ${record.duration_ms}ms`);
-        lines.push(`   退出码: ${record.exit_code}`);
+        // exit_code 已 optional：invoked/timed_out 记录无子进程退出码，显示 '-'。
+        lines.push(`   退出码: ${record.exit_code ?? '-'}`);
 
         if (record.stdout_tail) {
           lines.push(`   stdout: ${record.stdout_tail}`);

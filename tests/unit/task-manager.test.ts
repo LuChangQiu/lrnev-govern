@@ -378,7 +378,11 @@ describe('TaskManager 集成', () => {
       expect(r.anchor_context?.[0]?.anchor).toBe('F-01');
       expect(r.anchor_context?.[0]?.source).toBe('requirements');
       expect(r.anchor_context?.[0]?.text).toContain('#### F-01');
-      expect(r.anchor_context?.[0]?.truncated).toBe(false);
+      // F-04.1（ADR-0001）：truncated 单布尔已升级为 text_status + 长度三件套
+      expect(r.anchor_context?.[0]?.meta).toEqual({
+        text_status: 'complete',
+        returned_length: r.anchor_context?.[0]?.text.length,
+      });
     });
 
     it('无 validates 且无摘要时，不回 context、保留现有回看文案', async () => {
@@ -459,6 +463,47 @@ describe('TaskManager 集成', () => {
       expect(r.ai_followup?.instructions.join('\n')).toContain('F-01');
       expect(r.data.claim.claimed_by).toBe('agent-a'); // 不阻断：claim 仍成功
       expect(r.anchor_context).toBeUndefined(); // 段落已不存在，不回填
+    });
+
+    it('F-04.1：锚点正文全占位时标 incomplete_source（text 空、不回填占位噪声）', async () => {
+      const sceneId = await scenes.resolveId('user-management');
+      const specId = await specs.resolveId(sceneId, 'user-login');
+      await fs.write(`.lrnev/scenes/${sceneId}/specs/${specId}/requirements.md`,
+        '# 需求\n\n## L0 摘要\n\n摘要。\n\n#### F-02 未写功能\n\n<!-- FILL: 该功能待补写 -->\n');
+      const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '占位段', validates: ['F-02'] });
+      const r = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'in_progress' });
+      const anchor = r.anchor_context?.find((a) => a.anchor === 'F-02');
+      expect(anchor?.text).toBe('');
+      expect(anchor?.meta).toEqual({
+        text_status: 'incomplete_source',
+        original_length: expect.any(Number),
+        returned_length: 0,
+      });
+    });
+
+    it('F-04.1：summary_context L0 超长被预算截断 → meta truncated_by_budget', async () => {
+      const sceneId = await scenes.resolveId('user-management');
+      const specId = await specs.resolveId(sceneId, 'user-login');
+      const longL0 = '很长的摘要内容。'.repeat(60); // 远超 SUMMARY_CONTEXT_L0_CAP(200)
+      await fs.write(`.lrnev/scenes/${sceneId}/specs/${specId}/requirements.md`, `# 需求\n\n## L0 摘要\n\n${longL0}\n`);
+      const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '长摘要' });
+      const r = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'in_progress' });
+      expect(r.summary_context?.meta.text_status).toBe('truncated_by_budget');
+      expect(r.summary_context?.meta.original_length).toBeGreaterThan(r.summary_context?.meta.returned_length ?? 0);
+      expect(r.summary_context?.meta.returned_length).toBe(r.summary_context?.l0?.length ?? 0);
+    });
+
+    it('F-04.1：L0 标题在但正文全占位 → summary_context meta incomplete_source（L1 仍在场）', async () => {
+      const sceneId = await scenes.resolveId('user-management');
+      const specId = await specs.resolveId(sceneId, 'user-login');
+      await fs.write(`.lrnev/scenes/${sceneId}/specs/${specId}/requirements.md`,
+        '# 需求\n\n## L0 摘要\n\n<!-- FILL: 待补写 -->\n\n## L1 概览\n\n概览有内容。\n');
+      const t = await tasks.create({ scene: 'user-management', spec: 'user-login', title: 'L0 残缺' });
+      const r = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'in_progress' });
+      expect(r.summary_context?.l1).toBe('概览有内容。');
+      expect(r.summary_context?.l0).toBeUndefined();
+      expect(r.summary_context?.meta.text_status).toBe('incomplete_source');
+      expect(r.summary_context?.meta.returned_length).toBe('概览有内容。'.length);
     });
   });
 

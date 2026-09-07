@@ -22,4 +22,11 @@ export interface SearchResponse {
   scope: Scope;
   max_depth: number;
   results: SearchResult[];
+
+  /**
+   * F-04.2 查询级截断元数据（ADR-0001）：context_search 先全量召回排序、再按
+   * config.search.top_k slice，候选总数在截断点总是可得——随 data 返回供客户端
+   * 判断省略了多少（omitted 恒为 none/exact，无 unknown 分支）。
+   */
+  query_meta?: import('./truncation.js').QueryMeta;
 }

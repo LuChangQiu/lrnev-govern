@@ -47,13 +47,24 @@ const AiFollowupSchema = z.object({
 });
 
 /**
+ * F-04.1 文本截断元数据 schema（ADR-0001）：TextStatus 三态 + 长度。
+ */
+const TextMetaSchema = z.object({
+  text_status: z.enum(['complete', 'truncated_by_budget', 'incomplete_source']),
+  /** text_status 非 complete 时提供：截断/残缺前原始长度。 */
+  original_length: z.number().int().nonnegative().optional(),
+  /** 实际随响应返回的文本长度。 */
+  returned_length: z.number().int().nonnegative(),
+});
+
+/**
  * 锚点上下文 schema
  */
 const AnchorContextSchema = z.object({
   anchor: z.string(),
   source: z.enum(['requirements', 'design']),
   text: z.string(),
-  truncated: z.boolean(),
+  meta: TextMetaSchema,
 });
 
 /**
@@ -63,7 +74,27 @@ const SummaryContextSchema = z.object({
   source: z.enum(['sidecar', 'inline']),
   l0: z.string().optional(),
   l1: z.string().optional(),
+  meta: TextMetaSchema,
+});
+
+/**
+ * F-04.2 查询省略三态 schema（对齐 DSH RetainedItems 语义）。
+ */
+const OmittedSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('none') }),
+  z.object({ kind: z.literal('exact'), count: z.number().int().nonnegative() }),
+  z.object({ kind: z.literal('unknown') }),
+]);
+
+/**
+ * F-04.2 查询级截断元数据 schema（QueryMeta 四件套）。
+ * total_count 不可为 null（lrnev 查询模式先全量收集再截断，总数总是可得）。
+ */
+export const QueryMetaSchema = z.object({
+  returned_count: z.number().int().nonnegative(),
+  total_count: z.number().int().nonnegative(),
   truncated: z.boolean(),
+  omitted: OmittedSchema,
 });
 
 /**
@@ -344,6 +375,9 @@ export const CreateManyTasksResultSchema = z.object({
     title: z.string(),
   })),
   count: z.number(),
+  // F-04.2：task_create_many 为原子 all-or-nothing（超 max_batch_create 直接报错不截断），
+  // 成功时 query_meta 恒为「返回=请求」的核对信息（truncated 恒 false）。
+  query_meta: QueryMetaSchema.optional(),
 });
 
 /**
@@ -523,6 +557,8 @@ export const HookConfigDataSchema = z.object({
 
 /**
  * Hook list result schema
+ * recent 条目与 HookLogEntrySchema 同步（ADR-0003：invoked/timed_out 状态、
+ * exit_code optional），避免字段漂移。
  */
 export const HookListResultSchema = z.object({
   implemented: z.literal(true),
@@ -532,9 +568,9 @@ export const HookListResultSchema = z.object({
     event: z.string(),
     hook: z.string(),
     mode: z.enum(['sync', 'async']),
-    status: z.enum(['success', 'failed', 'timeout']),
+    status: z.enum(['success', 'failed', 'timeout', 'invoked', 'timed_out']),
     duration_ms: z.number(),
-    exit_code: z.number(),
+    exit_code: z.number().optional(),
     stdout_tail: z.string().optional(),
     stderr_tail: z.string().optional(),
   })),
@@ -574,6 +610,8 @@ export const ContextSearchResultSchema = z.object({
     snippet: z.string(),
     anchor: z.string().optional(),
   })),
+  // F-04.2：先全量召回排序、再按 top_k 截断的查询级元数据（total_count 不可为 null）。
+  query_meta: QueryMetaSchema.optional(),
 });
 
 /**
@@ -604,6 +642,8 @@ export const ProjectStatusDataSchema = z.object({
       title: z.string(),
       depends_on: z.array(z.string()).optional(),
     })),
+    // F-04.2：claimable_next 截断元数据（total_count=free_tasks_count，总是可得）。
+    claimable_meta: QueryMetaSchema.optional(),
   })),
   active_agents: z.array(z.object({
     agent_id: z.string(),
@@ -883,15 +923,17 @@ export const HookTriggerResultSchema = z.object({
 
 /**
  * Hook log entry schema (对照 src/types/hooks.ts HookRecord)
+ * ADR-0003：status 新增 invoked / timed_out，exit_code 改为 optional
+ * （invoked / timed_out 记录无子进程退出码）。
  */
 export const HookLogEntrySchema = z.object({
   ts: z.string(),
   event: z.string(),
   hook: z.string(),
   mode: z.enum(['sync', 'async']),
-  status: z.enum(['success', 'failed', 'timeout']),
+  status: z.enum(['success', 'failed', 'timeout', 'invoked', 'timed_out']),
   duration_ms: z.number(),
-  exit_code: z.number(),
+  exit_code: z.number().optional(),
   stdout_tail: z.string().optional(),
   stderr_tail: z.string().optional(),
 });

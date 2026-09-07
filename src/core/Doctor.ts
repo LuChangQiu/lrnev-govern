@@ -447,7 +447,12 @@ export class Doctor {
     const records = await new HookLog(this.fs).tail(config.health_scan_limit);
     const byHook = groupHookRecords(records);
     for (const [hook, hookRecords] of byHook.entries()) {
-      const timeoutCount = countConsecutiveFromTail(hookRecords, (record) => record.status === 'timeout');
+      // ADR-0003：invoked 是 async hook 触发时的先写证据记录（每次触发一条），
+      // 既不是一次执行结果、也不代表失败。若直接参与连续计数，单次失败会被
+      // 放大成两条"非 success"，timeout 的连击也会被 invoked 隔断——先剔除
+      // 这类脚手架记录，只按终态记录（success/failed/timeout/timed_out）统计。
+      const terminal = hookRecords.filter((record) => record.status !== 'invoked');
+      const timeoutCount = countConsecutiveFromTail(terminal, (record) => record.status === 'timeout');
       if (timeoutCount >= config.chronic_timeout_threshold) {
         issues.push({
           code: 'HOOK_CHRONIC_TIMEOUT',
@@ -458,7 +463,7 @@ export class Doctor {
         });
       }
 
-      const failureCount = countConsecutiveFromTail(hookRecords, (record) => record.status !== 'success');
+      const failureCount = countConsecutiveFromTail(terminal, (record) => record.status !== 'success');
       if (failureCount >= config.chronic_failure_threshold) {
         issues.push({
           code: 'HOOK_CHRONIC_FAILURE',

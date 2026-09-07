@@ -116,6 +116,12 @@ export interface SpecSummary {
   l1?: string;
   /** 至少有一级来自 sidecar 时为 'sidecar'，否则（全部来自内联）为 'inline'；两级皆无时为 undefined。 */
   source?: 'sidecar' | 'inline';
+  /**
+   * F-04.1 源残缺信号：某一级的"源存在但无实义内容"（sidecar 文件在但为空，
+   * 或 requirements 内联段标题 `## L0 摘要` / `## L1 概览` 在但正文全为占位/空）。
+   * 与"该级不存在"区分：不存在=spec 没有该级（正常），存在但空=该补写没补写。
+   */
+  incomplete?: boolean;
 }
 
 export async function readSpecSummary(
@@ -126,24 +132,53 @@ export async function readSpecSummary(
   const reqRel = `.lrnev/scenes/${sceneId}/specs/${specId}/requirements.md`;
   const l0 = await readSummaryLevel(fs, reqRel, 'L0');
   const l1 = await readSummaryLevel(fs, reqRel, 'L1');
-  if (!l0 && !l1) return {};
-  const source = l0?.source === 'sidecar' || l1?.source === 'sidecar' ? 'sidecar' : 'inline';
-  return { ...(l0 && { l0: l0.text }), ...(l1 && { l1: l1.text }), source };
+  const incomplete = l0?.incomplete || l1?.incomplete;
+  if (!l0?.text && !l1?.text) return { ...(incomplete && { incomplete }) };
+  const hasSidecarText = (l0?.text !== undefined && l0.source === 'sidecar')
+    || (l1?.text !== undefined && l1.source === 'sidecar');
+  const source = hasSidecarText ? 'sidecar' : 'inline';
+  return {
+    ...(l0?.text !== undefined && { l0: l0.text }),
+    ...(l1?.text !== undefined && { l1: l1.text }),
+    source,
+    ...(incomplete && { incomplete }),
+  };
 }
 
+/** 单级摘要读取结果：text 省略 = 该级无实义内容；incomplete = 源存在但内容为空/全占位。 */
 async function readSummaryLevel(
   fs: FileStorage,
   reqRel: string,
   level: 'L0' | 'L1',
-): Promise<{ text: string; source: 'sidecar' | 'inline' } | undefined> {
+): Promise<{ text?: string; source: 'sidecar' | 'inline'; incomplete?: boolean } | undefined> {
   const sidecar = summaryPathFor(reqRel, level);
   if (fs.exists(sidecar)) {
     const text = (await fs.read(sidecar)).trim();
     if (text) return { text, source: 'sidecar' };
+    // sidecar 文件存在但内容为空：视为残缺（写坏/未完成），先落 inline 兜底。
+    const inline = await readInlineLevel(fs, reqRel, level);
+    if (inline?.text) return { text: inline.text, source: 'inline' };
+    return { source: 'inline', incomplete: true };
   }
+  const inline = await readInlineLevel(fs, reqRel, level);
+  if (inline?.text) return { text: inline.text, source: 'inline' };
+  if (inline?.headingExists) {
+    // 内联段标题在（模板章节存在）但正文全为占位/空：源残缺——该补写没补写。
+    return { source: 'inline', incomplete: true };
+  }
+  return undefined;
+}
+
+/** 读 requirements 内联该级摘要：返回正文（可能 undefined）与标题是否存在。 */
+async function readInlineLevel(
+  fs: FileStorage,
+  reqRel: string,
+  level: 'L0' | 'L1',
+): Promise<{ text?: string; headingExists: boolean } | undefined> {
   if (!fs.exists(reqRel)) return undefined;
-  const inline = extractInlineSection(await fs.read(reqRel), level);
-  return inline ? { text: inline, source: 'inline' } : undefined;
+  const content = await fs.read(reqRel);
+  const headingExists = new RegExp(`^##\\s*${level}\\b`, 'm').test(content);
+  return { text: extractInlineSection(content, level), headingExists };
 }
 
 /**

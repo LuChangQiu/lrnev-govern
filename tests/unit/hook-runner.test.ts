@@ -78,24 +78,37 @@ describe('HookRunner / HookManager.trigger', () => {
     }
   });
 
-  it('async hook 应立即返回并最终写入日志', async () => {
+  it('async hook 触发即返回（不阻塞 trigger）；invoked 先写、终态后写（ADR-0003）', async () => {
     await fs.writeJson('.lrnev/config/hooks.json', [{
       name: 'async-ok',
       event: 'task.update.*',
-      command: ['node', '-e', 'console.log("done")'],
+      command: [process.execPath, '-e', 'console.log("done")'],
       mode: 'async',
     }]);
 
     const result = await hooks.trigger('task.update.completed', {});
 
     expect(result.matched).toBe(1);
-    expect(await hooks.readRecentRecords(1)).toEqual([]);
-    await waitFor(async () => (await hooks.readRecentRecords(1))[0]?.hook === 'async-ok');
-    expect((await hooks.readRecentRecords(1))[0]).toMatchObject({
+    // 触发只登记在飞链、不等待子进程；drainDetached 等待链 settle（ADR-0003）。
+    await hooks.drainDetached(2000);
+
+    const records = (await hooks.readRecentRecords(10)).filter((record) => record.hook === 'async-ok');
+    expect(records.map((record) => record.status)).toEqual(['invoked', 'success']);
+    expect(records[0]).toMatchObject({
+      hook: 'async-ok',
+      event: 'task.update.completed',
+      mode: 'async',
+      status: 'invoked',
+      duration_ms: 0,
+    });
+    expect(records[0]?.exit_code).toBeUndefined();
+    expect(records[1]).toMatchObject({
       hook: 'async-ok',
       mode: 'async',
       status: 'success',
+      exit_code: 0,
     });
+    expect(records[1]?.stdout_tail).toContain('done');
   });
 
   it('sync hook 超时时应记录 timeout 并按 warn 返回', async () => {
@@ -157,11 +170,3 @@ describe('HookRunner / HookManager.trigger', () => {
     expect((await hooks.readRecentRecords(1))[0]?.stdout_tail).toBe('def');
   });
 });
-
-async function waitFor(check: () => Promise<boolean>): Promise<void> {
-  for (let i = 0; i < 5000; i++) {
-    if (await check()) return;
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  throw new Error('condition not met');
-}

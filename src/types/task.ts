@@ -133,6 +133,11 @@ export interface CreateManyTasksInput {
 export interface CreateManyTasksResult {
   created: { id: string; title: string }[];
   count: number;
+  /**
+   * F-04.2 查询级截断元数据：task_create_many 为原子 all-or-nothing，
+   * 超 max_batch_create 直接报错不截断，因此 truncated 恒为 false（返回=请求数时核对无误）。
+   */
+  query_meta?: import('./truncation.js').QueryMeta;
 }
 
 /** 更新 Task 状态的输入 */

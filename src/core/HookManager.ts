@@ -14,6 +14,7 @@ import type {
   TriggerHookResult,
 } from '../types/hooks.js';
 import type { AiFollowupResponse } from '../types/response.js';
+import { DetachedHookTracker, type DetachedHook } from './DetachedHookTracker.js';
 import { HOOK_LOG_REL, HookLog } from './HookLog.js';
 import { HookRunner } from './HookRunner.js';
 
@@ -30,6 +31,17 @@ const HOOK_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  */
 export class HookManager {
   constructor(private readonly fs: FileStorage) {}
+
+  /**
+   * 在飞 async hook 链追踪器（ADR-0003「Hook Drain 边界与超时策略」）。
+   *
+   * 进程退出 drain 超时后，经 onTimedOut 补写 timed_out 记录：保证用户经
+   * lrnev_hook_tail_log 能看到"被触发但未完成"的 hook（先写 invoked 之外的
+   * 第二重证据），而不是静默丢失。
+   */
+  private readonly detached = new DetachedHookTracker({
+    onTimedOut: (pending) => this.appendTimedOutRecords(pending),
+  });
 
   async list(): Promise<AiFollowupResponse<HookListResult>> {
     const { hooks, issues } = await this.loadHooks();
@@ -71,7 +83,27 @@ export class HookManager {
       if (hook.mode === 'sync') {
         warnings.push(...(await runner.runSync(hook, event, payload)).map((warning) => warning.message));
       } else {
-        runner.runAsync(hook, event, payload);
+        // ADR-0003：async hook 不再裸 fire-and-forget——invoked 记录已在
+        // runAsync 内部先写，链交给 detached 追踪，进程退出 drain 时统一等待。
+        // runAsync 承诺永不 reject；此处 catch 是防御未来内部改动的兜底
+        // （补 failed 记录后照常 settle，不让任何意外 reject 逃出追踪链）。
+        const chain = runner.runAsync(hook, event, payload).catch(async (err) => {
+          try {
+            await new HookLog(this.fs).append({
+              ts: new Date().toISOString(),
+              event,
+              hook: hook.name,
+              mode: hook.mode,
+              status: 'failed',
+              duration_ms: 0,
+              exit_code: -1,
+              stderr_tail: err instanceof Error ? err.message : String(err),
+            });
+          } catch {
+            // 日志不可用只能静默（同 appendTimedOutRecords）。
+          }
+        });
+        this.detached.track(hook.name, event, chain);
       }
     }
     return {
@@ -79,6 +111,49 @@ export class HookManager {
       matched: matched.length,
       warnings,
     };
+  }
+
+  /**
+   * ADR-0003：等待本实例全部在飞 async hook 链 settle，最多 timeoutMs。
+   *
+   * 幂等性由 DetachedHookTracker 保证（并发 drain 共享一次等待；同一链只补写
+   * 一次 timed_out）；drain 完成（settle 或超时补写后）仍可继续触发/再次 drain。
+   * 进程退出挂接（src/mcp/server.ts shutdown）持有 root 对应的单例
+   * getHookManager(root)，经此方法收尾。
+   *
+   * @param timeoutMs 等待上限，默认 5000（ADR-0003 Q2 决策）。
+   */
+  async drainDetached(timeoutMs = 5000): Promise<void> {
+    await this.detached.drain(timeoutMs);
+  }
+
+  /**
+   * drain 超时补写：对仍在运行的链各落一条 timed_out 记录。
+   * 进程即将退出，日志写入尽力而为（失败静默）。
+   */
+  private async appendTimedOutRecords(pending: DetachedHook[]): Promise<void> {
+    const log = new HookLog(this.fs);
+    const now = Date.now();
+    for (const item of pending) {
+      const record: HookRecord = {
+        ts: new Date(now).toISOString(),
+        // event 语义偏离 ADR-0003 草案（草案超时合成记录用 event:'drain'）：
+        // 保留触发原事件，与 invoked/终态记录一致，tail-log 可按事件过滤定位；
+        // status:'timed_out' 已足以表达"drain 等待超时"，见实现说明。
+        event: item.event,
+        hook: item.name,
+        mode: 'async',
+        status: 'timed_out',
+        duration_ms: now - item.startedAt,
+        // exit_code 省略：drain 超时时子进程可能仍在运行，没有退出码。
+        stderr_tail: 'drain 等待超时未完成：进程退出时该 hook 可能仍在运行（记录由进程退出 drain 补写）',
+      };
+      try {
+        await log.append(record);
+      } catch {
+        // 进程退出最末路径：hook 日志写入失败只能静默。
+      }
+    }
   }
 
   async triggerResponse(

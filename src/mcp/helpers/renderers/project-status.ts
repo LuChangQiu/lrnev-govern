@@ -102,6 +102,10 @@ export const projectStatusRenderer: ModelVisibleRenderer = {
             lines.push(`      - ${task.id}: ${task.title}${depsLabel}`);
           }
         }
+        // F-04.2：claimable_next 预算截断时追加省略行（文本通道与 data.claimable_meta 同步）。
+        if (spec.claimable_meta?.truncated) {
+          lines.push(`    可领任务预览已省略：共 ${spec.claimable_meta.total_count} 条只预览 ${spec.claimable_meta.returned_count} 条`);
+        }
         lines.push('');
       }
     }

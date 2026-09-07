@@ -37,7 +37,8 @@ import { SpecManager } from './SpecManager.js';
 import { appendHookWarnings, getHookManager } from './HookManager.js';
 import { ClaimStore } from './ClaimStore.js';
 import { AgentRegistry } from './AgentRegistry.js';
-import { readSpecSummary } from './Summarizer.js';
+import { isTemplatePlaceholder, readSpecSummary } from './Summarizer.js';
+import { queryMetaOf, textMetaForClamped, type TextStatus } from '../types/truncation.js';
 import type {
   Task,
   TaskStatus,
@@ -420,6 +421,8 @@ export class TaskManager {
       data: {
         created: createdTasks.map((task) => ({ id: task.id, title: task.title })),
         count: createdTasks.length,
+        // F-04.2：原子批量恒全量创建（超上限在入口直接报错），QueryMeta 供客户端核对请求批与返回数。
+        query_meta: queryMetaOf(createdTasks.length, entries.length),
       },
       ai_followup: {
         instructions,
@@ -692,10 +695,26 @@ export class TaskManager {
           const raw = sections.get(ref);
           if (raw === undefined) continue;
           const body = source === 'design' ? designFirstLine(raw) : raw;
+          // F-04.1（ADR-0001）：段落标题在但正文空/全为模板占位 → 源残缺（incomplete_source），
+          // 回填空 text + 残缺状态让模型知道该锚点需要补写，而不是把占位噪声当正文喂模型。
+          if (isAnchorSectionIncomplete(body)) {
+            out.push({
+              anchor: ref,
+              source,
+              text: '',
+              meta: { text_status: 'incomplete_source', original_length: body.length, returned_length: 0 },
+            });
+            continue;
+          }
           const cap = Math.min(ANCHOR_CONTEXT_SECTION_CAP, ANCHOR_CONTEXT_TOTAL_CAP - total);
-          const { text, truncated } = clampText(body, cap);
-          out.push({ anchor: ref, source, text, truncated });
-          total += text.length;
+          const clamped = clampText(body, cap);
+          out.push({
+            anchor: ref,
+            source,
+            text: clamped.text,
+            meta: textMetaForClamped(clamped, body.length),
+          });
+          total += clamped.text.length;
         }
       };
       await collect(validates.filter((v) => /^F-\d+$/.test(v)), 'F', `${specDir}/requirements.md`, 'requirements');
@@ -715,14 +734,28 @@ export class TaskManager {
     try {
       const summary = await readSpecSummary(this.fs, sceneId, specId);
       if (!summary.source) return undefined;
-      const l0 = summary.l0 ? clampText(summary.l0, SUMMARY_CONTEXT_L0_CAP) : undefined;
-      const l1 = summary.l1 ? clampText(summary.l1, SUMMARY_CONTEXT_L1_CAP) : undefined;
+      const l0Raw = summary.l0;
+      const l1Raw = summary.l1;
+      const l0 = l0Raw ? clampText(l0Raw, SUMMARY_CONTEXT_L0_CAP) : undefined;
+      const l1 = l1Raw ? clampText(l1Raw, SUMMARY_CONTEXT_L1_CAP) : undefined;
       if (!l0 && !l1) return undefined;
+      const returnedLength = (l0?.text.length ?? 0) + (l1?.text.length ?? 0);
+      // F-04.1（ADR-0001）聚合态：源残缺优先（该补写的级没补写 → 先去补写源）；
+      // 否则任一返回级被预算截断 → truncated_by_budget；再否则 complete。
+      const textStatus: TextStatus = summary.incomplete
+        ? 'incomplete_source'
+        : (l0?.truncated || l1?.truncated)
+          ? 'truncated_by_budget'
+          : 'complete';
       return {
         source: summary.source,
         ...(l0 && { l0: l0.text }),
         ...(l1 && { l1: l1.text }),
-        truncated: Boolean(l0?.truncated || l1?.truncated),
+        meta: {
+          text_status: textStatus,
+          ...(textStatus !== 'complete' && { original_length: (l0Raw?.length ?? 0) + (l1Raw?.length ?? 0) }),
+          returned_length: returnedLength,
+        },
       };
     } catch {
       return undefined;
@@ -923,6 +956,25 @@ export function clampText(text: string, cap: number): { text: string; truncated:
   const boundary = lastSentenceBoundary(head);
   const cut = boundary >= cap * 0.6 ? boundary : cap;
   return { text: head.slice(0, cut).trimEnd(), truncated: true };
+}
+
+/**
+ * F-04.1（ADR-0001）源残缺判定：锚点段落（含 `#### F-xx` 标题行）去掉标题行后
+ * 无任何实义正文行——空行、模板占位（`<!-- ... -->` / 全角括号占位）、列表符+占位
+ * 都不算实义。标题行自身即使带 `<!-- FILL: 标题 -->` 也不算残缺（锚点已存在），
+ * 判据只针对"正文该补写没补写"。requirements 段与 design 首行（designFirstLine
+ * 输出 = 标题行 + 首个非空正文行）共用：后者去掉标题行后即判定对象。
+ */
+function isAnchorSectionIncomplete(body: string): boolean {
+  const rest = body.split(/\r?\n/).slice(1);
+  for (const rawLine of rest) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (isTemplatePlaceholder(line)) continue;
+    if (/^[-*]\s*(?:<!--.*-->|（.*）)$/.test(line)) continue;
+    return false;
+  }
+  return true;
 }
 
 /** 返回 s 中最后一个换行 / 中英文句末标点之后的位置（含标点）；无则 -1。 */

@@ -12,6 +12,7 @@ import { VERSION, PACKAGE_NAME } from '../shared/version.js';
 import { resolveWorkspaceRoot } from '../storage/WorkspaceLocator.js';
 import { FileStorage } from '../storage/FileStorage.js';
 import { AgentRegistry } from '../core/AgentRegistry.js';
+import { getHookManager } from '../core/HookManager.js';
 import { registerResources } from './resources/index.js';
 import { registerTools, type McpProfile } from './tools/index.js';
 import { WORKFLOW_OVERVIEW } from './guidance.js';
@@ -102,10 +103,13 @@ export async function startMcpServer(argv: readonly string[] = process.argv): Pr
   const server = createMcpServer({ profile });
   const transport = new StdioServerTransport();
 
+  // 工作区根：server 生命周期内解析一次；agent 生命周期与 hook 退出 drain 共用。
+  const workspaceRoot = resolveWorkspaceRoot().root;
+
   // 存活随 stdio 连接生命周期:连接初始化即注册当前会话 agent,连接断开即注销并释放其 claim。
   // 不依赖任何客户端定时心跳;硬杀(close 不触发)由 computeAgentStatus 的 pid 探活兜底。
   const lifecycle = createAgentLifecycle(
-    resolveWorkspaceRoot().root,
+    workspaceRoot,
     () => server.server.getClientVersion()?.name,
   );
   server.server.oninitialized = () => {
@@ -117,10 +121,23 @@ export async function startMcpServer(argv: readonly string[] = process.argv): Pr
   // 断开即注销:对 stdio server 而言,客户端离开的可靠信号是 stdin 收到 EOF。
   // 注意 StdioServerTransport 只监听 stdin 'data'/'error',不会在 stdin 关闭时触发 onclose,
   // 因此必须显式监听 stdin 'end'/'close';SIGTERM 在 Windows 上不触发,故不能只依赖信号。
+  // ADR-0003「Hook Drain 边界与超时策略」:进程退出边界 = drain 在飞 async hook
+  // (最多 5s,超时未完成的链补写 timed_out 记录后才真正退出)。本进程的退出路径
+  // 全部收敛到 shutdown(onclose / stdin EOF / SIGINT / SIGTERM),故 drain 挂在此处
+  // 一处即可;drain 只对 workspaceRoot 对应的 HookManager 单例生效(核心事件触发
+  // 均走 getHookManager 单例,见 HookManager.ts)。
+  let shuttingDown = false;
   const shutdown = (): void => {
-    void lifecycle.cleanup()
-      .catch((err) => process.stderr.write(`lrnev: 注销 agent 失败：${stringifyError(err)}\n`))
-      .finally(() => process.exit(0));
+    if (shuttingDown) return; // 幂等:多个退出信号/断开只收尾一次
+    shuttingDown = true;
+    void Promise.all([
+      lifecycle.cleanup().catch((err) => {
+        process.stderr.write(`lrnev: 注销 agent 失败：${stringifyError(err)}\n`);
+      }),
+      getHookManager(workspaceRoot).drainDetached().catch((err) => {
+        process.stderr.write(`lrnev: drain 在飞 hook 失败：${stringifyError(err)}\n`);
+      }),
+    ]).finally(() => process.exit(0));
   };
   server.server.onclose = shutdown;
   wireStdinShutdown(process.stdin, shutdown);

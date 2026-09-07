@@ -24,7 +24,7 @@ import { ErrorbookManager } from '../core/ErrorbookManager.js';
 import { MemoryManager } from '../core/MemoryManager.js';
 import { SessionCommit } from '../core/SessionCommit.js';
 import { Doctor } from '../core/Doctor.js';
-import { HookManager } from '../core/HookManager.js';
+import { getHookManager, HookManager } from '../core/HookManager.js';
 import { ProjectStatus } from '../core/ProjectStatus.js';
 import { GovernanceMap } from '../core/GovernanceMap.js';
 import { GovernanceReport } from '../core/GovernanceReport.js';
@@ -824,7 +824,9 @@ function createManagers(root: string) {
   const memories = new MemoryManager(fs, scenes);
   const sessionCommit = new SessionCommit(memories);
   const doctor = new Doctor(fs);
-  const hooks = new HookManager(fs);
+  // ADR-0003：hooks 走 per-root 单例（同 mcp/tools getManagers），使 CLI hook trigger
+  // 的 async 链也进入单例 tracker，可被退出 drain 覆盖（HookManager.ts 单例说明）。
+  const hooks = getHookManager(root);
   const agents = new AgentRegistry(fs);
   const projectStatus = new ProjectStatus(fs, scenes);
   const governanceMap = new GovernanceMap(fs, scenes);

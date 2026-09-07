@@ -24,24 +24,52 @@ export class HookRunner {
     return this.applyFailurePolicy(hook, record);
   }
 
-  runAsync(hook: HookConfig, event: string, payload: Record<string, unknown>): void {
-    setImmediate(() => {
-      void this.runProcess(hook, event, payload, true)
-        .then((record) => this.log.append(record))
-        .catch((err) => {
-          const record: HookRecord = {
-            ts: new Date().toISOString(),
-            event,
-            hook: hook.name,
-            mode: 'async',
-            status: 'failed',
-            duration_ms: 0,
-            exit_code: -1,
-            stderr_tail: err instanceof Error ? err.message : String(err),
-          };
-          void this.log.append(record);
-        });
-    });
+  /**
+   * ADR-0003「Hook Drain 边界与超时策略」：async hook 启动 = 先落 invoked 记录、
+   * 再跑子进程（Q4 决策：先写 invoked，保证即使进程退出 drain 超时，日志也有
+   * "被触发"的证据），随后由调用方把本链交给 DetachedHookTracker 追踪。
+   *
+   * 返回的链承诺**永不 reject**：runProcess 的 spawn error / close 分支恒会产出
+   * 记录；此前的同步异常（如 command 为空）在此兜底补 failed 记录（stderr_tail
+   * 带错误信息，与旧 fire-and-forget 语义一致）后照常 settle。
+   */
+  async runAsync(hook: HookConfig, event: string, payload: Record<string, unknown>): Promise<HookRecord> {
+    const invoked: HookRecord = {
+      ts: new Date().toISOString(),
+      event,
+      hook: hook.name,
+      mode: hook.mode,
+      status: 'invoked',
+      duration_ms: 0,
+      // exit_code 省略：invoked 记录尚无进程退出码（HookRecord.exit_code 已 optional）
+    };
+    try {
+      await this.log.append(invoked);
+    } catch {
+      // 连 invoked 都写不进说明 hook 日志本身不可用；静默继续，不再做兜底噪音。
+    }
+    try {
+      const record = await this.runProcess(hook, event, payload, true);
+      await this.log.append(record);
+      return record;
+    } catch (err) {
+      const record: HookRecord = {
+        ts: new Date().toISOString(),
+        event,
+        hook: hook.name,
+        mode: hook.mode,
+        status: 'failed',
+        duration_ms: Date.now() - new Date(invoked.ts).getTime(),
+        exit_code: -1,
+        stderr_tail: err instanceof Error ? err.message : String(err),
+      };
+      try {
+        await this.log.append(record);
+      } catch {
+        // 同上：日志不可用时静默，保证链仍正常 settle。
+      }
+      return record;
+    }
   }
 
   private async runProcess(

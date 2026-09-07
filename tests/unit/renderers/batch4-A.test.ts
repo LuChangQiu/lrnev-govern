@@ -497,6 +497,56 @@ describe('M2 第 4 批 A 组渲染器', () => {
       expect(content).toContain('从 active_tasks 里的 in_progress / blocked Task 接手');
     });
 
+    it('F-04.2: spec.claimable_meta.truncated 时追加可领预览省略行', () => {
+      const payload: LrnevToolPayload<ProjectStatusSnapshot> = {
+        response_version: '1',
+        ok: true,
+        data: {
+          generated_at: '2026-09-02T10:00:00Z',
+          scenes: [],
+          specs: [
+            {
+              scene: '01-auth',
+              spec: '01-01-login',
+              name: 'Login',
+              number: 1,
+              version: 0,
+              status: 'in-progress',
+              active_task_count: 0,
+              task_counts: {
+                pending: 2,
+                in_progress: 0,
+                blocked: 0,
+                completed: 0,
+                failed: 0,
+              },
+              free_tasks_count: 2,
+              claimable_next: [
+                {
+                  id: 'T-001',
+                  title: '添加密码加密',
+                },
+              ],
+              claimable_meta: {
+                returned_count: 1,
+                total_count: 2,
+                truncated: true,
+                omitted: { kind: 'exact', count: 1 },
+              },
+            },
+          ],
+          active_agents: [],
+          active_tasks: [],
+          recent_adrs: [],
+          open_errors: [],
+        },
+      };
+
+      const content = projectStatusRenderer.render(payload);
+
+      expect(content).toContain('可领任务预览已省略：共 2 条只预览 1 条');
+    });
+
     it('应正确处理空列表', () => {
       const payload: LrnevToolPayload<ProjectStatusSnapshot> = {
         response_version: '1',

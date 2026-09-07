@@ -57,7 +57,8 @@ export const lrnevHookListRenderer: ModelVisibleRenderer<HookListResult> = {
       lines.push(`📊 最近执行记录（${recent.length} 条）：`);
       for (const record of recent) {
         const statusEmoji = record.status === 'success' ? '✅' : record.status === 'failed' ? '❌' : '⏱️';
-        lines.push(`   ${statusEmoji} ${record.ts} | ${record.hook} | ${record.event} | ${record.status} | ${record.duration_ms}ms | exit=${record.exit_code}`);
+        // exit_code 已 optional：invoked/timed_out 记录无子进程退出码，显示 '-'.
+        lines.push(`   ${statusEmoji} ${record.ts} | ${record.hook} | ${record.event} | ${record.status} | ${record.duration_ms}ms | exit=${record.exit_code ?? '-'}`);
         if (record.stderr_tail) {
           lines.push(`      stderr: ${record.stderr_tail}`);
         }

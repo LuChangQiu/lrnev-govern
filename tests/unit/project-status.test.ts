@@ -60,6 +60,13 @@ describe('ProjectStatus', () => {
       },
       free_tasks_count: 0,
       claimable_next: [],
+      // F-04.2：无可领任务时 QueryMeta 也如实返回（0/0，未截断）。
+      claimable_meta: {
+        returned_count: 0,
+        total_count: 0,
+        truncated: false,
+        omitted: { kind: 'none' },
+      },
     });
     expect(result.data.active_tasks).toEqual([
       expect.objectContaining({
@@ -113,6 +120,13 @@ describe('ProjectStatus', () => {
         { id: 'T-001', title: 'Pending A' },
         { id: 'T-002', title: 'Pending B' },
       ],
+      // F-04.2：claimable_preview=2 < free=3，claimable_meta 告知预览截断省略 1 条。
+      claimable_meta: {
+        returned_count: 2,
+        total_count: 3,
+        truncated: true,
+        omitted: { kind: 'exact', count: 1 },
+      },
     });
     expect(JSON.stringify(result.data)).not.toContain('Completed task');
     expect(JSON.stringify(result.data)).not.toContain('Failed task');
@@ -236,6 +250,12 @@ describe('ProjectStatus', () => {
     const locked = result.data.specs.find((spec) => spec.spec === lockedSpec.data.spec);
 
     expect(free?.free_tasks_count).toBe(3);
+    expect(free?.claimable_meta).toEqual({
+      returned_count: 3,
+      total_count: 3,
+      truncated: false,
+      omitted: { kind: 'none' },
+    });
     expect(locked?.free_tasks_count).toBe(1);
     expect(locked?.claimable_next).toEqual([{ id: 'T-002', title: 'E' }]);
   });
@@ -267,6 +287,13 @@ describe('ProjectStatus', () => {
 
     expect(entry?.free_tasks_count).toBe(7);
     expect(entry?.claimable_next).toHaveLength(5);
+    // F-04.2：预览超限时 claimable_meta 携带 total_count（=free_tasks_count）供客户端算省略量。
+    expect(entry?.claimable_meta).toEqual({
+      returned_count: 5,
+      total_count: 7,
+      truncated: true,
+      omitted: { kind: 'exact', count: 2 },
+    });
     expect(result.ai_followup?.instructions.join('\n')).toContain('最多预览 5 条');
     expect(result.ai_followup?.instructions.join('\n')).toContain('free_tasks_count');
   });
@@ -382,6 +409,13 @@ describe('ProjectStatus', () => {
     // 但不再贡献可领/活跃
     expect(specAfter.free_tasks_count).toBe(0);
     expect(specAfter.claimable_next).toEqual([]);
+    // F-04.2：归档 spec 不贡献可领任务，claimable_meta 如实返回 0/0 未截断。
+    expect(specAfter.claimable_meta).toEqual({
+      returned_count: 0,
+      total_count: 0,
+      truncated: false,
+      omitted: { kind: 'none' },
+    });
     expect(after.data.active_tasks.some((t) => t.spec === spec.data.spec)).toBe(false);
   });
 });

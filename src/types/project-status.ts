@@ -39,6 +39,13 @@ export interface ProjectStatusSpec {
   task_counts: ProjectStatusTaskCounts;
   free_tasks_count: number;
   claimable_next: ProjectStatusTaskBrief[];
+
+  /**
+   * F-04.2 查询级截断元数据（ADR-0001）：claimable_next 是先全量收集可领任务、
+   * 再按 config project_status.claimable_preview slice 的预览——total_count 即
+   * free_tasks_count（总是可得），随 spec 返回供客户端判断预览省略了多少。
+   */
+  claimable_meta?: import('./truncation.js').QueryMeta;
 }
 
 export type ProjectStatusTaskCounts = Record<TaskStatus, number>;

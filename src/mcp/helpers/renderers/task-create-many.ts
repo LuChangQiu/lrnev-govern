@@ -28,6 +28,12 @@ export const taskCreateManyRenderer: ModelVisibleRenderer<CreateManyTasksResult>
       for (const task of created) {
         lines.push(`   ${task.id}: ${task.title}`);
       }
+      // F-04.2 一致性核对行：data.query_meta 出现时把「请求批=返回数」写进文本通道
+      // （原子 all-or-nothing 恒全量创建，truncated 恒 false；此处只处理 none 分支）。
+      const queryMeta = payload.data.query_meta;
+      if (queryMeta && queryMeta.omitted.kind === 'none') {
+        lines.push(`   创建 ${queryMeta.returned_count}/${queryMeta.total_count} 全量成功，无省略`);
+      }
       lines.push('');
     }
 

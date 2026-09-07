@@ -13,6 +13,7 @@ import { tryParseSpecParts } from './SpecManager.js';
 import { attachTaskChildren, parseTasksFromMarkdown } from './TaskManager.js';
 import { AgentRegistry } from './AgentRegistry.js';
 import { ClaimStore } from './ClaimStore.js';
+import { queryMetaOf } from '../types/truncation.js';
 import type { AiFollowupResponse, Scope } from '../types/response.js';
 import type { TaskClaim } from '../types/claim.js';
 import type { SpecFrontmatter } from '../types/spec.js';
@@ -170,6 +171,10 @@ export class ProjectStatus {
         task_counts: taskCounts,
         free_tasks_count: freeTasksCount,
         claimable_next: claimableNext,
+        // F-04.2：claimable_next 是先全量收集（claimableTasks/freeTasksCount）再按
+        // claimable_preview slice 的预览——total_count=freeTasksCount 总是可得，
+        // 随 spec 返回 QueryMeta，客户端可判断预览省略了多少条可领任务。
+        claimable_meta: queryMetaOf(claimableNext.length, freeTasksCount),
       });
 
       if (!isArchived) activeTasks.push(...active.map((task) => toProjectStatusTask(task)));

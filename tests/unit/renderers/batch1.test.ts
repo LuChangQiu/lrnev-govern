@@ -320,6 +320,64 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
       // 所以渲染器也不应该自创
       expect(content).not.toContain('WORKFLOW_OVERVIEW');
     });
+
+    it('F-04.2: query_meta 截断时应追加省略提示行（预算截断省略 K 条）', () => {
+      const payload: LrnevToolPayload<{
+        results: Array<{ uri: string }>;
+        query_meta: {
+          returned_count: number;
+          total_count: number;
+          truncated: boolean;
+          omitted: { kind: 'exact'; count: number };
+        };
+      }> = {
+        response_version: '1',
+        ok: true,
+        data: {
+          results: [{ uri: 'context://spec/00-default/01-00-test' }],
+          query_meta: {
+            returned_count: 1,
+            total_count: 3,
+            truncated: true,
+            omitted: { kind: 'exact', count: 2 },
+          },
+        },
+      };
+
+      const content = contextSearchRenderer.render(payload);
+
+      expect(content).toContain('🔍 找到 1 个匹配结果');
+      expect(content).toContain('⚠️ 命中 3 条，仅返回 1 条（预算截断省略 2 条）');
+    });
+
+    it('F-04.2: query_meta 未截断（返回=命中总数）时不追加省略行', () => {
+      const payload: LrnevToolPayload<{
+        results: Array<{ uri: string }>;
+        query_meta: {
+          returned_count: number;
+          total_count: number;
+          truncated: boolean;
+          omitted: { kind: 'none' };
+        };
+      }> = {
+        response_version: '1',
+        ok: true,
+        data: {
+          results: [{ uri: 'context://spec/00-default/01-00-test' }],
+          query_meta: {
+            returned_count: 1,
+            total_count: 1,
+            truncated: false,
+            omitted: { kind: 'none' },
+          },
+        },
+      };
+
+      const content = contextSearchRenderer.render(payload);
+
+      expect(content).toContain('🔍 找到 1 个匹配结果');
+      expect(content).not.toContain('省略');
+    });
   });
 
   describe('渲染器职责边界验证', () => {
@@ -396,6 +454,30 @@ describe('M2 第 1 批渲染器 - 常量引用验收', () => {
       const content = taskCreateManyRenderer.render(payload);
 
       expect(content).toContain('建议下一步：task_update 置 in_progress');
+    });
+
+    it('F-04.2: data.query_meta 存在时追加一致性核对行（全量成功无省略）', () => {
+      const payload: LrnevToolPayload<CreateManyTasksResult> = {
+        response_version: '1',
+        ok: true,
+        data: {
+          created: [
+            { id: 'T-001', title: '实现登录' },
+            { id: 'T-002', title: '实现注册' },
+          ],
+          count: 2,
+          query_meta: {
+            returned_count: 2,
+            total_count: 2,
+            truncated: false,
+            omitted: { kind: 'none' },
+          },
+        },
+      };
+
+      const content = taskCreateManyRenderer.render(payload);
+
+      expect(content).toContain('创建 2/2 全量成功，无省略');
     });
 
     it('禁止硬编码 paraphrase', () => {

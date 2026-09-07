@@ -10,6 +10,7 @@ import { filePathToURI } from '../storage/URIRouter.js';
 import { loadConfig } from '../shared/config.js';
 import { LrnevError, ErrorCode } from '../shared/errors.js';
 import { extractAnchorSections, clampText } from './TaskManager.js';
+import { queryMetaOf } from '../types/truncation.js';
 import type { AiFollowupResponse, Scope } from '../types/response.js';
 import type { SearchInput, SearchResponse, SearchResult } from '../types/search.js';
 
@@ -66,6 +67,9 @@ export class Searcher {
         scope,
         max_depth: maxDepth,
         results: top,
+        // F-04.2：先全量召回排序（results）再按 top_k 截断（top），截断点前候选总数
+        // 总是可得——随 data 返回 QueryMeta，客户端可判断省略了多少命中。
+        query_meta: queryMetaOf(top.length, results.length),
       },
       ai_followup: {
         instructions: top.length > 0

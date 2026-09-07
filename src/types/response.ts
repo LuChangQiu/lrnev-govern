@@ -9,6 +9,8 @@
  * 详见 design.md 第 5 节。
  */
 
+import type { TextMeta } from './truncation.js';
+
 /**
  * 标准 MCP 工具响应包装。
  *
@@ -55,8 +57,11 @@ export interface AnchorContext {
   /** 段落正文（已按截断策略处理） */
   text: string;
 
-  /** 是否被截断 */
-  truncated: boolean;
+  /**
+   * F-04.1 文本截断元数据：预算截断（truncated_by_budget）/ 源残缺（incomplete_source）/
+   * 完整（complete）三态 + 长度（ADR-0001）。替代早期单布尔 truncated。
+   */
+  meta: TextMeta;
 }
 
 /** F-03 降级档：spec 级摘要（按场景截断后）。 */
@@ -65,8 +70,8 @@ export interface SummaryContext {
   source: 'sidecar' | 'inline';
   l0?: string;
   l1?: string;
-  /** l0 或 l1 是否被截断。 */
-  truncated: boolean;
+  /** F-04.1 聚合截断元数据：任一返回级被预算截断为 truncated_by_budget；源级残缺为 incomplete_source。 */
+  meta: TextMeta;
 }
 
 /** AI 后续动作指引 */

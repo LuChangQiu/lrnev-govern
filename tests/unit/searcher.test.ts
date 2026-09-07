@@ -71,6 +71,13 @@ describe('Searcher', () => {
     const res = await searcher.search({ query: '完全不存在的关键词' });
     expect(res.data.results).toEqual([]);
     expect(res.ai_followup?.instructions.join('\n')).toContain('没有找到');
+    // F-04.2：空结果时 query_meta 如实返回 0/0（total_count 不可为 null）。
+    expect(res.data.query_meta).toEqual({
+      returned_count: 0,
+      total_count: 0,
+      truncated: false,
+      omitted: { kind: 'none' },
+    });
   });
   it('F-02: search 配置应控制 top_k、snippet_length 和 L0 加权', async () => {
     await fs.writeJson('.lrnev/config/lrnev.json', {
@@ -88,6 +95,31 @@ describe('Searcher', () => {
     expect(res.data.results).toHaveLength(1);
     expect(res.data.results[0]?.uri).toBe('context://project');
     expect(res.data.results[0]?.snippet.length).toBeLessThanOrEqual(6);
+    // F-04.2：全量命中 2 条、top_k=1 截断——query_meta 告知省略了 1 条。
+    expect(res.data.query_meta).toEqual({
+      returned_count: 1,
+      total_count: 2,
+      truncated: true,
+      omitted: { kind: 'exact', count: 1 },
+    });
+  });
+
+  it('F-04.2: 命中数 ≤ top_k 时 query_meta 标记未截断（omitted none）', async () => {
+    const scene = await scenes.create({ name: 'user-management' });
+    await summarizer.saveSummary({
+      uri: `context://scene/${scene.data.id}`,
+      l0: 'gamma',
+    });
+
+    const res = await searcher.search({ query: 'gamma' });
+
+    expect(res.data.results).toHaveLength(1);
+    expect(res.data.query_meta).toEqual({
+      returned_count: 1,
+      total_count: 1,
+      truncated: false,
+      omitted: { kind: 'none' },
+    });
   });
 
   it('F-03: BM25 让短而精准的文档胜过长文档高频词，且召回集不缩小', async () => {
