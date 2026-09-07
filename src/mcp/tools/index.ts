@@ -179,7 +179,7 @@ function withoutDecisionContext<A extends { decision_context?: unknown }>(args: 
 
 /**
  * 工具面分层 profile（L7 消费方分层，2026-09-04 裁决 2，见 ai-discussions/结果/
- * 2026-09-04-DeepSeek-引导激励与工具分层设计裁决.md 第八节裁决 2）：
+ * dev-docs/decisions/2026-09-04-引导激励与工具分层设计裁决.md 第八节裁决 2）：
  *
  * - 'full'（默认，42 个）：全部工具，向后兼容，现有客户端/测试零变化；
  * - 'core'（33 个）：full − 9 个"AI 不该主动选"的工具 —— agent_* 自动面

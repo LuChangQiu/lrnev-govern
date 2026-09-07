@@ -1,7 +1,7 @@
 # T-027 R1 试点执行汇总（15 clean sessions，sha-a）
 
 - **日期**: 2026-09-03 夜
-- **依据**: `ai-discussions/结果/2026-09-03-DeepSeek-R1试点执行规格.md`
+- **依据**: `dev-docs/decisions/2026-09-03-R1试点执行规格.md`
 - **环境**: 客户端 claude-code 2.1.228；model claude-sonnet-5[1M]（ANTHROPIC_MODEL env，实测 evidence model_version=`claude-sonnet-5[1m]`）；SHA sha-a（env `T027_SHA=sha-a` 锁定，git_sha=45a86e15c896c446a41e48324e646d32c27fb76a）；MCP 2025-11-25
 - **命令**: `T027_SCENARIO=<id> T027_SHA=sha-a npx tsx tests/e2e/t027-baseline/harness-mvp.mjs`（每 session 全新 claude -p 调用 = clean session）
 

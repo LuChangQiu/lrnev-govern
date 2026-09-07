@@ -87,7 +87,7 @@ export interface LrnevToolPayload<T = unknown> {
   // 不依赖 guidance 数组（B4 V2 实证）。Profile 现以纯函数库 + 契约类型交付
   // （mcp/helpers/guidance-profile.ts、mcp/types/guidance-profile.ts），schema 不再对
   // MCP 响应声明 guidance 字段，避免空字段误导。详见
-  // ai-discussions/结果/2026-09-07-DeepSeek-T006字段裁决.md。
+  // dev-docs/decisions/2026-09-07-T006字段裁决.md。
 
   /**
    * F-03 任务启动上下文：回填的锚点段落（可选）。

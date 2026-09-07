@@ -76,7 +76,7 @@ export type DecisionContextDirection = (typeof DECISION_CONTEXT_DIRECTION_VALUES
  *   格式解析/对齐属 T-003（解析失败只返回 DECISION_BOUNDARY 提示，不在本层收紧格式）；
  * - reported_user_quote 已按 T-006 裁决（I6，2026-09-07）移除：380 录制件 0 命中 +
  *   服务端零使用 + 客户端转述不可验证 → schema/类型/测试同步删除（见
- *   ai-discussions/结果/2026-09-07-DeepSeek-T006字段裁决.md）；
+ *   dev-docs/decisions/2026-09-07-T006字段裁决.md）；
  * - 缺失（未传 decision_context）是"未声明"，绝不被本契约改写为 strength=unspecified。
  */
 export interface DecisionContextInput {

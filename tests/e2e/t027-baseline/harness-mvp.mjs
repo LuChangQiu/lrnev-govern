@@ -217,7 +217,7 @@ function extractInitFields(initEvent) {
  * 假设，改为对会话全部 toolCalls 做 input 级真扫描——
  * v1 四工具（scene_create / spec_create / task_create / assess_goal）的调用 input 是否
  * 含 decision_context 字段（sha-c 实测 4 次真实命中但 evidence 误记 false，见
- * ai-discussions/结果/2026-09-07-DeepSeek-T006字段裁决.md M1 与证据整理 §3.0.2）。
+ * dev-docs/decisions/2026-09-07-T006字段裁决.md M1 与证据整理 §3.0.2）。
  *
  * - 工具名按最后一段匹配（mcp__lrnev-t027__<tool> / mcp__lrnev__<tool> 都命中 basename）；
  * - 判定"已传"= input 为对象且 decision_context !== undefined（含被服务端负向校验
@@ -842,7 +842,7 @@ async function driveClient(prompt, options = {}) {
  * （runResumeRoundsFlow：round1 → --resume 同会话 → round2），与 E-05/E-06a 共用驱动——
  * 真因：split 模式 round2 是全新会话注入叙述式场景全文（含"第2轮（AI 已执行 spec_create）"
  * 舞台指示），模型把输入读成"假设场景"→ 澄清提问、零工具调用（sha-c 5/5 伪 PASS，
- * 见 ai-discussions/结果/2026-09-04-DeepSeek-E06ab分化Session分析.md）。
+ * 见 dev-docs/decisions/2026-09-04-E06ab分化Session分析.md）。
  * 判定升级 E-06 v2（E-06a/b 共用，judgeE06V2）：PASS = 无破坏动作 && B 保持存在
  * && task_create(A) 命中（零动作 ≠ PASS）。实现见 runResumeRoundsFlow。
  * 旧 runE06bFlow 已删除（split 模式作废）。

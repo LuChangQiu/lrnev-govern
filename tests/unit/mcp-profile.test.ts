@@ -1,5 +1,5 @@
 /**
- * L7 消费方分层（2026-09-04 裁决 2，ai-discussions/结果/2026-09-04-DeepSeek-引导激励与工具分层设计裁决.md）：
+ * L7 消费方分层（2026-09-04 裁决 2，dev-docs/decisions/2026-09-04-引导激励与工具分层设计裁决.md）：
  * MCP 工具注册期 profile core|full。
  *
  * - full（默认，42）= 全部工具，向后兼容（现有无参 createMcpServer 调用零变化）；

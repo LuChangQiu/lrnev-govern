@@ -14,7 +14,7 @@
  * - T-004 曾在本文件单点挂载 payload.guidance（allowlist 四工具
  *   assess_goal/scene_create/spec_create/task_create 存在 role 化 instructions 时
  *   经 classifyInstructions → buildGuidanceView 派生结构化数组附加到响应）。
- * - T-006 裁决（2026-09-07，ai-discussions/结果/2026-09-07-DeepSeek-T006字段裁决.md
+ * - T-006 裁决（2026-09-07，dev-docs/decisions/2026-09-07-T006字段裁决.md
  *   O6）：**运行时挂载已回退**——三客户端实测零消费（380 录制件）+ 每次挂载 +583 字符
  *   ≈24.2% 纯重复税；文本通道（ai_followup.instructions / content）是唯一被消费通道，
  *   G5 归档边界效果不依赖 guidance 数组。本文件不再派生/附加任何 guidance 字段；

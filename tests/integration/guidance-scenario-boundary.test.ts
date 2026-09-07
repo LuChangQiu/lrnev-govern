@@ -9,7 +9,7 @@
  * 只补 T-005 验收要求的【场景级端到端协议边界】：走真实 MCP server + 临时工作区，
  * 每场景同时断言 .lrnev 落盘状态与响应 guidance/文本内容。
  *
- * T-006 字段回退注记（裁决 2026-09-07，ai-discussions/结果/2026-09-07-DeepSeek-T006字段裁决.md）：
+ * T-006 字段回退注记（裁决 2026-09-07，dev-docs/decisions/2026-09-07-T006字段裁决.md）：
  * - O6：payload.guidance 运行时挂载与 outputSchema guidance 声明已回退——响应不再携带
  *   结构化 guidance 数组；role 语义经文本通道（ROLE_PREFIX 行）交付，Profile 保留为纯函数
  *   库 + 契约类型。本文件所有 role 断言以文本行为准（role 化行经 classifyInstructions 复核），

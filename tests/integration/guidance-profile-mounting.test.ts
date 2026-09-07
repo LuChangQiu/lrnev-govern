@@ -4,7 +4,7 @@
  * Spec: 05-00-lrnev-guidance-profile（F-03/F-06/F-07、D-04/D-05/D-06）
  * Task: T-004（裁决 Q1~Q6）+ T-006（O6 2026-09-07 运行时挂载回退）
  *
- * T-006 裁决语义（见 ai-discussions/结果/2026-09-07-DeepSeek-T006字段裁决.md）：
+ * T-006 裁决语义（见 dev-docs/decisions/2026-09-07-T006字段裁决.md）：
  * - role 化文本行（ROLE_PREFIX 五角色行）保留在 ai_followup.instructions / content——
  *   唯一被实测消费的通道（G1 送达实证、G5 归档边界效果走文本，B4 V2 4/5→0/5 不依赖数组）；
  * - payload.guidance **不再挂载**：任何工具响应（含 allowlist 四工具）structuredContent

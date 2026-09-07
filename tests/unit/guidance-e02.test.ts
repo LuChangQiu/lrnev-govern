@@ -1,7 +1,7 @@
 /**
  * E-02 门禁引导改进（G1-G4）语义测试。
  *
- * 覆盖（设计定稿：ai-discussions/结果/2026-09-03-DeepSeek-E02门禁综合判定与引导设计.md）：
+ * 覆盖（设计定稿：dev-docs/decisions/2026-09-03-E02门禁综合判定与引导设计.md）：
  * - G1：spec_get 对"存在但非 completed"的 Spec 挂 followup —— 常量 SPEC_INCREMENT_GUIDANCE
  *       语义（【建议】角色、增量=task_create 登记、改正文=直接编辑）；运行级 in-progress
  *       触发在 tests/unit/mcp-server.test.ts 覆盖。
