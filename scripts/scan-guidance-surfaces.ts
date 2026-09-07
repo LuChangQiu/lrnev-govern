@@ -16,8 +16,8 @@
  *   npx tsx scripts/scan-guidance-surfaces.ts
  *
  * 输出：
- *   - dev-docs/ai-guidance-standardization/guidance-surface-inventory-v4.md
- *   - dev-docs/ai-guidance-standardization/guidance-surface-inventory-v4.json
+ *   - dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v4.md
+ *   - dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v4.json
  */
 
 import { createHash } from 'node:crypto';
@@ -906,13 +906,13 @@ function main(): void {
 
   // 生成 Markdown 报告（v4 续版名——v1 名已于 0464c2e 删除，勿改回以免复活活档）
   const markdown = generateMarkdownReport(inventory);
-  const outputPath = resolve(PROJECT_ROOT, 'dev-docs/ai-guidance-standardization/guidance-surface-inventory-v4.md');
+  const outputPath = resolve(PROJECT_ROOT, 'dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v4.md');
 
   writeFileSync(outputPath, markdown, 'utf-8');
   console.log(`Inventory written to: ${outputPath}`);
 
   // 同时输出 JSON（用于机器可读）
-  const jsonPath = resolve(PROJECT_ROOT, 'dev-docs/ai-guidance-standardization/guidance-surface-inventory-v4.json');
+  const jsonPath = resolve(PROJECT_ROOT, 'dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v4.json');
   writeFileSync(jsonPath, JSON.stringify(inventory, null, 2), 'utf-8');
   console.log(`JSON inventory written to: ${jsonPath}`);
 

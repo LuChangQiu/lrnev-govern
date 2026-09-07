@@ -6,7 +6,7 @@
  * 输出为归档冻结报告 dev-docs/archive/baseline-report.md——重跑会改写冻结产物
  * （报告头哈希一并漂移，破坏归档留档口径）。
  *
- * Scans guidance-surface-inventory-v2.json for:
+ * Scans dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v2.json for:
  * 1. High-risk wording (force language in governance_doc, etc.)
  * 2. Conflicts (same trigger, different instructions)
  * 3. Duplicates (cross-channel redundancy)
@@ -80,7 +80,7 @@ interface Duplicate {
 
 // ========== Configuration ==========
 
-const INVENTORY_PATH = path.resolve(__dirname, '../dev-docs/ai-guidance-standardization/guidance-surface-inventory-v2.json');
+const INVENTORY_PATH = path.resolve(__dirname, '../dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v2.json');
 const OUTPUT_PATH = path.resolve(__dirname, '../dev-docs/archive/baseline-report.md');
 
 // Patterns for force language (runtime constraints, not requirement contracts)
@@ -665,7 +665,7 @@ function generateReport(
   lines.push('**Command**: `npx tsx scripts/scan-high-risk-wording.ts`');
   lines.push('');
   lines.push('**Input**:');
-  lines.push(`- File: \`guidance-surface-inventory-v2.json\``);
+  lines.push(`- File: \`dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v2.json\``);
   lines.push(`- Size: ${(fs.statSync(INVENTORY_PATH).size / 1024).toFixed(1)} KB`);
   lines.push(`- Surfaces: ${inventory.surfaces.length}`);
   lines.push('');

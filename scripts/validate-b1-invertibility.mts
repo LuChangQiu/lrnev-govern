@@ -3,7 +3,7 @@
  * B1 Invertibility Validation Script
  *
  * ⚠️ 历史工具（scene04 研究期；3.0.0 起由 T-027 体系接替，勿随意重跑）：
- * 纯只读校验（只读冻结清单 guidance-surface-inventory-v3-08-00.json，无副作用），
+ * 纯只读校验（只读冻结清单 dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v3-08-00.json，无副作用），
  * 用途仅为 346/346 可逆性结论的复核留档。
  *
  * Validates that all 346 surfaces in v3 can be byte-perfectly reconstructed
@@ -32,7 +32,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const V3_PATH = path.resolve(__dirname, '../dev-docs/ai-guidance-standardization/guidance-surface-inventory-v3-08-00.json');
+const V3_PATH = path.resolve(__dirname, '../dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v3-08-00.json');
 
 interface Fragment {
   role: string;

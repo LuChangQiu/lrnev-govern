@@ -563,7 +563,7 @@ More design
     });
 
     it('should not reference non-implemented constraints', () => {
-      // These are explicitly listed as NOT constraints in inventory and semantic-authority-model.md §6.1
+      // These are explicitly listed as NOT constraints in inventory and dev-docs/ai-guidance-standardization/notes/semantic-authority-model.md §6.1
       const nonConstraints = [
         'archived Spec 不能新增 Task',
         'ready gate 会为其他工具建立全局锁',

@@ -266,7 +266,7 @@ node scripts/t027-f04-stats.mjs <file-or-dir>... --scenario E-01,E-02 --sha sha-
 
 ## 参考文档
 
-- 04-00 最终观测报告：`dev-docs/ai-guidance-standardization/04-00-最终观测报告.md`
+- 04-00 最终观测报告：`dev-docs/ai-guidance-standardization/deliverables/04-00-final-observation-report.md`
 - 04-00 design：`.lrnev/scenes/04-ai-guidance-standardization/specs/04-00-agent-e2e-observability/design.md`
-- 四阶段证据清单：`dev-docs/ai-guidance-standardization/b*-evidence-manifest.json`
+- 四阶段证据清单：`dev-docs/ai-guidance-standardization/evidence/b*-evidence-manifest.json`
 - 05-00 requirements：`.lrnev/scenes/04-ai-guidance-standardization/specs/05-00-lrnev-guidance-profile/requirements.md`

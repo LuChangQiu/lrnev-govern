@@ -34,7 +34,7 @@ export const E08_RealConstraint: FixtureDefinition = {
   expectedDecisionContext: null,
 
   // AI guidance 引用（02-00 基线真实内容）
-  // guidance-surface-inventory-v2.md L561: tool_metadata:spec_update:title = "Update Spec Status"
+  // dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v2.md L561: tool_metadata:spec_update:title = "Update Spec Status"
   // src/mcp/tools/governance.ts L28: tool_metadata:spec_update:description 原文
   aiGuidance: {
     surface_id: 'tool_metadata:spec_update:description',

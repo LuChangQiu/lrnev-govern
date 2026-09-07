@@ -3,13 +3,13 @@
  * 04-00 Agent E2E Observability - 基线证据生成器
  *
  * ⚠️ 历史工具（scene04 研究期；3.0.0 起由 T-027 体系接替，勿随意执行）：
- * 重跑会覆写 dev-docs/ai-guidance-standardization/ 下受管的
+ * 重跑会覆写 dev-docs/ai-guidance-standardization/evidence/ 下受管的
  * <stage>-evidence-manifest.json（b0/b1/b2a/b2b/b3 各代受管 manifest），
  * git_sha/note/evidence 会整体漂移——场景观测资产已冻结，无新场景不要重生成。
  *
  * 运行全部 04-00 fixture，通过 EvidenceCollector 采集证据，
  * 生成 `<stage>-evidence-manifest.json`，落库到
- * dev-docs/ai-guidance-standardization/ 目录。
+ * dev-docs/ai-guidance-standardization/evidence/ 目录。
  *
  * 落成正式脚本的原因（T-013"确保测试场景可重复"）：
  * 上一版 B0 manifest 由 ad hoc inline script 生成，用完即删，
@@ -23,10 +23,10 @@
  * 参数：
  *   --stage=<B0|B1|B2a|B2b|B3>   必填，阶段标识，决定输出文件名与 manifest.stage
  *   --baseline-ref=<string>      可选，manifest.baseline_ref，默认沿用 B0 基线引用
- *   --v3-path=<path>             可选，v3 inventory 路径（B1/B2a 阶段用于 content_hash），默认 v3-08-00.json
+ *   --v3-path=<path>             可选，v3 inventory 路径（B1/B2a 阶段用于 content_hash），默认 dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v3-08-00.json
  *   --note=<string>              可选，manifest.note 说明文字
  *   --out=<path>                 可选，输出路径，默认
- *                                 dev-docs/ai-guidance-standardization/<stage-lower>-evidence-manifest.json
+ *                                 dev-docs/ai-guidance-standardization/evidence/<stage-lower>-evidence-manifest.json
  */
 
 import { writeFileSync, readFileSync } from 'node:fs';
@@ -104,7 +104,7 @@ async function main() {
     try {
       const v3Path = args['v3-path']
         ? resolve(repoRoot, args['v3-path'])
-        : resolve(repoRoot, 'dev-docs/ai-guidance-standardization/guidance-surface-inventory-v3-08-00.json');
+        : resolve(repoRoot, 'dev-docs/ai-guidance-standardization/evidence/guidance-surface-inventory-v3-08-00.json');
       const v3Data = JSON.parse(readFileSync(v3Path, 'utf-8'));
       v3Surfaces = new Map(v3Data.surfaces.map((s: any) => [s.surface_id, s]));
       console.log(`[${stage}] 已加载 ${v3Surfaces.size} 个 v3 surfaces 用于 content_hash 计算（来源: ${args['v3-path'] || 'v3-08-00.json'}）`);
@@ -208,7 +208,7 @@ async function main() {
     ? resolve(repoRoot, args.out)
     : resolve(
         repoRoot,
-        `dev-docs/ai-guidance-standardization/${stage.toLowerCase()}-evidence-manifest.json`
+        `dev-docs/ai-guidance-standardization/evidence/${stage.toLowerCase()}-evidence-manifest.json`
       );
 
   writeFileSync(outPath, JSON.stringify(manifest, null, 2) + '\n', 'utf-8');
