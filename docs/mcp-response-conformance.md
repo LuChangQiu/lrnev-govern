@@ -236,7 +236,7 @@ const humanText = result.content[0].text; // 仅用于显示/日志
 
 ### 9.1 B0-B2b 等价性验证
 
-证据来源：`dev-docs/ai-guidance-standardization/{b0,b1,b2a,b2b}-evidence-manifest.json`
+证据来源：`../dev-docs/ai-guidance-standardization/{b0,b1,b2a,b2b}-evidence-manifest.json`
 
 **行为等价性**:
 - 12/12 场景 `action_taken` 完全一致（B0 → B1 → B2a → B2b）

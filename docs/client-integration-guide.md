@@ -494,7 +494,7 @@ function handleDirection(direction: Direction) {
 
 **完整覆盖**（12 个决策场景）:
 - E-01 ~ E-11 + E-06a/E-06b
-- 参考 `dev-docs/ai-guidance-standardization/{b0,b1,b2a,b2b}-evidence-manifest.json`
+- 参考 `../dev-docs/ai-guidance-standardization/{b0,b1,b2a,b2b}-evidence-manifest.json`
 
 ### 9.2 验证标准
 
