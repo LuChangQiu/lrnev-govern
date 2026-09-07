@@ -9,7 +9,7 @@ updated: '2026-06-12'
 
 # 01-00 Cli Mcp Parity - 需求
 
-> 权威依据：`dev-docs/FINDINGS-CHECKLIST.md`（最终决定表 I-1/I-2/I-3）+ `dev-docs/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（A3 / D3 / D6 复现）。实现前回查，勿凭记忆。
+> 权威依据：`dev-docs/archive/FINDINGS-CHECKLIST.md`（最终决定表 I-1/I-2/I-3）+ `dev-docs/archive/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（A3 / D3 / D6 复现）。实现前回查，勿凭记忆。
 
 ## L0 摘要
 

@@ -9,7 +9,7 @@ updated: '2026-06-12'
 
 # 05-00 Maintenance Visibility - 需求
 
-> 权威依据：`dev-docs/FINDINGS-CHECKLIST.md`（最终决定表 I-12/I-17）+ `dev-docs/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（C1 dead agent 堆积 / E3 supersedes 单向）。实现前回查，勿凭记忆。
+> 权威依据：`dev-docs/archive/FINDINGS-CHECKLIST.md`（最终决定表 I-12/I-17）+ `dev-docs/archive/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（C1 dead agent 堆积 / E3 supersedes 单向）。实现前回查，勿凭记忆。
 
 ## L0 摘要
 

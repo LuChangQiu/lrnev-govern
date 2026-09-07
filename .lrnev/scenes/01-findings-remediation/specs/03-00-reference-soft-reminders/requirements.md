@@ -9,7 +9,7 @@ updated: '2026-06-12'
 
 # 03-00 Reference Soft Reminders - 需求
 
-> 权威依据：`dev-docs/FINDINGS-CHECKLIST.md`（最终决定表 I-7/I-8）+ `dev-docs/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（D3/D4 复现）。实现前回查，勿凭记忆。
+> 权威依据：`dev-docs/archive/FINDINGS-CHECKLIST.md`（最终决定表 I-7/I-8）+ `dev-docs/archive/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（D3/D4 复现）。实现前回查，勿凭记忆。
 > 注：原 I-5（validates F-xx 软提醒）已**翻转为硬校验并移入 S6**（锚点体系规范化），本 Spec 不再含 I-5。
 
 ## L0 摘要

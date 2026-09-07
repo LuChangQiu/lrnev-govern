@@ -9,7 +9,7 @@ updated: '2026-06-12'
 
 # 06-00 Design Anchor D Xx - 需求
 
-> 权威依据：`dev-docs/FINDINGS-CHECKLIST.md`（I-18 最终决策 + I-5 翻转行）+ `dev-docs/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（D1 validates 不校验）。实现前回查，勿凭记忆。
+> 权威依据：`dev-docs/archive/FINDINGS-CHECKLIST.md`（I-18 最终决策 + I-5 翻转行）+ `dev-docs/archive/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（D1 validates 不校验）。实现前回查，勿凭记忆。
 > 本 Spec 吸收了原 I-5（validates F-xx 校验，已从 S3 翻转为硬校验移入）。
 
 ## L0 摘要

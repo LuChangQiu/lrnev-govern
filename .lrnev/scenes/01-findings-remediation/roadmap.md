@@ -9,12 +9,12 @@ created: '2026-06-11'
 
 ## 当前阶段
 
-需求定义完成、待实现。7 个 Spec 的 requirements 已全部填写并通过 ready gate，并对照 `dev-docs/FINDINGS-CHECKLIST.md` 与测试报告核对一致。下一步按优先级逐个进入实现（填 design → 建 task → 改源码 → completion gate）。在 `fix/findings-checklist` 分支推进。
+需求定义完成、待实现。7 个 Spec 的 requirements 已全部填写并通过 ready gate，并对照 `dev-docs/archive/FINDINGS-CHECKLIST.md` 与测试报告核对一致。下一步按优先级逐个进入实现（填 design → 建 task → 改源码 → completion gate）。在 `fix/findings-checklist` 分支推进。
 
 ## 已完成
 
-- 全面真机测试（CLI D 系列隐性链路 + MCP E 系列生命周期），产出 `CLAUDE-INTEGRATION-TEST-2026-06-11.md`
-- Claude/GPT 双向复评 + 用户裁决，形成 `FINDINGS-CHECKLIST.md` 最终决定（含 I-5 翻转、validates 去自由字符串化、I-18 锚点体系定稿）
+- 全面真机测试（CLI D 系列隐性链路 + MCP E 系列生命周期），产出 `dev-docs/archive/CLAUDE-INTEGRATION-TEST-2026-06-11.md`
+- Claude/GPT 双向复评 + 用户裁决，形成 `dev-docs/archive/FINDINGS-CHECKLIST.md` 最终决定（含 I-5 翻转、validates 去自由字符串化、I-18 锚点体系定稿）
 - 7 个 Spec 拆分、requirements 全部填写 + ready gate 通过
 - 项目级 PROJECT.md / ARCHITECTURE.md 补全（doctor 归零）
 - I-15/I-16 已固化为 `tests/e2e/mcp-stdio-lifecycle.test.ts`

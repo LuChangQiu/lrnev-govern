@@ -27,8 +27,8 @@ intent: '落实 2026-06-11 全面测试发现的清单:CLI/MCP对齐、确定性
 
 | 文档 | 作用 |
 |------|------|
-| `dev-docs/FINDINGS-CHECKLIST.md` | **最终决定（用户拍板）** 表是执行依据；含三方复评过程 + I-18 design 锚点决策 |
-| `dev-docs/CLAUDE-INTEGRATION-TEST-2026-06-11.md` | 每条发现的复现方式、代码位置、实测证据 |
+| `dev-docs/archive/FINDINGS-CHECKLIST.md` | **最终决定（用户拍板）** 表是执行依据；含三方复评过程 + I-18 design 锚点决策 |
+| `dev-docs/archive/CLAUDE-INTEGRATION-TEST-2026-06-11.md` | 每条发现的复现方式、代码位置、实测证据 |
 
 > 每个 Spec 的 requirements 都注明它对应 checklist 的哪几条 I-xx；实现前先回这两份文档核对边界与复现，不要只凭 spec 标题动手。
 

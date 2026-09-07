@@ -2,6 +2,8 @@
 
 本目录记录 Scene 04 (ai-guidance-standardization) 的关键架构决策。
 
+> **注记（2026-09-07 终审）**：部分 ADR 的决策溯源引用 `ai-discussions/`（本机讨论区，不上 GitHub）；GitHub 端证据链见 `dev-docs/ai-guidance-standardization/` 与 `tests/e2e/t027-baseline/.evidences/`。
+
 ## Active ADRs
 
 - [ADR-0001](0001-truncation-semantics.md) - 截断语义类型选择

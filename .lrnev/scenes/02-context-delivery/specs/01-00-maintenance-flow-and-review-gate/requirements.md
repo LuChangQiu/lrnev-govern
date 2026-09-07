@@ -9,7 +9,7 @@ updated: '2026-06-18'
 
 # 01-00 维护态流程 + 需求审核门 + 任务启动上下文 - 需求
 
-> 权威依据：`dev-docs/PRODUCT-STRATEGY.md`（维护态缺口分析）+ `dev-docs/TASK-START-CONTEXT.md`（任务启动上下文收敛口径）+ 2026-06-15 对话决策（需求审核门）。
+> 权威依据：`dev-docs/PRODUCT-STRATEGY.md`（维护态缺口分析）+ `dev-docs/archive/TASK-START-CONTEXT.md`（任务启动上下文收敛口径）+ 2026-06-15 对话决策（需求审核门）。
 > 后续 spec（治理地图 / 搜索升级 / 执法环 / 报表等）见本 scene 的 `roadmap.md`，不在本 spec。
 
 ## L0 摘要

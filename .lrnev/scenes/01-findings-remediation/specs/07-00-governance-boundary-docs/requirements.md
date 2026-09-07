@@ -9,7 +9,7 @@ updated: '2026-06-12'
 
 # 07-00 Governance Boundary Docs - 需求
 
-> 权威依据：`dev-docs/FINDINGS-CHECKLIST.md`（最终决定表 I-9/I-13/I-14）+ `dev-docs/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（D5 序号复用 / A2 标题硬依赖 / A5 error_search 召回）。实现前回查，勿凭记忆。
+> 权威依据：`dev-docs/archive/FINDINGS-CHECKLIST.md`（最终决定表 I-9/I-13/I-14）+ `dev-docs/archive/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（D5 序号复用 / A2 标题硬依赖 / A5 error_search 召回）。实现前回查，勿凭记忆。
 
 ## L0 摘要
 

@@ -36,7 +36,7 @@ created: '2026-06-11'
 - **确定性事实 → 硬**：本地数据零模型可判、误伤≈0、会让 gate/引用/摘要自相矛盾的（FILL 残留、目标不存在、坏锚点/坏依赖），在写入路径硬拒。
 - **需判断语义 → 交 AI**：需求好坏、设计优劣、代码质量、是否真解决——不判断，最多软提醒。
 - **有合理执行例外 → 软**：依赖抢跑、容器父任务先关——只 warning，不 block。
-- 详细取舍见 `dev-docs/FINDINGS-CHECKLIST.md`；关键决策（如 validates 去自由字符串化、completion 硬拦 FILL）可按需沉淀 ADR。
+- 详细取舍见 `dev-docs/archive/FINDINGS-CHECKLIST.md`；关键决策（如 validates 去自由字符串化、completion 硬拦 FILL）可按需沉淀 ADR。
 
 ## L2 详情
 

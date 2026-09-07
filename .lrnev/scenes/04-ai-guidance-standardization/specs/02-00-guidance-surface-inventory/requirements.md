@@ -66,7 +66,7 @@ lrnev 当前的 guidance 和数据交付分布在 server instructions、tool met
 
 #### F-07 清单产物
 
-- 验收：人工可审阅清单写入 `dev-docs/ai-guidance-standardization/guidance-surface-inventory.md`；可重复扫描输出包含 stable surface_id、内容 hash 和基线指标，不凭文件名推测覆盖范围。
+- 验收：人工可审阅清单写入 `dev-docs/ai-guidance-standardization/guidance-surface-inventory-v2.md`；可重复扫描输出包含 stable surface_id、内容 hash 和基线指标，不凭文件名推测覆盖范围。
 
 ### 非功能性需求
 

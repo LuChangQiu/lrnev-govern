@@ -9,7 +9,7 @@ updated: '2026-06-12'
 
 # 02-00 Deterministic Hard Checks - 需求
 
-> 权威依据：`dev-docs/FINDINGS-CHECKLIST.md`（最终决定表 I-4/I-6/I-7）+ `dev-docs/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（D2/D6/D3 复现）。实现前回查这两份，勿凭记忆。
+> 权威依据：`dev-docs/archive/FINDINGS-CHECKLIST.md`（最终决定表 I-4/I-6/I-7）+ `dev-docs/archive/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（D2/D6/D3 复现）。实现前回查这两份，勿凭记忆。
 
 ## L0 摘要
 

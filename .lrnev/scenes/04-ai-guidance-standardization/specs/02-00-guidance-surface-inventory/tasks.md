@@ -38,7 +38,7 @@ created: '2026-08-26'
 **验收**：
 - 每个条目均有精确路径、符号/字段、触发条件、消费者和生命周期，不按文件名猜测覆盖。
 - resources 的 description、URI、实际内容及自动注入声明均被记录；result 和错误传输层无漏项。
-- 输出人工可审阅的 guidance-surface-inventory.md。
+- 输出人工可审阅的 guidance-surface-inventory-v2.md（同目录 v2.json 为机器可读版）。
 
 **依赖**：T-001
 

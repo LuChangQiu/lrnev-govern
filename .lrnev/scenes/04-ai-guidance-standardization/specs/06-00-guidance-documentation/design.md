@@ -17,7 +17,7 @@ created: '2026-08-27'
 ```text
 dev-docs/ai-guidance-standardization/
   semantic-authority-model.md        # 01，五种角色与真实 Constraint
-  guidance-surface-inventory.md      # 02，静态入口与基线
+  guidance-surface-inventory-v2.md   # 02，静态入口与基线
   mcp-response-conformance.md        # 03，标准传输、response_version 和错误契约
   model-visible-contract.md          # 03，逐工具 content 完整性规则
   client-integration-guide.md        # 06，客户端消费与 decision_context

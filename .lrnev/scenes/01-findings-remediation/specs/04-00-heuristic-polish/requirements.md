@@ -9,7 +9,7 @@ updated: '2026-06-12'
 
 # 04-00 Heuristic Polish - 需求
 
-> 权威依据：`dev-docs/FINDINGS-CHECKLIST.md`（最终决定表 I-10/I-11）+ `dev-docs/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（A3 子线程提示 / A5 assess_goal 保守）。实现前回查，勿凭记忆。
+> 权威依据：`dev-docs/archive/FINDINGS-CHECKLIST.md`（最终决定表 I-10/I-11）+ `dev-docs/archive/CLAUDE-INTEGRATION-TEST-2026-06-11.md`（A3 子线程提示 / A5 assess_goal 保守）。实现前回查，勿凭记忆。
 
 ## L0 摘要
 
