@@ -373,12 +373,14 @@ MCP 的工具说明与 server instructions 只在连接初始化时注入一次�
 
 | 模型 | 档位 | 客户端 | 分数 | 走通情况 | 卡点 | 后续改进项 |
 |------|------|--------|------|----------|------|------------|
-| Claude Opus 4.7 | 强 | Claude Code (CLI) | — | ✅ 全面通过（开发全程使用 CLI 创建/更新/gate/claim） | 无 | — |
-| GPT-5 coding agent | 强 | Codex CLI 0.136.0 | 8/8 | ✅ 42 个 MCP 工具全调通，全生命周期自主走完 | 无（自主修复 ready gate 章节标题） | — |
+| Claude Opus 4.8（claude-opus-4-8） | 强 | Claude Code (CLI) | — | ✅ 核心治理链两真实 TS 项目零缺陷跑通（init→scene→spec→gate→task→completion，含 Hooks/多 Agent/串行降级路径）；另有 CLI 引导缺失等打磨项见报告 | 无 | 打磨项清单见报告（B-1~B-11） |
+| GPT-5 coding agent | 强 | Codex CLI | 8/8 | ✅ MCP 真机全生命周期自主走完；当时实际注入 38 个工具（42 为注册全集口径） | 无（自主修复 ready gate 章节标题） | — |
 | DeepSeek V4 Flash Free | 中 | OpenCode 1.15.13 | 8/8 | ✅ 黄金路径 + 能力域全覆盖，真实 Java 项目探测验证通过 | 首次未设 LRNEV_WORKSPACE 时向上误命中父级 .lrnev，设环境变量后通过 | 向上命中护栏（v1.0.0 已修复：init 时命中祖先 .lrnev 会提示设 LRNEV_WORKSPACE） |
-| GPT-5.5 | 强 | Codex CLI 0.142.5（v2.3 盲测） | 8/8 | ✅ 只靠自带引导走通全流程；自主选用 task_create_many，原子拒绝/压缩返回验证通过 | 英文化章节标题被 ready gate 拦（事后 hint 清晰）；assess_goal 保守判 multi-spec | 均已在 v2.3 整改（spec_create 标题警示、assess_goal override 指引） |
-| DeepSeek V4 Pro | 中 | OpenCode 1.17.13（v2.3 盲测） | 8/8 | ✅ 全流程通过；自主发现并选用 task_create_many | init 后引导可更明确"这是接入完成标志"；task_create 连用无批量提示 | 后者已在 v2.3 整改（task_create 描述提示批量工具） |
+| GPT-5.5 | 强 | Codex CLI（v2.3 盲测） | 8/8 | ✅ 只靠自带引导走通全流程；自主选用 task_create_many，原子拒绝/压缩返回验证通过 | 英文化章节标题被 ready gate 拦（事后 hint 清晰）；assess_goal 保守判 multi-spec | 均已在 v2.3 整改（spec_create 标题警示、assess_goal override 指引） |
+| DeepSeek V4 Pro | 中 | OpenCode（v2.3 盲测） | 8/8 | ✅ 全流程通过；自主发现并选用 task_create_many | init 后引导可更明确"这是接入完成标志"；task_create 连用无批量提示 | 后者已在 v2.3 整改（task_create 描述提示批量工具） |
 | Claude Sonnet 4.6 | 强 | Claude Code（v2.3 盲测） | 7.5/8 | ✅ 主干走通；anchor_context 回填被评"实现前确认验收口径非常有价值" | design.md 填写时机靠 completion gate 才发现；report headline 被误读为"全部完成" | 均已在 v2.3 整改（ready-passed 补 design 提示、headline 改治理债口径） |
 | 本地 Qwen 7B 级模型 | 小 | 待填 | 待测 | 待测 | 待测 | 待测 |
 
 > v2.3 盲测口径：干净真实项目 + 全新会话，只允许依赖工具描述 / ai_followup / lrnev_guide 行动，禁止读 lrnev 源码与文档；完整报告见 `dev-docs/E2E-REPORT-*-V23-2026-07-06.md`。
+
+> 矩阵溯源注记（2026-09-07 终审修正）：Claude Opus 4.8、GPT-5（Codex CLI）、DeepSeek V4 Flash Free（OpenCode 1.15.13）三行源自 2026-06 真机报告（`dev-docs/archive/CLAUDE-INTEGRATION-TEST-2026-06-11.md`，执行者 API id 为 claude-opus-4-8；`dev-docs/archive/CODEX-INTEGRATION-TEST-2026-06-04.md`，报告记录当时实际注入 38 个 MCP 工具，与"42"的差异=42 为注册全集口径；`dev-docs/archive/OPENCODE-INTEGRATION-TEST-2026-06-04.md`）；v2.3 盲测三行客户端为 codex-cli / opencode / claude-code（报告未记录 CLI 版本号，行内不再列）。各报告为阶段/工具面结论、未按上方 8 步框架计分——行内分数（8/8、7.5/8）为维护者按该框架回填的**内部走查口径**；"—"表示该轮报告未打分。
