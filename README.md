@@ -216,7 +216,7 @@ lrnev doctor --migrate-todos              # 工作区结构自检（含旧 TODO 
 
 仓库里还有一些非用户文档，引用前先认清定位：
 
-- `dev-docs/` 与 `ai-discussions/`：研发内部档案（[dev-docs](https://github.com/LuChangQiu/lrnev-govern/tree/main/dev-docs)：设计讨论、实施观测与复审记录），非用户文档。
+- `dev-docs/`：研发内部档案（[dev-docs](https://github.com/LuChangQiu/lrnev-govern/tree/main/dev-docs)：设计讨论、实施观测、复审记录与归档），非用户文档；`ai-discussions/` 为本机讨论区（Agent 三方讨论与复审流水），不上 GitHub。
 - `tests/e2e/t027-baseline/`：T-027 三客户端真实观测资产（双 SHA 对照 harness、决策场景与证据库），见 [目录 README](https://github.com/LuChangQiu/lrnev-govern/blob/main/tests/e2e/t027-baseline/README.md)。
 
 ---

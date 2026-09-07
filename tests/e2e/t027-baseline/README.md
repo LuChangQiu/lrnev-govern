@@ -115,6 +115,32 @@ node tests/e2e/t027-baseline/smoke-test.mjs
 
 ---
 
+## 放量与统计脚本（tools/scripts）
+
+T-027 放量（数十至上百 clean session）与 F-04 门禁判定统计由仓库根 `scripts/` 两个工具承担：
+
+**`scripts/t027-batch-runner.mjs`**：放量批次编排器（零依赖，仅 node 内置模块）。逐 session 以单 session 等价命令跑真实 harness，按 exit code 分类（0=PASS / 1=FAIL / 2=SKIP / 4=ANOMALY），失败做退避重试；session 后跑 validator strict（0 ERROR 才算 VALID）。产物写入 `.claude/t027-batch/<label>/`（gitignore 区：run.log、summary.json、sessions 日志）。
+
+```bash
+# 全 12 场景 × sha-a × 5 次（预算上限 $50）
+node scripts/t027-batch-runner.mjs --all --sha sha-a --reps 5 --budget-usd 50 --label claude-sha-a-full
+# 单场景单次（预算 $0.5，自测）
+node scripts/t027-batch-runner.mjs --scenarios E-07 --sha sha-a --reps 1 --label claude-sha-a-selftest --budget-usd 0.5
+# 预演（不真实调用）
+node scripts/t027-batch-runner.mjs --scenarios E-01,E-07 --sha sha-a --reps 2 --dry-run
+```
+
+**`scripts/t027-f04-stats.mjs`**：对放量 evidence（契约 v2，`.evidences/e-<scenario>-<ts>-<rand>.json`）做 F-04 判定统计——每 场景×sha_label×client 的 session 汇总（PASS/FAIL/ANOMALY/OBSERVE）、消费率方差、FAIL 的 F-04 A-E 候选分类提示（启发式，最终 failure_class 由复审填写）、双 SHA 对照表。
+
+```bash
+node scripts/t027-f04-stats.mjs tests/e2e/t027-baseline/.evidences
+node scripts/t027-f04-stats.mjs <file-or-dir>... --scenario E-01,E-02 --sha sha-b --json
+```
+
+> 两工具的判定语义规则表见各脚本头部 docstring（E-07/E-11 无期望动作口径、E-08 预期失败口径、E-02 v2 家族口径、E-06 sidecar verdict 优先等），改动判定前先读。
+
+---
+
 ## 三客户端配置
 
 ### Claude Code
