@@ -1,5 +1,15 @@
 import { USER_DECISION_PRIORITY_CLAUSE } from '../core/guidance-semantics.js';
 
+/**
+ * MCP 工具注册面 profile（L7 消费方分层，2026-09-04 裁决 2，注册侧裁剪清单见
+ * tools/index.ts registerTools 注释）：'full' 全量注册；'core' 裁剪 agent_* 自动面
+ * + lrnev_hook_* 配置面 9 个"AI 不该主动选"的工具。
+ *
+ * 类型在此定义，供注册面（tools/index.ts re-export）与 lrnev_guide 手册内容共用
+ * 同一 profile——core 手册按同一裁剪裁掉对这两类不存在工具的指引（外部复核缺陷 #11）。
+ */
+export type McpProfile = 'core' | 'full';
+
 export const WORKFLOW_OVERVIEW = [
   'lrnev 是确定性的项目治理引擎：文件即真相，不调用 LLM。',
   '概念：Scene > Spec > Task；Gate 只查结构契约；ADR/Errorbook/Memory 是轻产物。',
@@ -82,6 +92,31 @@ export interface GuideResult {
   };
 }
 
+// tools 节行级内容，按 profile 裁剪（缺陷 #11 修复：core 注册面不注册 agent_* 自动面
+// 与 lrnev_hook_* 配置面工具，core 手册若仍指引这两类工具，模型会照指引调用不存在的工具）。
+// - common：两 profile 都渲染。'诊断'行保留：lrnev_doctor 在 core 仍注册，它查的是
+//   工作区状态（含 hook/agent 异常），不是调用 hook/agent 工具。
+// - fullOnly：只进 full 手册——'并发'行的 agent_* 段与'自动化'整行都是 core 外工具。
+const TOOLS_GUIDE_COMMON_LINES = [
+  '新建：lrnev_init、scene_create、spec_create、spec_gate_check、task_create（单条）、task_create_many（ready 后一次拆清单）、task_update、spec_update（状态机回填 draft→ready→in-progress→completed→archived）。',
+  '接手：project_status（快照）、governance_map（scene→spec→锚点全景）、lrnev_report（治理债体检）、scene_list、spec_list、task_list、context_search；粒度拿不准可用 assess_goal 辅助判断单/多 Spec。',
+  '轻产物：adr_create 记录小决策，error_record 记录踩坑，memory_save 保存一句约定，summarize_save 更新摘要，session_commit 批量沉淀会话记忆。error_search 是零模型关键词检索，搜历史错误请用原文关键词/错误码，别改述；已验证的坑用 error_promote 提升为手册。',
+  '诊断：lrnev_doctor 查工作区结构、断链引用、stale claim、hook 与 agent 异常；需要时可迁移旧 TODO 占位或清理遗留摘要。',
+] as const;
+
+const TOOLS_GUIDE_FULL_ONLY_LINES = [
+  '并发：agent_register/agent_heartbeat/agent_unregister 管客户端会话；task_claim/task_release 记录谁声明正在做哪个 Task。',
+  '自动化：lrnev_hook_list/trigger/tail_log/enable/disable 管本地 hooks。',
+] as const;
+
+function toolsGuideContent(profile: McpProfile): string {
+  const lines =
+    profile === 'core'
+      ? TOOLS_GUIDE_COMMON_LINES
+      : [...TOOLS_GUIDE_COMMON_LINES, ...TOOLS_GUIDE_FULL_ONLY_LINES];
+  return lines.join('\n');
+}
+
 const GUIDE_SECTIONS: Record<GuideTopic, GuideSection> = {
   workflow: {
     title: '工作流',
@@ -98,14 +133,10 @@ const GUIDE_SECTIONS: Record<GuideTopic, GuideSection> = {
   },
   tools: {
     title: '工具速查',
-    content: [
-      '新建：lrnev_init、scene_create、spec_create、spec_gate_check、task_create（单条）、task_create_many（ready 后一次拆清单）、task_update、spec_update（状态机回填 draft→ready→in-progress→completed→archived）。',
-      '接手：project_status（快照）、governance_map（scene→spec→锚点全景）、lrnev_report（治理债体检）、scene_list、spec_list、task_list、context_search；粒度拿不准可用 assess_goal 辅助判断单/多 Spec。',
-      '轻产物：adr_create 记录小决策，error_record 记录踩坑，memory_save 保存一句约定，summarize_save 更新摘要，session_commit 批量沉淀会话记忆。error_search 是零模型关键词检索，搜历史错误请用原文关键词/错误码，别改述；已验证的坑用 error_promote 提升为手册。',
-      '诊断：lrnev_doctor 查工作区结构、断链引用、stale claim、hook 与 agent 异常；需要时可迁移旧 TODO 占位或清理遗留摘要。',
-      '并发：agent_register/agent_heartbeat/agent_unregister 管客户端会话；task_claim/task_release 记录谁声明正在做哪个 Task。',
-      '自动化：lrnev_hook_list/trigger/tail_log/enable/disable 管本地 hooks。',
-    ].join('\n'),
+    // full 手册 = 公共行 + fullOnly 行（toolsGuideContent('full')）：CLI 等不传
+    // profile 的调用默认 full，内容与裁剪前逐字一致；core 行级裁剪在
+    // sectionText 按 profile 重算，见 toolsGuideContent。
+    content: toolsGuideContent('full'),
   },
   errors: {
     title: '错误自救',
@@ -135,10 +166,18 @@ const GUIDE_SECTIONS: Record<GuideTopic, GuideSection> = {
   },
 };
 
-export function buildGuide(topic?: GuideTopic): GuideResult {
+/**
+ * 构建 lrnev 使用手册。
+ *
+ * @param topic   可选：只返回对应小节；省略返回完整手册（topic: 'all'）。
+ * @param profile 工具注册面，默认 'full'（向后兼容：CLI guide / 旧调用不传即 full，
+ *                内容与裁剪前逐字一致）。'core' 下 tools 节的"并发/自动化"两行
+ *                （agent_* 与 lrnev_hook_* 指引）整行省略——这两类工具不在 core 注册面。
+ */
+export function buildGuide(topic?: GuideTopic, profile: McpProfile = 'full'): GuideResult {
   const content = topic
-    ? sectionText(topic, GUIDE_SECTIONS[topic])
-    : GUIDE_TOPIC_VALUES.map((key) => sectionText(key, GUIDE_SECTIONS[key])).join('\n\n');
+    ? sectionText(topic, GUIDE_SECTIONS[topic], profile)
+    : GUIDE_TOPIC_VALUES.map((key) => sectionText(key, GUIDE_SECTIONS[key], profile)).join('\n\n');
 
   return {
     ok: true,
@@ -156,6 +195,8 @@ export function buildGuide(topic?: GuideTopic): GuideResult {
   };
 }
 
-function sectionText(topic: GuideTopic, section: GuideSection): string {
-  return `## ${section.title} (${topic})\n${section.content}`;
+function sectionText(topic: GuideTopic, section: GuideSection, profile: McpProfile): string {
+  // tools 节行级按 profile 裁剪（core 无 agent_*/hook_* 注册）；其余节内容不依赖注册面。
+  const content = topic === 'tools' ? toolsGuideContent(profile) : section.content;
+  return `## ${section.title} (${topic})\n${content}`;
 }

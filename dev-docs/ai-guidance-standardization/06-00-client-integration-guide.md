@@ -1,11 +1,13 @@
 ---
 title: Client Integration Guide - lrnev Guidance Profile v1
 version: v1.0
-status: stable
+status: draft
 scene: 04-ai-guidance-standardization
 spec: 06-00-guidance-documentation
 created: 2026-09-02
 ---
+
+> **⚠️ 研究期规范草案（2026-09-02 成稿）**：内容与 3.0.0 实现不一致（实现以 src/mcp/types/response-envelope.ts、decision-context-schema.ts 与 README §4 为准）；正式客户端文档待 06-00 spec 收口时重写（2026-09-07 裁决退回 dev-docs）。
 
 # 06-00 Client Integration Guide
 
@@ -13,7 +15,7 @@ created: 2026-09-02
 
 本文档面向 MCP 客户端实现者，说明如何正确集成 lrnev-govern MCP 服务端，包括如何保留用户原话、何时传递 decision_context、如何消费 content/structuredContent、如何处理真实 Constraint。
 
-**版本状态**: v1.0，2026-09-02 发布  
+**版本状态**: v1.0，2026-09-02 成稿（研究期草案，见顶部注记）  
 **适用对象**: Claude Code、Codex、以及其他 MCP 客户端实现者  
 **依赖规范**: MCP Response Conformance、01-00 Semantic Authority Model v0.1、03-00 M1/M2 迁移
 
@@ -494,7 +496,7 @@ function handleDirection(direction: Direction) {
 
 **完整覆盖**（12 个决策场景）:
 - E-01 ~ E-11 + E-06a/E-06b
-- 参考 `../dev-docs/ai-guidance-standardization/{b0,b1,b2a,b2b}-evidence-manifest.json`
+- 参考 `dev-docs/ai-guidance-standardization/{b0,b1,b2a,b2b}-evidence-manifest.json`
 
 ### 9.2 验证标准
 

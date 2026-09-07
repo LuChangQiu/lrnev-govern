@@ -41,7 +41,7 @@ import {
 } from '../../types/decision-context.js';
 import { parseDecisionContextInput } from '../types/decision-context-schema.js';
 import { buildAssessContextLines, buildBoundaryLines } from '../../core/decision-context.js';
-import { GUIDE_TOPIC_VALUES, TOOL_DESCRIPTIONS, buildGuide } from '../guidance.js';
+import { GUIDE_TOPIC_VALUES, TOOL_DESCRIPTIONS, buildGuide, type McpProfile } from '../guidance.js';
 import { toMcpToolResult, toMcpToolResultFromData } from '../helpers/tool-result-adapter.js';
 import {
   createToolOutputSchema,
@@ -188,12 +188,18 @@ function withoutDecisionContext<A extends { decision_context?: unknown }>(args: 
  *
  * task/adr/error/memory/session_commit/doctor/report/guide 全留 core（AI 可能需要；
  * doctor/report 是"AI 替人执行"的 User 层通道，不能砍）。
+ *
+ * lrnev_guide 手册内容按同一 profile 自适应：core 下 tools 节裁掉 agent_*、hook_*
+ * 指引行（'并发'/'自动化'），避免模型照指引调用不存在的工具（外部复核缺陷 #11，
+ * 实现见 guidance.ts toolsGuideContent）。full 下与默认（不传 profile）逐字一致。
  */
-export type McpProfile = 'core' | 'full';
+// McpProfile 类型与 core/full 语义定义在 ../guidance.js（手册与注册面共用同一 profile）；
+// 这里保持本模块既有导出面 re-export（server.ts 等从 ./tools/index.js import type）。
+export type { McpProfile };
 
 export function registerTools(server: McpServer, profile: McpProfile = 'full'): void {
   registerWorkspaceTools(server);
-  registerGuideTools(server);
+  registerGuideTools(server, profile);
   registerProjectStatusTools(server);
   registerGovernanceMapTools(server);
   registerReportTools(server);
@@ -214,7 +220,7 @@ export function registerTools(server: McpServer, profile: McpProfile = 'full'): 
   if (profile === 'full') registerHookTools(server);
 }
 
-function registerGuideTools(server: McpServer): void {
+function registerGuideTools(server: McpServer, profile: McpProfile): void {
   server.registerTool(
     'lrnev_guide',
     {
@@ -226,7 +232,7 @@ function registerGuideTools(server: McpServer): void {
       outputSchema: createToolOutputSchema(GuideDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ topic }) => toMcpToolResult(Promise.resolve(buildGuide(topic)), 'lrnev_guide'),
+    async ({ topic }) => toMcpToolResult(Promise.resolve(buildGuide(topic, profile)), 'lrnev_guide'),
   );
 }
 

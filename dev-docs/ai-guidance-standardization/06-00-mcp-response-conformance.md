@@ -1,11 +1,13 @@
 ---
 title: MCP Response Conformance - lrnev Guidance Transport
 version: v1.0
-status: stable
+status: draft
 scene: 04-ai-guidance-standardization
 spec: 06-00-guidance-documentation
 created: 2026-09-02
 ---
+
+> **⚠️ 研究期规范草案（2026-09-02 成稿）**：内容与 3.0.0 实现不一致（实现以 src/mcp/types/response-envelope.ts、decision-context-schema.ts 与 README §4 为准）；正式客户端文档待 06-00 spec 收口时重写（2026-09-07 裁决退回 dev-docs）。
 
 # 06-00 MCP Response Conformance
 
@@ -13,7 +15,7 @@ created: 2026-09-02
 
 本文档定义 lrnev-govern MCP 工具响应的结构化传输契约，基于 03-00 M1/M2 迁移成果。它约束 lrnev 服务端如何使用 MCP `content` 和 `structuredContent` 字段、如何表达错误、如何标注响应版本，以及客户端如何正确消费这些通道。
 
-**版本状态**: v1.0，2026-09-02 发布  
+**版本状态**: v1.0，2026-09-02 成稿（研究期草案，见顶部注记）  
 **适用对象**: MCP 客户端实现者、lrnev 服务端维护者、适配器开发者  
 **依赖规范**: MCP Protocol 2025-11-25、03-00 M1/M2 迁移、01-00 Semantic Authority Model v0.1
 
@@ -236,7 +238,7 @@ const humanText = result.content[0].text; // 仅用于显示/日志
 
 ### 9.1 B0-B2b 等价性验证
 
-证据来源：`../dev-docs/ai-guidance-standardization/{b0,b1,b2a,b2b}-evidence-manifest.json`
+证据来源：`dev-docs/ai-guidance-standardization/{b0,b1,b2a,b2b}-evidence-manifest.json`
 
 **行为等价性**:
 - 12/12 场景 `action_taken` 完全一致（B0 → B1 → B2a → B2b）
