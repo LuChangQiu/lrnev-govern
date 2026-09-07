@@ -55,7 +55,7 @@ Gate 检查结构，不判断 prose 质量。
 - 同主机以 `process.kill(pid,0)` 探活为准——进程活着就是 `active`，无需任何定时心跳;属主进程退出后其 claim 立即可被接手。
 - 跨主机无法探 pid 时，回退到默认 **90 秒** 的 `last_heartbeat` 年龄阈值（惰性计算），此时可用 `agent_heartbeat` 兜底续活。
 - 硬杀/崩溃残留的死记录与过期 claim 由 register 时的**机会式 GC** 自动清扫（v2.3 起，本机判死即清、跨主机过保留期才清、持有效 claim 的保留；`agent.auto_gc` 可关），只读路径仍零写副作用。
-- 详见 [`docs/MULTI-AGENT.md`](MULTI-AGENT.md) 与 ADR《Agent 存活信号从心跳年龄改为 stdio 进程/连接生命周期》。
+- 详见 [`docs/MULTI-AGENT.md`](MULTI-AGENT.md)（该 ADR 未单独成文：设计背景与决策记录见 CHANGELOG [1.2.0]「Agent 存活信号改为进程生命周期」条目，机会式 GC 见 [2.3.0] 条目，语义以 MULTI-AGENT 与 CHANGELOG 为准）。
 
 
 ## 填空哨兵
@@ -100,7 +100,7 @@ Spec 状态值：
 draft -> ready -> in-progress -> completed -> archived
 ```
 
-额外允许的 Spec 回退 / 归档路径包括 `ready -> draft`、`ready -> archived`、`in-progress -> ready`、`in-progress -> archived`、`completed -> in-progress | archived`。`archived` 是终态。
+额外允许的 Spec 回退 / 归档路径包括 `draft -> archived`、`ready -> draft`、`ready -> archived`、`in-progress -> ready`、`in-progress -> archived`、`completed -> in-progress | archived`。`archived` 是终态。
 
 status 不阻塞 gate。用 `spec_update` 工具按状态机改 Spec 状态(非法转换会被拒绝)。推荐回填语义是：
 
@@ -120,7 +120,7 @@ status 不阻塞 gate。用 `spec_update` 工具按状态机改 Spec 状态(非�
 
 **归档语义**：`archived` 是终态。归档后的 Spec 仍出现在 `project_status` 的 specs 列表(可见历史)，但它的待办任务**不再进入** `claimable_next` / `free_tasks_count` / 顶层 `active_tasks`，不会再冒充"有活可领"。
 
-**需求落位(用户记不住每个 Spec 是常态)**：用户用模糊需求("导出那块加个 Excel")让 AI 改东西时，AI 应自己先用 `context_search`(关键词)或读相关 Spec 的 `.abstract.md` 确认它对应哪个现有 Spec、实现到哪了，再判断是原地改、加 task 还是开新版——而不是凭模糊需求直接开新 Spec 或写代码。落位是 AI 的判断职责，不该要求用户记住 Spec 编号。
+**需求落位(用户记不住每个 Spec 是常态)**：用户用模糊需求("导出那块加个 Excel")让 AI 改东西时，AI 应自己先用 `context_search`(关键词)或读相关 Spec 的 L0/L1 sidecar 摘要（`.requirements.abstract.md` / `.requirements.overview.md`，sidecar 优先、requirements 内联 L0/L1 兜底）确认它对应哪个现有 Spec、实现到哪了，再判断是原地改、加 task 还是开新版——而不是凭模糊需求直接开新 Spec 或写代码。落位是 AI 的判断职责，不该要求用户记住 Spec 编号。
 
 ## 接手入口 project_status
 
@@ -148,7 +148,7 @@ status 不阻塞 gate。用 `spec_update` 工具按状态机改 Spec 状态(非�
 
 `spec_create` 可以不传 Scene。缺省时 Spec 会挂到 `00-default`，必要时 lrnev 会惰性创建这个最小 Scene。
 
-`lrnev init` 对存量项目默认采用被动 adopt：只创建最小 `.lrnev/` 骨架和 `00-default`，不为已经完成的历史代码补建 Scene / Spec。`--scan` 是显式可选能力，用于用户确实希望基于代码库生成候选 Scene 草稿时。
+`lrnev init` 对存量项目默认采用被动 adopt：只创建最小 `.lrnev/` 骨架和 `00-default`，不为已经完成的历史代码补建 Scene / Spec。`--scan` 目前是**占位 flag（行为同默认 init，不做主动扫描）**；基于代码库生成候选 Scene 属规划中能力，落地前无需传。
 
 `init` 返回的 `was_new` 以 **PROJECT.md 是否已存在**判定（它是"已初始化"标记）——`.lrnev/` 目录存在不代表初始化过（MCP 连接自动注册会先创建 `.lrnev/agents/`）。
 
