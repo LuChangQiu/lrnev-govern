@@ -1,6 +1,9 @@
 # EOL/属性治理（统一审查预检项 #4）
 # .lrnev/agents/registry.json 是 MCP server 运行态文件（AgentRegistry register/heartbeat 实时写入，
-# 含本机 host/pid/时间戳），不得入库。该文件已 git rm --cached，并由 /.lrnev/ 忽略；
+# 含本机 host/pid/时间戳），不得入库。该文件已 git rm --cached，并由 .gitignore 精确忽略
+# （.lrnev/agents/，见 .gitignore "文件治理汇总裁决 2026-09-07 §A 方案 B" 段）；
 # 此规则兜底：即便将来被强制 add（git add -f），也按非文本处理，不做任何行尾归一化，
 # 避免运行态 CRLF 写入造成 tracked 内容行尾抖动。
+# 结论（2026-09-07）：运行态出库面统一由 .gitignore 目录级忽略承担，-text 兜底仅保留
+# registry.json 一个已知运行态先例；新运行态文件入库前先补 .gitignore，勿依赖 -f 强加。
 .lrnev/agents/registry.json -text

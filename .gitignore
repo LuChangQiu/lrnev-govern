@@ -16,16 +16,35 @@ Thumbs.db
 .understand-anything/
 .codegraph/
 /ai-discussions/
-/.lrnev/
 /.codex/
 /.claude/
 tests/e2e/t027-baseline/.smoke-results/
 
-# #9f 四层分级迁移（DeepSeek 裁决 2026-09-04 裁决 4，ai-discussions/结果/2026-09-04-DeepSeek-引导激励与工具分层设计裁决.md）：
+# .lrnev 治理文档入库（dogfooding 档案；DeepSeek 文件治理汇总裁决 2026-09-07 §A 方案 B，
+# 裁决文档仅本机 ai-discussions/结果/2026-09-07-DeepSeek-文件治理汇总裁决表.md）：
+# 治理文档（PROJECT.md/ARCHITECTURE.md、scenes/*/scene.md|architecture.md|roadmap.md、
+# specs/*/requirements|design|tasks.md、decisions/adr/、memory/、全局 steering 规范）入库；
+# 运行态/本机产物精确忽略（不再整忽略 /.lrnev/）：
+.lrnev/agents/
+.lrnev/runtime/
+.lrnev/locks/
+.lrnev/config/
+.lrnev/auto/
+.lrnev/state/
+# steering 规范以 templates/steering/ 为库内真源（tracked，内容一致校验通过 2026-09-07）；
+# .lrnev/steering/ 是 init 生成的运行副本，出库但保留本机工作副本，若日后被实质编辑需重新入库：
+.lrnev/steering/
+.lrnev/**/*.backup
+# scene04 04-00 工作残留（不入库，本机留存；审计 3f5d6381 §7 排除项）：
+.lrnev/scenes/04-ai-guidance-standardization/specs/04-00-agent-e2e-observability/04-00-tasks-created.md
+.lrnev/scenes/04-ai-guidance-standardization/specs/04-00-agent-e2e-observability/04-00-tasks-rewritten-v4.md
+.lrnev/scenes/04-ai-guidance-standardization/specs/04-00-agent-e2e-observability/v4-completion-report.md
+
+# #9f 四层分级迁移（DeepSeek 裁决 2026-09-04 裁决 4；裁决文档仅本机
+# ai-discussions/结果/2026-09-04-DeepSeek-引导激励与工具分层设计裁决.md，GitHub 无镜像）：
 # 契约物入库（.json / -rounds.jsonl / -e06b.jsonl 判定 sidecar / 汇总报告 .md / INVALID 标注），
 # 原始会话录制不入库（-session.jsonl / -round1.jsonl / -round2.jsonl = 原始运行日志，出库侧，同 .claude 先例）。
 # 存量录制已 git rm --cached（工作树保留，git 历史不回写）；未来批次仅契约物入库，录制本机留存/zip 归档。
 tests/e2e/t027-baseline/.evidences/*-session.jsonl
 tests/e2e/t027-baseline/.evidences/*-round1.jsonl
 tests/e2e/t027-baseline/.evidences/*-round2.jsonl
-
