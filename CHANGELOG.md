@@ -33,7 +33,7 @@ lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-stand
 
 ### Tests
 
-- 全量 **1055 条全绿**（v2.3.0 为 692；3.0.0 前夜 09-04 达 1051，其后文档守护与转义回归增至 1055）。新增覆盖：输出契约严格镜像（data-output-contract）、错误路径转义、--profile 42/33 集合差、归档边界语义（G5）、decision_context 负向校验、E-06 v2 判定（真实续接双轮）。
+- 全量 **1062 条全绿**（v2.3.0 为 692；3.0.0 前夜 09-04 达 1051，其后文档守护、转义回归、guide profile 自适应与收口引导增至 1062）。新增覆盖：输出契约严格镜像（data-output-contract）、错误路径转义、--profile 42/33 集合差、归档边界语义（G5）、decision_context 负向校验、E-06 v2 判定（真实续接双轮）。
 
 ### 升级指南
 
