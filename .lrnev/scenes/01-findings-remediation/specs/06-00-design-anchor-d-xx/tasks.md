@@ -13,13 +13,6 @@ created: '2026-06-11'
 
 <!-- FILL: 使用 task_create 追加任务；任务会以 `### T-XXX 标题 <!-- lrnev-task: ... -->` 形式追加到这里 -->
 
-## 验收标准（整体）
-
-- <!-- FILL: 按本 Spec 调整整体验收清单 -->
-- [ ] 所有任务完成
-- [ ] 单元测试通过
-- [ ] 集成测试通过
-
 ### T-001 确立 D-xx 锚点规范+更新 design 模板与文档 <!-- lrnev-task: status=completed, created=2026-06-11T10:49:33.782Z, updated=2026-06-12T04:08:59.865Z, validates=F-01|D-01 -->
 <!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-06-12T03:56:29.661Z"},{"from":"in_progress","to":"completed","at":"2026-06-12T04:08:59.865Z"}] -->
 
@@ -64,3 +57,4 @@ created: '2026-06-11'
 **验收**：
 - update时现有task含坏锚点→followup警告不阻断
 - requirements口径修订
+

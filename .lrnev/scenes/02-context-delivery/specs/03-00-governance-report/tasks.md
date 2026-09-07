@@ -92,14 +92,3 @@ unclosed 判定用全平铺 every-completed，与 `GateRunner` 的 all_tasks_com
 - 全量测试通过；无新依赖；dev-docs 之外相关文档已更新。
 
 **依赖**：T-001, T-002, T-003, T-004, T-005, T-006, T-007
-
-## 验收标准（整体）
-
-- [ ] `lrnev report` 列出做完没收口（与 gate 口径一致）/failed/blocked/孤儿/坏 validates，与手工统计一致
-- [ ] 每条欠债带可执行下一步 + context:// 定位
-- [ ] `--scene`/`--md`/`--json`/`--out` 符合 F-04，默认不写文件，无 CI 退出码
-- [ ] MCP `lrnev_report`（含 scene/release_notes）与 CLI `--json` 数据口径一致
-- [ ] release notes（低优先）产出分组清单
-- [ ] 所有任务完成
-- [ ] 单元测试通过
-- [ ] 集成测试通过

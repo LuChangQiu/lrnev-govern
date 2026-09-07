@@ -12,13 +12,6 @@ created: '2026-08-26'
 
 <!-- FILL: 使用 task_create 追加任务；任务以 lrnev-task 标记记录 -->
 
-## 验收标准（整体）
-
-- [ ] F-01 至 F-06 完成并经过架构评审。
-- [ ] 规范与 Scene 04 `architecture.md`、`dev-docs` 入口一致。
-- [ ] 真实 Constraint 清单与当前源码一致，不含“archived Spec 禁止新增 Task”等假约束。
-- [ ] 未引入通用三维字段、数字 priority 或自动 Decision 持久化。
-
 ### T-001 编写语义权威模型 v0.1 规范 <!-- lrnev-task: status=completed, created=2026-08-27T07:53:07.252Z, updated=2026-08-27T09:44:54.432Z, validates=F-01|F-02|F-03|D-01|D-02|D-03|D-06 -->
 <!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-08-27T09:18:55.747Z","reason":"开始编写并冻结 v0.1 语义权威模型文档。"},{"from":"in_progress","to":"completed","at":"2026-08-27T09:44:54.432Z","reason":"语义权威模型 v0.1 文档与对应静态契约测试已完成；定向测试 4/4 通过，UTF-8 无 BOM 二轮校验通过。"}] -->
 
@@ -62,3 +55,4 @@ created: '2026-08-26'
 - 冻结结论明确没有自动决策持久化、通用三维 schema 或数字 priority。
 
 **依赖**：T-001, T-002, T-003
+

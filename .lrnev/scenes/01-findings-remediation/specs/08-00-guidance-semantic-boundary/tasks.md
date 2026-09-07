@@ -13,13 +13,6 @@ created: '2026-08-26'
 
 <!-- FILL: 使用 task_create 追加任务；任务会以 `### T-XXX 标题 <!-- lrnev-task: ... -->` 形式追加到这里 -->
 
-## 验收标准（整体）
-
-- <!-- FILL: 按本 Spec 调整整体验收清单 -->
-- [ ] 所有任务完成
-- [ ] 单元测试通过
-- [ ] 集成测试通过
-
 ### T-001 建立共享语义常量并同步客户端模板 <!-- lrnev-task: status=completed, created=2026-08-27T07:34:36.168Z, completed=2026-09-01T10:45:00.000Z, validates=F-01|F-02|D-01 -->
 
 新增 USER_DECISION_PRIORITY_CLAUSE 共享常量，更新 WORKFLOW_OVERVIEW 与 AI-ADAPTATION.md，确保“建议不是规则、用户明确决定优先、只有真实约束可阻断”文案一致。
@@ -77,3 +70,4 @@ created: '2026-08-26'
 - 全量测试通过
 
 **依赖**：T-002, T-003, T-004
+

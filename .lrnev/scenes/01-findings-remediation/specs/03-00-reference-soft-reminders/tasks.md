@@ -13,13 +13,6 @@ created: '2026-06-11'
 
 <!-- FILL: 使用 task_create 追加任务；任务会以 `### T-XXX 标题 <!-- lrnev-task: ... -->` 形式追加到这里 -->
 
-## 验收标准（整体）
-
-- <!-- FILL: 按本 Spec 调整整体验收清单 -->
-- [ ] 所有任务完成
-- [ ] 单元测试通过
-- [ ] 集成测试通过
-
 ### T-001 depends_on 依赖未完成时 in_progress 软提醒 <!-- lrnev-task: status=completed, created=2026-06-12T00:52:54.531Z, updated=2026-06-12T06:32:08.082Z, validates=F-01|D-01 -->
 <!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-06-12T06:22:04.610Z"},{"from":"in_progress","to":"completed","at":"2026-06-12T06:32:08.082Z"}] -->
 
@@ -39,3 +32,4 @@ created: '2026-06-11'
 
 **验收**：
 - npm test全绿,两处不阻断
+

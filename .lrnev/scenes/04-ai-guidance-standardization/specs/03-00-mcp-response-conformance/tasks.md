@@ -12,17 +12,6 @@ created: '2026-08-26'
 
 <!-- FILL: 使用 task_create 追加任务；任务以 lrnev-task 标记记录 -->
 
-## 验收标准（整体）
-
-- [ ] F-01 至 F-09 完成。
-- [ ] 全部工具的 outputSchema 与实际 structuredContent 对应。
-- [ ] response_version 独立于 MCP/Profile 版本。
-- [ ] structuredContent 完整，content 满足逐工具 ModelVisibleContract 且不与其矛盾。
-- [ ] isError、annotations、未知字段和协议版本完成验证。
-- [ ] 现有 content JSON parse 测试已完整重构。
-- [ ] M1 与 M2 分别通过 build、全量测试和对应 E2E，对受影响工具可独立回退 renderer。
-- [ ] 未引入 Guidance Profile、decision context 或数字 priority。
-
 ### T-001 定义规范化 MCP 响应信封与严格输出 Schema <!-- lrnev-task: status=completed, created=2026-08-27T07:58:03.188Z, updated=2026-08-31T03:01:09.647Z, validates=F-01|F-05|F-06|D-01|D-02|D-05 -->
 <!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-08-31T03:01:08.585Z","reason":"开始执行：shouldSetIsError 修正实施"},{"from":"in_progress","to":"completed","at":"2026-08-31T03:01:09.647Z","reason":"DeepSeek 放行：shouldSetIsError 修正 + 单测 9/9，2026-08-31"}] -->
 
@@ -92,3 +81,4 @@ created: '2026-08-26'
 - 不引入 Guidance Profile、decision_context、数字 priority 或将 annotations 当安全控制。
 
 **依赖**：T-003, T-004, T-005
+

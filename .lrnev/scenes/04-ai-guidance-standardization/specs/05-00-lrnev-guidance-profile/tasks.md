@@ -12,15 +12,6 @@ created: '2026-08-26'
 
 <!-- FILL: 使用 task_create 追加任务；任务以 lrnev-task 标记记录 -->
 
-## 验收标准（整体）
-
-- [ ] F-01 至 F-08 完成。
-- [ ] 每个新增字段有 04 的保留/回退依据。
-- [ ] Profile 不冒充 MCP 标准，服务端不生成 USER_DECISION。
-- [ ] direction/target_ref 枚举级对齐、缺失/unspecified 规则和不阻断边界有协议与 E2E 覆盖。
-- [ ] Profile 感知/不感知客户端兼容和回退路径明确。
-- [ ] 若字段无改善或客户端忽略，已停止增加字段并记录结论。
-
 ### T-001 定义 Profile v1 语义对象与传输边界 <!-- lrnev-task: status=completed, created=2026-08-27T08:03:09.537Z, updated=2026-09-03T11:46:08.989Z, validates=F-01|F-02|F-03|F-06|F-07|D-01|D-02|D-04|D-06 -->
 <!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-09-03T11:46:08.727Z"},{"from":"in_progress","to":"completed","at":"2026-09-03T11:46:08.989Z","reason":"T-001 实施完成，DeepSeek 复审通过（提交 9d104f9/fe6ebe6/9a1dd60/51fdc52/b6d7029）"}] -->
 
@@ -90,3 +81,4 @@ created: '2026-08-26'
 - 适配结论只引用 04 的运行时证据，基础文档/通用 Conformance 仍归 06。
 
 **依赖**：T-005
+

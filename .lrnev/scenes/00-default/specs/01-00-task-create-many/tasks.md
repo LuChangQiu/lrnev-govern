@@ -13,13 +13,6 @@ created: '2026-07-06'
 
 <!-- FILL: 使用 task_create 追加任务；任务会以 `### T-XXX 标题 <!-- lrnev-task: ... -->` 形式追加到这里 -->
 
-## 验收标准（整体）
-
-- <!-- FILL: 按本 Spec 调整整体验收清单 -->
-- [ ] 所有任务完成
-- [ ] 单元测试通过
-- [ ] 集成测试通过
-
 ### T-001 基建：LrnevError 批量错误明细载荷 + config 单批上限 <!-- lrnev-task: status=completed, created=2026-07-06T08:30:26.124Z, updated=2026-07-06T08:54:17.704Z, validates=F-03|D-03 -->
 <!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-07-06T08:52:54.301Z"},{"from":"in_progress","to":"completed","at":"2026-07-06T08:54:17.704Z"}] -->
 
@@ -80,3 +73,4 @@ README 常用命令与工具说明加 create-many；docs/GOVERNANCE-FLOW.md 任�
 - CHANGELOG 条目完整
 
 **依赖**：T-005
+

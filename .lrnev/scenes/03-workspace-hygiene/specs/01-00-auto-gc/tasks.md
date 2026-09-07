@@ -13,13 +13,6 @@ created: '2026-07-06'
 
 <!-- FILL: 使用 task_create 追加任务；任务会以 `### T-XXX 标题 <!-- lrnev-task: ... -->` 形式追加到这里 -->
 
-## 验收标准（整体）
-
-- <!-- FILL: 按本 Spec 调整整体验收清单 -->
-- [ ] 所有任务完成
-- [ ] 单元测试通过
-- [ ] 集成测试通过
-
 ### T-001 config：agent.auto_gc / gc_retention_days + 实现处防御回退 <!-- lrnev-task: status=completed, created=2026-07-06T08:33:21.424Z, updated=2026-07-06T08:38:21.736Z, validates=F-04|D-04 -->
 <!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-07-06T08:37:27.928Z"},{"from":"in_progress","to":"completed","at":"2026-07-06T08:38:21.736Z"}] -->
 
@@ -72,3 +65,4 @@ docs/MULTI-AGENT.md 补自动 GC 行为、status 语义、两个配置项与 doc
 - CHANGELOG 条目完整含关闭方法
 
 **依赖**：T-004
+

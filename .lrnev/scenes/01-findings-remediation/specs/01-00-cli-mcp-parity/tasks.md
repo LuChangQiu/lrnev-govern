@@ -13,13 +13,6 @@ created: '2026-06-11'
 
 <!-- FILL: 使用 task_create 追加任务；任务会以 `### T-XXX 标题 <!-- lrnev-task: ... -->` 形式追加到这里 -->
 
-## 验收标准（整体）
-
-- <!-- FILL: 按本 Spec 调整整体验收清单 -->
-- [ ] 所有任务完成
-- [ ] 单元测试通过
-- [ ] 集成测试通过
-
 ### T-001 spec_get 开新版引导下沉 core,CLI/MCP 共用 <!-- lrnev-task: status=completed, created=2026-06-12T00:52:52.871Z, updated=2026-06-12T06:17:39.370Z, validates=F-01|D-01 -->
 <!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-06-12T05:44:43.448Z"},{"from":"in_progress","to":"completed","at":"2026-06-12T06:17:39.370Z"}] -->
 
@@ -39,3 +32,4 @@ created: '2026-06-11'
 
 **验收**：
 - --supersedes写入新ADR
+

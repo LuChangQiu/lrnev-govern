@@ -12,14 +12,6 @@ created: '2026-08-26'
 
 <!-- FILL: 使用 task_create 追加任务；任务以 lrnev-task 标记记录 -->
 
-## 验收标准（整体）
-
-- [ ] F-01 至 F-07 完成。
-- [ ] 清单中的路径、符号、触发条件和消费者经过源码核对。
-- [ ] resources、annotations、`.describe()`、schema、错误响应和传输层覆盖完整。
-- [ ] 预算、hash、黑名单和冲突检查可重复运行。
-- [ ] capability 只登记，运行时判断未越界进入 02。
-
 ### T-001 实现 Surface 扫描器与清单数据契约 <!-- lrnev-task: status=completed, created=2026-08-27T07:55:01.162Z, updated=2026-08-28T04:40:00.596Z, validates=F-01|F-05|F-06|F-07|D-01|D-05 -->
 <!-- lrnev-task-history: [{"from":"pending","to":"in_progress","at":"2026-08-28T04:29:12.820Z"},{"from":"in_progress","to":"completed","at":"2026-08-28T04:40:00.596Z","reason":"Implemented Surface scanner with data model, scanning logic, and inventory output. Scanner successfully extracted 132 surfaces from codebase with stable surface_ids, content hashes, and budget calculations."}] -->
 
@@ -77,3 +69,4 @@ created: '2026-08-26'
 - 冻结产物没有混入文本迁移修复或运行时 capability 结论。
 
 **依赖**：T-001, T-002, T-003, T-004
+
