@@ -8,6 +8,8 @@ created: '2026-08-27'
 
 # 06-00 Guidance Documentation - 需求
 
+> **注记**：06-00 交付物（client-integration-guide/mcp-response-conformance）当前为研究草案、与 3.0.0 实现不一致，已退回 dev-docs 档案定位，正式发布文档待真客户端接入后重写（2026-09-07 裁决）。本 Spec 保持未收口状态。
+
 ## L0 摘要
 
 无条件发布 lrnev 的基础语义、MCP Response Conformance 和客户端迁移文档；将 Profile 专属能力与通用 MCP 能力明确分开，使客户端知道该读什么、该传什么、哪些能力必须适配、哪些只是建议。
