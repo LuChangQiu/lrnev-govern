@@ -193,6 +193,8 @@ lrnev hook tail-log -n 20
 
 ## MCP 工具
 
+> 注意：`lrnev_hook_*` 这 5 个工具属**配置面**，只在 `--profile full`（默认）注册；`--profile core` 会裁掉它们（AI 不该主动选，见 [docs/AI-ADAPTATION.md](./AI-ADAPTATION.md) 工具面分层）。core 档项目配置 hooks 请用 CLI（`lrnev hook list/trigger/enable/disable/tail-log`，CLI 无 profile 裁剪）。
+
 MCP 侧工具和 CLI 对等：
 
 - `lrnev_hook_list`
