@@ -1,9 +1,10 @@
 ---
-spec: '03-00-mcp-response-conformance'
-scene: '04-ai-guidance-standardization'
-status: draft
+spec: 03-00-mcp-response-conformance
+scene: 04-ai-guidance-standardization
+status: completed
 priority: P1
 created: '2026-08-26'
+updated: '2026-09-07'
 ---
 
 # 03-00 MCP Response Conformance - 需求

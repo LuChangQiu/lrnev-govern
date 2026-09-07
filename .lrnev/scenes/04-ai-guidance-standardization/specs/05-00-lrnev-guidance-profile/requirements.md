@@ -1,9 +1,10 @@
 ---
-spec: '05-00-lrnev-guidance-profile'
-scene: '04-ai-guidance-standardization'
-status: draft
+spec: 05-00-lrnev-guidance-profile
+scene: 04-ai-guidance-standardization
+status: completed
 priority: P1
 created: '2026-08-26'
+updated: '2026-09-07'
 ---
 
 # 05-00 lrnev Guidance Profile - 需求

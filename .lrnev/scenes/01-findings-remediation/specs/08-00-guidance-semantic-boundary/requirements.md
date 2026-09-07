@@ -1,9 +1,10 @@
 ---
-spec: '08-00-guidance-semantic-boundary'
-scene: '01-findings-remediation'
-status: draft
+spec: 08-00-guidance-semantic-boundary
+scene: 01-findings-remediation
+status: completed
 priority: P0
 created: '2026-08-26'
+updated: '2026-09-07'
 ---
 
 # 08-00 Guidance Semantic Boundary - 需求

@@ -1,9 +1,10 @@
 ---
-spec: '02-00-guidance-surface-inventory'
-scene: '04-ai-guidance-standardization'
-status: draft
+spec: 02-00-guidance-surface-inventory
+scene: 04-ai-guidance-standardization
+status: completed
 priority: P0
 created: '2026-08-26'
+updated: '2026-09-07'
 ---
 
 # 02-00 Guidance Surface Inventory - 需求

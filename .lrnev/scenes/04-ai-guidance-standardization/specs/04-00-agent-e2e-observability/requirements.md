@@ -1,9 +1,10 @@
 ---
-spec: '04-00-agent-e2e-observability'
-scene: '04-ai-guidance-standardization'
-status: draft
+spec: 04-00-agent-e2e-observability
+scene: 04-ai-guidance-standardization
+status: completed
 priority: P0
 created: '2026-08-26'
+updated: '2026-09-07'
 ---
 
 # 04-00 Agent E2E Observability - 需求

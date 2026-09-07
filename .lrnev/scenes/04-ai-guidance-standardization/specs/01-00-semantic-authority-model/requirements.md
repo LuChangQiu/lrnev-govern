@@ -1,10 +1,10 @@
 ---
 spec: 01-00-semantic-authority-model
 scene: 04-ai-guidance-standardization
-status: in-progress
+status: completed
 priority: P0
 created: '2026-08-26'
-updated: '2026-08-27'
+updated: '2026-09-07'
 ---
 
 # 01-00 Semantic Authority Model - 需求
