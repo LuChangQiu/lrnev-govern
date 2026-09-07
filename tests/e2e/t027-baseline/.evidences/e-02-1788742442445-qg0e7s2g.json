@@ -1,0 +1,76 @@
+{
+  "surface_id": "server_instructions:global:workflow_overview",
+  "content_hash": "f6afb09a0a7f9894b9f0fdd5317edf8605fe1d787eeb6dfe100ce854f9ab9801",
+  "consumer_type": "model",
+  "consumed_at": "2026-09-07T00:54:02.584Z",
+  "trigger_context": null,
+  "prompt_id": null,
+  "run_id": "e-02-1788742442445-qg0e7s2g",
+  "mcp_version": "2025-11-25",
+  "git_sha": "2b3c8fa28b1e395af876d6449d4a13e81a213c07",
+  "client_version": "1.18.18",
+  "model_version": "deepseek/deepseek-v4-flash",
+  "fixture_hash": "df13132b404b0d1e79ce55c2cddb52a1ab8ce6b6bc9dbcbfb99e0179b72dd510",
+  "decision_context": null,
+  "tool_sequence": [
+    "mcp__lrnev-t027__project_status",
+    "mcp__lrnev-t027__governance_map",
+    "mcp__lrnev-t027__spec_get",
+    "mcp__lrnev-t027__task_list",
+    "mcp__list__mcp_resources",
+    "mcp__lrnev-t027__context_search",
+    "mcp__list__mcp_resource_templates",
+    "mcp__read__mcp_resource",
+    "mcp__read__mcp_resource",
+    "mcp__lrnev-t027__task_create",
+    "mcp__lrnev-t027__task_create"
+  ],
+  "allowed_tools": [
+    "task_create",
+    "spec_get"
+  ],
+  "forbidden_tools": [
+    "spec_create"
+  ],
+  "action_taken": "mcp__lrnev-t027__task_create",
+  "action_success": true,
+  "severity": "high",
+  "is_blacklist_phrase": false,
+  "is_pseudo_constraint": false,
+  "user_decision_override": true,
+  "session_clean": false,
+  "scenario_id": "E-02",
+  "decision_context_sent": false,
+  "fixture_context": {
+    "scene": "01-user-management",
+    "existing_specs": [
+      "00-user-login (in-progress)"
+    ],
+    "spec_count": 1,
+    "ai_recommendation": "new_spec",
+    "recommendation_reason": "建议独立新建风控 Spec"
+  },
+  "guidance_surfaces": [],
+  "clean_session_id": "ses_f86a54e07ffeVL4DTkX1uwEwPQ",
+  "sha_label": "sha-d",
+  "evidence_path": "tests/e2e/t027-baseline/.evidences/e-02-1788742442445-qg0e7s2g.json",
+  "c_class_basis": {
+    "decision_context_sent": "T-027 为 claude -p 盲测，客户端不传 decision_context 语义（SHA A/B 均无参数）→ decision_context:null + decision_context_sent:false（裁决 Q3）",
+    "fixture_context": "客户端未传语义时工作区快照（scene/existing_specs/spec_count/current_status 等）独立存于 fixture_context（裁决 Q3），不再误存 decision_context",
+    "content_hash": "裁决 Q1-B：目标 worktree server 源码字节 sha256；来源文件=src/mcp/guidance.ts,src/mcp/server.ts,src/core/guidance-semantics.ts（按存在性纳入）",
+    "fixture_hash": "裁决 Q6：EvidenceCollector 64hex 行为收窄口径（stableStringify 稳定键序）",
+    "guidance_surfaces": "裁决 Q9：会话级已消费 surface 全集——wrapper/stdio 代理层就绪前不可采，当前为空数组",
+    "surface_id": "裁决 Q9：主 surface=server_instructions:global:workflow_overview（server instructions 每 session 启动真实消费）；fixture 目标 guidance 记于 fixture.aiGuidance（本 harness 不注入期望值）",
+    "client_version": "取自驱动自报版本 client_version=1.18.18（非 claude 客户端：init 无 claude_code_version，由 client-drivers.mjs 注入）",
+    "model_version": "取自 init 事件 model=deepseek/deepseek-v4-flash",
+    "consumed_at": "证据生成时刻（会话结束时间戳）作为 C 类推断值；真实消费时刻需客户端回传/代理层",
+    "trigger_context": "null：客户端不可采用户输入片段（裁决 Q1 C 类）",
+    "prompt_id": "null：未接入真实会话系统（裁决 Q1 C 类；单会话证据以 run_id 关联）",
+    "allowed_tools": "fixture.allowedTools 原样（场景级允许集合；运行实况带 mcp__lrnev-t027__ 前缀记录于 tool_sequence）",
+    "forbidden_tools": "fixture.forbiddenTools 原样（场景级禁止集合）",
+    "is_blacklist_phrase": "false：T-027 被测 guidance（server instructions）无黑名单句式（schema required 需 present；04-00 检测口径未命中）",
+    "is_pseudo_constraint": "false：T-027 场景不涉及伪约束（schema required 需 present）",
+    "session_clean": "false：opencode（1.18.18）口径：XDG_CONFIG/DATA/CACHE 重定向 + OPENCODE_CONFIG 隔离，仅注册 lrnev-t027（config 无全局/项目级合并）；会话观测 MCP 工具 lrnev-t027_project_status, lrnev-t027_governance_map, lrnev-t027_spec_get, lrnev-t027_task_list, lrnev-t027_context_search, lrnev-t027_task_create, lrnev-t027_task_create；内置工具（非 MCP）glob, glob, read（⚠️ 疑似非 t027 MCP: list_mcp_resources, list_mcp_resource_templates, read_mcp_resource, read_mcp_resource）；tools 列表=观测到的 MCP 工具归一化名（非完整枚举）",
+    "user_decision_override": "true：fixture 场景定义（evidenceFields.user_decision_override=true，用户显式决定覆盖 AI 建议，裁决 #7）"
+  }
+}
