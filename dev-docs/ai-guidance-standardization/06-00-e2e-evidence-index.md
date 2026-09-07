@@ -58,11 +58,14 @@ created: 2026-09-02
 | **B1** | 45a86e15 | 12 | 2026-09-01 | text_v1 迁移生效 | `b1-evidence-manifest.json` |
 | **B2a** | 131e6f3 | 12 | 2026-09-01 | M1 完成（结构化传输 + legacy JSON） | `b2a-evidence-manifest.json` |
 | **B2b** | 408294d | 12 | 2026-09-02 | M2 完成（42/42 MVC 渲染器） | `b2b-evidence-manifest.json` |
+| **B3**（真机对照） | 918581e | 20（claude 15 + opencode 5 sessions） | 2026-09-04 | T-027 真实客户端对照（sha-c；G1-G4 + 05-00 Profile + 输出契约根治 + 归一判定）：claude E-02/E-06a/E-06b + opencode E-02 | `tests/e2e/t027-baseline/.evidences/`（真机录制件，非 manifest） |
+| **B4**（真机复测） | 2b3c8fa | 20（claude 15 + opencode 5 sessions） | 2026-09-07 | T-027 发布内容快照复测（sha-d；G1 措辞修订 9c1c640 + G5 归档边界 d9dfb9a + L7 --profile 4cce0b5 + P5 E-06 harness 70f4980 + schema 2.0.2）：claude E-02/E-06a/E-06b（E-06b 真实续接）+ opencode E-02 | `tests/e2e/t027-baseline/.evidences/`（真机录制件，非 manifest） |
 
 **说明**:
 - B0-s/B1/B2a：结构基线（-s 后缀），fixture 驱动，无真实 LLM/客户端参与
 - B2b：M2 后真实证据，基于 schema 修复（69b3da0）和生成器修正（052ba74）
-- 所有阶段覆盖相同 12 个场景（E-01 ~ E-11 + E-06a/E-06b）
+- B0~B2b 覆盖相同 12 个场景（E-01 ~ E-11 + E-06a/E-06b）
+- **B3/B4**：T-027 真实客户端对照（判定口径 PASS/5，不并入 B0-B2b 结构等价性编号），覆盖 E-02/E-06a/E-06b × claude/opencode；证据以录制件存 `tests/e2e/t027-baseline/.evidences/`（361 tracked，sha_label=sha-c/sha-d，证据契约 2.0.1/2.0.2）；PASS 判定引用 `04-00-最终观测报告.md` 的"B3/B4 补充观测"节
 
 ### 3.2 B0-s（摘录基线）
 
@@ -498,11 +501,15 @@ created: 2026-09-02
 | E-09 | 伪约束不阻断 | fixture-driven | fixture-driven | B0/B1/B2a/B2b |
 | E-10 | new_scene 协议 | fixture-driven | fixture-driven | B0/B1/B2a/B2b |
 | E-11 | other 协议 | fixture-driven | fixture-driven | B0/B1/B2a/B2b |
+| E-02（真机 claude） | 明确复用覆盖建议（真实客户端，激励缺口实证） | claude | claude | B3（sha-c）0/5 → B4（sha-d）0/5（四 SHA 0/5 终确认 → 裁决 1.4，不阻塞发布） |
+| E-02（真机 opencode） | 明确复用覆盖建议（真实客户端） | opencode | opencode | B3（sha-c）4/5 → B4（sha-d）5/5（0 个 -32602） |
+| E-06a（真机 claude） | 改变主意（提议时） | claude | claude | B3（sha-c）1/5 → B4（sha-d）1/5（归档率 4/5→0/5，G5 生效） |
+| E-06b（真机 claude） | 改变主意（执行后·真实续接） | claude | claude | B3（sha-c）5/5（split 伪 PASS）→ B4（sha-d）4/5（真实续接首测） |
 
 **说明**:
-- B0-B2b 阶段均为 fixture-driven，无真实 LLM/客户端参与
-- client_version/model_version 为 null（需 05-00 Profile 阶段回传）
-- T-027（真实客户端基线）将补充真实 client/model 数据
+- B0-B2b 阶段均为 fixture-driven，无真实 LLM/客户端参与（其 manifest 的 client_version/model_version 为 null，需真实客户端阶段回填）
+- B3/B4 真机行由 T-027 于 2026-09-04/07 执行（claude/opencode × sha-c=918581e/sha-d=2b3c8fa）；PASS/5 判定引用 `04-00-最终观测报告.md` 的"B3/B4 补充观测"节（判定汇总存本机 ai-discussions；GitHub 证据见 tests/e2e/t027-baseline/.evidences/）
+- B3/B4 真机录制件承载 client/model 真实标识（sha-d 起证据契约 2.0.2 带 sha_label）
 
 ### 7.2 客户端能力预期（05-00 Profile）
 
@@ -517,15 +524,13 @@ created: 2026-09-02
 - 支持 isError 处理
 - 支持用户原话保留
 
-### 7.3 待补充证据（B3 阶段）
+### 7.3 真机补充证据（B3/B4 阶段，T-027）——已完成
 
-**B3（Profile 阶段）**（依赖 05-00 完成后）:
-- 补充 client_version/model_version 真实值
-- 执行 ≥5 clean sessions 盲测（T-027）
-- 建立 B0' 行为基线（真实客户端双 SHA 对照）
-- 验证 guidance 消费稳定性
-
-**触发时机**: 发布前重跑受影响客户端核心场景
+**B3/B4（真实客户端对照/复测）已由 T-027 完成**（2026-09-04 / 2026-09-07）：
+- ✅ 真实客户端盲测（claude/opencode × sha-c=918581e / sha-d=2b3c8fa，每场景 ≥5 clean sessions）
+- ✅ 建立真实客户端行为基线（B3 对照 + B4 发布内容快照复测，判定结果见 §3.1/§7.1 与 `04-00-最终观测报告.md`"B3/B4 补充观测"节）
+- ✅ 证据契约 2.0.1/2.0.2 的 sha_label 落库：B3 录制件以 sha-c=918581e 为快照，B4 录制件以 sha-d=2b3c8fa 为快照
+- 原计划的"发布前重跑受影响客户端核心场景" = B4（2026-09-07 执行完毕，见 §3.1）
 
 ## 8. 与其他文档的关系
 
@@ -557,7 +562,8 @@ created: 2026-09-02
 ### 9.3 证据保留策略
 
 **证据文件**:
-- 保留所有阶段证据文件（b0/b1/b2a/b2b/b3-evidence-manifest.json）
+- 保留所有阶段证据文件（b0/b1/b2a/b2b-evidence-manifest.json，同目录）
+- **不存在 `b3-evidence-manifest.json`**——B3/B4 真机阶段证据（sha-c/sha-d）以录制件形式存 `tests/e2e/t027-baseline/.evidences/`（361 tracked，证据契约 2.0.1/2.0.2），不复制进 dev-docs 档案
 - 不删除或覆盖历史证据
 - 新阶段证据追加，不替换旧阶段
 
