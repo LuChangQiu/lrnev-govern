@@ -61,7 +61,7 @@ lrnev --help
 
 ---
 
-> v2.1~v2.3 新增验证面（真机走查时重点）：`anchor_context`/`summary_context` 任务启动回填（task_update/task_claim 两入口）、需求审核门（ready 通过后的"请暂停"+ 无条件填 design 提示）、BM25 排序与锚点抽段、治理地图、`lrnev report` 治理债口径、register 机会式 GC（`data.gc` 字段）、`task_create_many` 原子批量与错误明细、`was_new` 以 PROJECT.md 判定。v2.3 三客户端盲测报告见 `E2E-REPORT-*-V23-2026-07-06.md`。
+> v2.1~v2.3 新增验证面（真机走查时重点）：`anchor_context`/`summary_context` 任务启动回填（task_update/task_claim 两入口）、需求审核门（ready 通过后的"请暂停"+ 无条件填 design 提示）、BM25 排序与锚点抽段、治理地图、`lrnev report` 治理债口径、register 机会式 GC（`data.gc` 字段）、`task_create_many` 原子批量与错误明细、`was_new` 以 PROJECT.md 判定。v2.3 三客户端盲测报告见 `archive/E2E-REPORT-*-V23-2026-07-06.md`。
 
 ## 四、各能力域逐项（42 工具全覆盖，v2.3/3.0.0 工具集一致）
 
@@ -178,7 +178,7 @@ lrnev --help
 ## 十二、CI 可自动化的测试
 
 每次 `npm test` 覆盖：
-- 测试规模：以 `npm test` 实跑输出为准（**3.0.0 实测为 81 个测试文件、1076 条**；v2.3 审计整改后为 46 个测试文件、692 条）。
+- 测试规模：以 `npm test` 实跑输出为准（**3.0.0 实测为 81 个测试文件、1079 条**；v2.3 审计整改后为 46 个测试文件、692 条）。
 - 覆盖：所有 Manager、MCP 协议、CLI、并发、状态机、gate、agent 心跳、hooks、guide。
 - 执行：`npm test`；构建：`npm run build`(应零警告)。
 

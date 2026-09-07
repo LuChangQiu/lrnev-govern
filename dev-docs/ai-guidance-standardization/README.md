@@ -8,7 +8,23 @@ scene: '04-ai-guidance-standardization'
 
 # lrnev AI Guidance Standardization
 
-> **现状（2026-09）**：Scene 04 战役已收口——01-00~05-00 全部 spec 完成（03-00 M1/M2 双通道契约、04-00 E-01~09 + B0~B2b/B3/B4 对照、05-00 Profile 随 3.0.0 发布）；06-00 交付物按 3.0.0 实现归档。2026-09-07 收口窗口补齐 P0 悬空账：ADR-0001 两维截断（TextStatus/TextMeta/QueryMeta）与 ADR-0003 hook drain 按决策落地（03-00 T-007/T-008，commit 18626e1，全量 1076 测试全绿——详见 ADR 实施状态注记）。本目录现为**战役档案**：先读 `06-00-e2e-evidence-index.md`（唯一证据索引）与 `dev-docs/decisions/README.md`（审定决策档案）；讨论区过程记录（意见轮次/会话日志）留在本机 `ai-discussions/`。下方历史内容（目标/原则/待决问题）是战役期的过程快照，不代表当前决策状态。
+> **现状（2026-09）**：Scene 04 战役已收口——01-00~05-00 全部 spec 完成（03-00 M1/M2 双通道契约、04-00 E-01~09 + B0~B2b/B3/B4 对照、05-00 Profile 随 3.0.0 发布）；06-00 交付物按 3.0.0 实现归档。2026-09-07 收口窗口补齐 P0 悬空账：ADR-0001 两维截断（TextStatus/TextMeta/QueryMeta）与 ADR-0003 hook drain 按决策落地（03-00 T-007/T-008，commit 18626e1，全量 1076 测试全绿——详见 ADR 实施状态注记）。本目录现为**战役档案**：先读 `deliverables/06-00-e2e-evidence-index.md`（唯一证据索引）与 `dev-docs/decisions/README.md`（审定决策档案）；讨论区过程记录（意见轮次/会话日志）留在本机 `ai-discussions/`。下方历史内容（目标/原则/待决问题）是战役期的过程快照，不代表当前决策状态。
+
+## 目录结构（2026-09）
+
+2026-09 起本目录按域分组为三个子目录（此前为平铺 + 文件名前缀分类）。路径 = 引用键：组内/跨组引用一律指向实际位置，移动或改名必须全仓同步引用。
+
+```text
+ai-guidance-standardization/
+├── README.md             # 本入口（战役档案导航，原地保留）
+├── deliverables/         # 04-00 最终观测报告 + 06-00 spec 收口交付物
+│   └── 06-00-e2e-evidence-index.md（唯一证据索引，先读它）等 4 份
+├── evidence/             # B 系列对照证据 manifest/报告、冻结基线与引导面清单
+│   └── b0/b1/b1-runtime/b2a/b2b-evidence-manifest.json、baseline-freeze-v2.0.md、
+│       v0.1-freeze.md、guidance-surface-inventory-v{2,3}-*.{md,json} 等
+└── notes/                # Task 实施笔记（T-001~T-005/T-029 等）与语义权威规范
+    └── semantic-authority-model.md 等
+```
 
 这份文档是 Scene `04-ai-guidance-standardization` 的跨 Agent 讨论入口。它用于让 Codex、DeepSeek Web 和本地 Agent 在同一组架构事实、边界和待决问题上继续讨论。
 

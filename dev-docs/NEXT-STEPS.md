@@ -80,7 +80,7 @@
 | `INTEGRATION-TEST.md` | **常备真机验证关卡**——覆盖 CI 测不到的协议握手、ai_followup 真驱动、多模型矩阵、性能基准 | 每批行为变更（gate/followup/工具）合入后；发版前 |
 | `archive/TASK-START-CONTEXT.md` | 功能提案定稿（已作为 v2.1 anchor_context 完整落地） | 回溯 v2.1 验收口径时 |
 | `PRODUCT-STRATEGY.md` | 战略层「为什么和往哪走」 | 评估新需求是否该做、排序时 |
-| `E2E-REPORT-*-V23-2026-07-06.md` | v2.3 发布前三客户端盲测报告（codex/opencode/claude） | 回看真机卡点与整改依据时 |
+| `archive/E2E-REPORT-*-V23-2026-07-06.md` | v2.3 发布前三客户端盲测报告（codex/opencode/claude） | 回看真机卡点与整改依据时 |
 | 本文 | 执行层「按什么顺序动手」 | 每完成一步勾掉、接下一步 |
 
 历史快照（v1.x 两轮集成测试、v2.1 E2E 五件套等）已移入 `archive/`，发现均已消化，仅作回溯。
