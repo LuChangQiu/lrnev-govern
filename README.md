@@ -46,7 +46,7 @@ AI 协作开发常见四个问题：**AI 健忘**（新会话不记得项目上�
 ```bash
 npm install -g lrnev        # 要求 Node.js ≥ 20
 cd your-project
-lrnev init                  # 生成 .lrnev/（Markdown 档案，可 git add .lrnev/ 版本管理）
+lrnev init                  # 生成 .lrnev/（Markdown 档案，可 git add .lrnev/ 版本管理；不传 --project-name 则默认用当前文件夹名）
 ```
 
 ### 2.2 接入 AI 客户端（MCP）

@@ -202,10 +202,10 @@ MCP 的工具说明与 server instructions 只在连接初始化时注入一次�
 3. 开不开 spec 便宜先：
    - ① 写不出 WHEN…THEN 独立验收的小改动 → 直接做；
    - ② 开发/扩展请求（加/实现/补充）→ 定位承载 Spec（context_search/spec_get）→ **task_create 登记再实施**；直接编辑 requirements/design 只许需求细化/文档维护；completed spec 登记后可回退 in-progress（合法转换）；
-   - ③ 独立可交付才 spec_create（两“是”）：优先已有 scene；新域经用户确认才 scene_create；无稳定域落 00-default（兜底）；
+   - ③ 独立特性（可独立交付）才 spec_create（两“是”）：优先已有 scene；新域经用户确认才 scene_create；无稳定域落 00-default（兜底）；
    - ④ 整体推翻 → 新版 version+1 留旧版对照；archived 终态只由用户定；
-   - ⑤ 旧 Spec 久未动/已 completed/任务清空（冷却）→ 先 context_search 读摘要，再定复用/新版/新建；
-   - ⑥ 用户点名建 spec/scene → 直接照做。
+   - ⑤ 上下文冷却（旧 Spec 久未动/已 completed/任务清空）→ 先 context_search 读摘要，再定复用/新版/新建；
+   - ⑥ 用户决定优先：以上都是建议非强制——用户已明确要求（如"帮我新建一个 Spec"）→ 直接照做、尊重用户决定，即使已有相似 Spec 可承载也不劝返。
 4. 踩坑→error_record；决策→adr_create；约定→memory_save。
 5. 多特性需求 assess_goal 辅助拆分（建议可跳过）。
 6. 改前 task_update(in_progress)；完成 task_update(completed)。
@@ -248,7 +248,7 @@ MCP 的工具说明与 server instructions 只在连接初始化时注入一次�
    - ③ 独立可交付新特性才 `spec_create`：能写 WHEN…THEN 验收 + 可独立交付，两“是”才开。优先归已有 scene；新业务域经用户确认才 `scene_create`；无稳定域小特性才落 00-default（兜底）；scene/00 拿不准问用户；
    - ④ 整体推翻需求/设计 → 开新版（version+1，VV 是重写版号非修订号）留旧版对照；archived 是终态，归档/撤销只由用户定——AI 不自动归档，刚建的 Spec 不得自行回退；
    - ⑤ 旧 Spec 上下文冷却（久未动/已 completed/任务已清空）→ 先 `context_search` 读摘要，再决定复用（task_create 落位）、开新版还是新建；
-   - ⑥ 用户点名要建 spec/scene → 尊重决定直接建（以上均可被用户要求覆盖）。
+   - ⑥ 用户决定优先：以上都是建议非强制——用户已明确要求（如"帮我新建一个 Spec"）→ 尊重用户决定直接建（以上均可被用户要求覆盖）。
 4. **踩坑→`error_record`，决策→`adr_create`，约定→`memory_save`**；不沾的直接做。
 5. **多特性需求**先判断单/多 Spec（`assess_goal`：single-spec / multi-spec-program / research-program，建议可跳过）。
 6. **改前** task_update(in_progress)，**完成** task_update(completed)。

@@ -6,30 +6,36 @@ import { describe, expect, it } from 'vitest';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 describe('docs', () => {
-  it('F-05: AI-ADAPTATION 和 README 应提供常驻提示词模板', () => {
+  it('F-05: AI-ADAPTATION 提供常驻提示词模板全文，README 单源化指向', () => {
     const aiAdaptation = readFileSync(resolve(__dirname, '../../docs/AI-ADAPTATION.md'), 'utf-8');
     const readme = readFileSync(resolve(__dirname, '../../README.md'), 'utf-8');
 
-    for (const content of [aiAdaptation, readme]) {
-      expect(content).toContain('常驻提示词');
-      expect(content).toContain('本项目用 lrnev 治理');
-      expect(content).toContain('project_status');
-      expect(content).toContain('spec_create');
-      expect(content).toContain('error_record');
-      expect(content).toContain('adr_create');
-      expect(content).toContain('memory_save');
-      expect(content).toContain('task_update(in_progress)');
-      expect(content).toContain('task_update(completed)');
-      expect(content).toContain('lrnev_guide');
+    // 全文关键词锁只对 AI-ADAPTATION（唯一权威源）
+    for (const keyword of [
+      '常驻提示词',
+      '本项目用',
+      'project_status',
+      'spec_create',
+      'error_record',
+      'adr_create',
+      'memory_save',
+      'task_update(in_progress)',
+      'task_update(completed)',
+      'lrnev_guide',
+    ]) {
+      expect(aiAdaptation).toContain(keyword);
     }
+
+    // README 单源化（T-006/3.0.0 定案）：只锁指向，不复制全文
+    expect(readme).toContain('常驻提示词');
+    expect(readme).toContain('防长对话遗忘');
+    expect(readme).toContain('docs/AI-ADAPTATION.md');
 
     expect(aiAdaptation).toContain('Claude Code');
     expect(aiAdaptation).toContain('CLAUDE.md');
     expect(aiAdaptation).toContain('Cursor');
     expect(aiAdaptation).toContain('.cursor/rules');
     expect(aiAdaptation).toContain('Codex');
-    expect(readme).toContain('防长对话遗忘');
-    expect(readme).toContain('docs/AI-ADAPTATION.md');
   });
 
   it('F-06: README init 示例应使用默认目录名形式', () => {
