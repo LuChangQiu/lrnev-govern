@@ -449,7 +449,7 @@ export class TaskManager {
     const specId = await this.specManager.resolveId(sceneId, input.spec);
     const tasksPath = this.tasksPath(sceneId, specId);
 
-    const { updatedTask, parentReadyId, previousStatus, incompleteDeps, incompleteChildren, suggestParallel, badAnchors } = await this.withTasksFileLock(sceneId, specId, async () => {
+    const { updatedTask, parentReadyId, previousStatus, incompleteDeps, incompleteChildren, suggestParallel, badAnchors, allTasksCompleted } = await this.withTasksFileLock(sceneId, specId, async () => {
       const content = await this.fs.read(tasksPath);
       const tasks = parseTasksFromMarkdown(content, sceneId, specId);
       const task = tasks.find((t) => t.id === input.task_id);
@@ -492,6 +492,12 @@ export class TaskManager {
       await this.fs.write(tasksPath, updatedContent);
 
       const tasksAfter = tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t));
+      // T-027 收口动作点引导：仅当本次转换把任务置 completed 且该 spec 全部任务均为 completed 时，
+      // update 的 followup 才提示收口动作点（spec.status 已是 completed 的维护态由 buildFollowupAfterUpdate 排除）。
+      // completed 是终态，任务不可能从 completed 改出，故 tasksAfter 全 completed 即等于“本次更新达成全 completed”。
+      const allTasksCompleted = input.status === 'completed'
+        && tasksAfter.length > 0
+        && tasksAfter.every((t) => t.status === 'completed');
       // S3 软提醒数据：依赖未完成（I-7 warning 部分）与父任务先于子任务完成（I-8），均不阻断。
       const incompleteDeps = input.status === 'in_progress'
         ? (updatedTask.depends_on ?? []).filter(
@@ -515,6 +521,7 @@ export class TaskManager {
         incompleteChildren,
         suggestParallel,
         badAnchors,
+        allTasksCompleted,
       };
     });
     const specStatus = await this.readSpecStatus(sceneId, specId);
@@ -542,7 +549,7 @@ export class TaskManager {
       data: updatedTask,
       ...(anchorContext && { anchor_context: anchorContext }),
       ...(summaryContext && { summary_context: summaryContext }),
-      ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult, incompleteDeps, incompleteChildren, suggestParallel, badAnchors, Boolean(anchorContext || summaryContext)),
+      ai_followup: buildFollowupAfterUpdate(updatedTask, input.status, specStatus, parentReadyId, claimResult, incompleteDeps, incompleteChildren, suggestParallel, badAnchors, Boolean(anchorContext || summaryContext), allTasksCompleted),
     }, hookResult.warnings);
   }
 
@@ -1335,6 +1342,7 @@ function buildFollowupAfterUpdate(
   suggestParallel = false,
   badAnchors: string[] = [],
   hasContext = false,
+  allTasksCompleted = false,
 ): AiFollowupResponse<Task>['ai_followup'] {
   const badAnchorWarning = badAnchors.length > 0
     ? `validates 锚点 ${badAnchors.join('、')} 为废弃格式或在 requirements/design 中不存在；请修正 tasks.md 中该锚点（新建 task 会被硬拒，存量在此提醒，doctor 可列全量）。`
@@ -1374,6 +1382,13 @@ function buildFollowupAfterUpdate(
       `Task "${task.id}" 已完成`,
       '若该 Spec 的所有 Task 都完成，可调 spec_gate_check(gate=completion) 验收',
     ];
+    // T-027 收口动作点引导：任务层刚达成全 completed 且 spec 尚未收口（specStatus!=='completed'）时，
+    // 把“验证收口条件 → spec_update 回填状态”的动作点放在这个完成时刻，避免任务全绿但 spec 停在 draft 的漏收口。
+    if (allTasksCompleted && specStatus !== 'completed') {
+      instructions.push(
+        '该 Spec 的所有任务已 completed —— 可调 spec_gate_check(gate=completion) 验证收口条件，通过后用 spec_update 把 Spec 状态回填 completed。',
+      );
+    }
     if (incompleteChildren > 0) {
       instructions.push(
         `注意：该父任务仍有 ${incompleteChildren} 个子任务未完成；task_list 快照可能让人误以为整体已完成，请确认子任务状态（lrnev 不阻断，completion gate 仍会因未完成子任务失败）。`,

@@ -1316,6 +1316,68 @@ describe('TaskManager 集成', () => {
     });
   });
 
+  describe('T-027: spec 收口动作点引导（全部任务 completed 时提示收口）', () => {
+    /** 完成一个任务：pending → in_progress → completed（状态机合法链），返回最后一次 update 的 followup 文本 */
+    async function completeAndGetText(title: string): Promise<string> {
+      const created = await tasks.create({ scene: 'user-management', spec: 'user-login', title });
+      await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: created.data.id, status: 'in_progress' });
+      const done = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: created.data.id, status: 'completed' });
+      return done.ai_followup?.instructions.join('\n') ?? '';
+    }
+
+    const closureLine = '该 Spec 的所有任务已 completed';
+
+    it('场景 A: 3 任务的 spec，最后一个任务 completed 时 followup 给收口引导', async () => {
+      const a = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '收口任务 A' });
+      const b = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '收口任务 B' });
+      const c = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '收口任务 C' });
+      await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: a.data.id, status: 'in_progress' });
+      await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: a.data.id, status: 'completed' });
+      await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: b.data.id, status: 'in_progress' });
+      const doneB = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: b.data.id, status: 'completed' });
+      // C 仍 pending，完成 A/B 的 followup 不应带收口引导
+      expect(doneB.ai_followup?.instructions.join('\n') ?? '').not.toContain(closureLine);
+
+      await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: c.data.id, status: 'in_progress' });
+      const doneC = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: c.data.id, status: 'completed' });
+
+      const text = doneC.ai_followup?.instructions.join('\n') ?? '';
+      expect(text).toContain(closureLine);
+      expect(text).toContain('spec_gate_check(gate=completion) 验证收口条件');
+      expect(text).toContain('spec_update 把 Spec 状态回填 completed');
+      // suggested_tools 保持既有语义（completion gate）
+      expect(doneC.ai_followup?.suggested_tools?.[0]?.name).toBe('spec_gate_check');
+    });
+
+    it('场景 B: 3 任务的 spec 仍有 1 个 pending 时，completed 的 followup 无收口引导', async () => {
+      const a = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '未收口任务 A' });
+      const b = await tasks.create({ scene: 'user-management', spec: 'user-login', title: '未收口任务 B' });
+      await tasks.create({ scene: 'user-management', spec: 'user-login', title: '未收口任务 C' }); // 保持 pending
+      for (const t of [a, b]) {
+        await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: t.data.id, status: 'in_progress' });
+      }
+      const done = await tasks.update({ scene: 'user-management', spec: 'user-login', task_id: b.data.id, status: 'completed' });
+      const text = done.ai_followup?.instructions.join('\n') ?? '';
+      expect(done.data.status).toBe('completed');
+      expect(text).not.toContain(closureLine);
+      expect(text).not.toContain('验证收口条件');
+      expect(text).not.toContain('spec_update 把 Spec 状态回填 completed');
+    });
+
+    it('场景 C: spec.status 已 completed 的维护态，任务全 completed 时不重复给收口引导', async () => {
+      // 与既有维护态测试同手法：直接改 requirements.md frontmatter 把 spec 状态置 completed
+      const reqPath = '.lrnev/scenes/01-user-management/specs/01-00-user-login/requirements.md';
+      const req = await fs.read(reqPath);
+      await fs.write(reqPath, req.replace('status: draft', 'status: completed'));
+
+      const text = await completeAndGetText('维护态收尾任务');
+      // 既有 completed followup 语义保持：仍建议 completion gate，但不重复“回填 completed”的收口引导
+      expect(text).toContain('已完成');
+      expect(text).not.toContain(closureLine);
+      expect(text).not.toContain('spec_update 把 Spec 状态回填 completed');
+    });
+  });
+
   describe('get', () => {
     it('不存在应抛 TASK_NOT_FOUND', async () => {
       try {

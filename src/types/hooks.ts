@@ -3,6 +3,7 @@ export type HookEvent =
   | 'spec.gate_passed.ready'
   | 'spec.gate_passed.completion'
   | 'task.create'
+  | 'task.update.pending'
   | 'task.update.in_progress'
   | 'task.update.completed'
   | 'task.update.failed'
