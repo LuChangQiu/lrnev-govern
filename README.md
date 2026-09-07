@@ -1,6 +1,6 @@
 # lrnev
 
-> 确定性项目治理引擎：给 AI 协作开发加上 Scene → Spec → Task + Gate 的流程与档案。Markdown 文件即真相，零模型依赖；MCP 服务 + CLI 双形态。
+> 🎯 确定性项目治理引擎：给 AI 协作开发加上 Scene → Spec → Task + Gate 的流程与档案。Markdown 文件即真相，零模型依赖；MCP 服务 + CLI 双形态。
 
 名词家族：npm 包 **`lrnev`** · 命令 `lrnev`（CLI）与 `lrnev-mcp`（MCP 服务）· 源码仓库 `lrnev-govern` · 当前版本 **3.0.0**（要求 Node.js ≥ 20）
 
@@ -24,22 +24,22 @@ AI 协作开发常见四个问题：**AI 健忘**（新会话不记得项目上�
 
 | 概念 | 一句话 |
 |------|--------|
-| **Scene** | 业务域（如 `01-user-management`），下面是该域的多个 Spec |
-| **Spec** | 一个可独立交付的特性档案：`requirements.md`（`#### F-xx` 需求 + 验收）、`design.md`（`#### D-xx` 设计）、`tasks.md`（`T-xxx` 任务） |
-| **Task** | 执行单元 `T-xxx`，`validates` 挂到 F-xx / D-xx 锚点，做到哪、验证什么都有据可查 |
-| **Gate** | `creation` / `ready` / `completion` 三档结构契约门禁：只查"该有的都有、占位已清"，不判质量 |
-| **轻产物** | 小事不走 Spec：踩坑 → `error_record`，小决策/选型 → `adr_create`，约定 → `memory_save` |
+| 🗂️ **Scene** | 业务域（如 `01-user-management`），下面是该域的多个 Spec |
+| 📋 **Spec** | 一个可独立交付的特性档案：`requirements.md`（`#### F-xx` 需求 + 验收）、`design.md`（`#### D-xx` 设计）、`tasks.md`（`T-xxx` 任务） |
+| ✅ **Task** | 执行单元 `T-xxx`，`validates` 挂到 F-xx / D-xx 锚点，做到哪、验证什么都有据可查 |
+| 🚦 **Gate** | `creation` / `ready` / `completion` 三档结构契约门禁：只查"该有的都有、占位已清"，不判质量 |
+| 📝 **轻产物** | 小事不走 Spec：踩坑 → `error_record`，小决策/选型 → `adr_create`，约定 → `memory_save` |
 
 最小闭环：`lrnev spec create user-login` → 填 requirements（替换 `<!-- FILL: -->` 占位）→ `lrnev gate check ... --gate ready` → `lrnev task create ... --validates F-01` → 用 `lrnev task update` 推进 → `lrnev gate check ... --gate completion` 收口。可完整照抄的命令流见本文第 2 节。
 
 适合：一人多 AI 窗口接力同一项目、代码需要需求追踪与验收闭环、给 MCP 工具加治理骨架、长期迭代的项目。
 不适合：一次性小脚本、纯问答、玩具 demo——直接让 AI 做即可，不必套流程。
 
-**不绑定客户端**：Claude Code / Cursor / Codex 及任意支持 MCP 的客户端都能接入；不接 MCP 时 CLI 走同一套逻辑。
+🔌 **不绑定客户端**：Claude Code / Cursor / Codex 及任意支持 MCP 的客户端都能接入；不接 MCP 时 CLI 走同一套逻辑。
 
 ---
 
-## 2. 快速上手（5 分钟）
+## 2. 🚀 快速上手（5 分钟）
 
 ### 2.1 安装与初始化
 
@@ -140,7 +140,7 @@ lrnev report                                                                 # 9
 ### 状态机与 Gate
 
 - Spec：`draft → ready → in-progress → completed → archived`（archived 是终态、只由用户决定；completed 可合法回退 in-progress 做维护增量）。
-- Task：`pending → in_progress → completed | blocked | failed`（completed 是终态，返工请新建 task）。
+- Task：`pending → in_progress → completed | blocked | failed`（completed 是终态，返工请新建 task；blocked/failed 可回退 pending 重试）。
 - Gate 三档：`creation`（骨架与命名契约）→ `ready`（requirements 结构完整、无 FILL）→ `completion`（任务全 completed + requirements/design 无 FILL）。**Gate 只查结构契约，不判质量；status 不阻塞 gate**，`spec_gate_check` 随时可跑。
 
 ### 写作与摘要约定
@@ -205,7 +205,7 @@ lrnev doctor --migrate-todos              # 工作区结构自检（含旧 TODO 
 | 想解决什么问题 | 去哪读 |
 |----------------|--------|
 | 11 步 CLI 上手走查（含 requirements/design 最小填法） | [examples/sample-project/README.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/examples/sample-project/README.md) |
-| 接入方手册：跨客户端配置、双通道与 decision_context 语义、常驻提示词全文、实测矩阵 | [docs/AI-ADAPTATION.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/AI-ADAPTATION.md) |
+| 接入方手册：跨客户端接入配置、常驻提示词模板全文、工具总览与 `--profile core/full` 分层、实测矩阵（双通道与 decision_context 语义以本文 §4 为准） | [docs/AI-ADAPTATION.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/AI-ADAPTATION.md) |
 | 治理运行语义权威：gate / 哨兵 / 状态机 / 锚点 / 序号 / report 口径 | [docs/GOVERNANCE-FLOW.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/GOVERNANCE-FLOW.md) |
 | 配置键与默认值（完整键示例：[docs/examples/lrnev.json](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/examples/lrnev.json)） | [docs/CONFIG.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/CONFIG.md) |
 | Hooks 事件与配置写法（完整示例：[docs/examples/hooks.json](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/examples/hooks.json)） | [docs/HOOKS.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/HOOKS.md) |
@@ -216,7 +216,7 @@ lrnev doctor --migrate-todos              # 工作区结构自检（含旧 TODO 
 
 仓库里还有一些非用户文档，引用前先认清定位：
 
-- `dev-docs/`：研发内部档案（[dev-docs](https://github.com/LuChangQiu/lrnev-govern/tree/main/dev-docs)：设计讨论、实施观测、复审记录与归档），非用户文档；`ai-discussions/` 为本机讨论区（Agent 三方讨论与复审流水），不上 GitHub。
+- `dev-docs/`：研发内部档案（[dev-docs](https://github.com/LuChangQiu/lrnev-govern/tree/main/dev-docs)：设计讨论、实施观测、复审记录与归档），非用户文档；`ai-discussions/` 为本机讨论区（Agent 三方讨论与复审流水），不上 GitHub。06-00 曾以正式文档发布的 `client-integration-guide` / `mcp-response-conformance` 两稿（内容与 3.0.0 实现不符）经终审裁决退回 dev-docs 档案定位、不作为 3.0.0 用户文档收录——接入方无需另读，语义以本文 §4 与 [AI-ADAPTATION](https://github.com/LuChangQiu/lrnev-govern/blob/main/docs/AI-ADAPTATION.md) 为准。
 - `tests/e2e/t027-baseline/`：T-027 三客户端真实观测资产（双 SHA 对照 harness、决策场景与证据库），见 [目录 README](https://github.com/LuChangQiu/lrnev-govern/blob/main/tests/e2e/t027-baseline/README.md)。
 
 ---
@@ -226,7 +226,7 @@ lrnev doctor --migrate-todos              # 工作区结构自检（含旧 TODO 
 ```bash
 npm install && npm run build     # tsc 编译到 dist/
 npm run typecheck                # 类型检查（发布门禁：0 错误）
-npm test                         # 全量测试（3.0.0 基准 1051 条）
+npm test                         # 全量测试（3.0.0 基准 1055 条）
 npm run dev:mcp                  # tsx watch 热重载跑 MCP（入口 src/mcp/dev-entry.ts）
 npm run dev:inspect              # MCP Inspector 图形调试（同 dev-entry）
 npm run lrnev -- init            # 本地直跑 CLI
