@@ -416,6 +416,50 @@ describe('CLI', () => {
     expect(res.errors[0].code).toBe('INVALID_INPUT');
   });
 
+  it('T20: hook trigger --payload 非法 JSON 报结构化 INVALID_INPUT（不误归 INTERNAL_ERROR）', async () => {
+    await run(['init', '--project-name', 'demo']);
+
+    let errOut = '';
+    const program = buildCli({
+      writeOut: () => undefined,
+      writeErr: (text) => { errOut += text; },
+    });
+    const prevExitCode = process.exitCode;
+    await program.parseAsync([
+      'node', 'lrnev', '--workspace', workspace.path, '--json',
+      'hook', 'trigger', 'task.create', '--payload', '{ not json',
+    ]);
+    process.exitCode = prevExitCode;
+
+    const res = JSON.parse(errOut);
+    expect(res.ok).toBe(false);
+    expect(res.errors[0].code).toBe('INVALID_INPUT');
+    expect(res.errors[0].field).toBe('payload');
+  });
+
+  it('T20: session commit --candidates-file 非法 JSON 报结构化 INVALID_INPUT（不误归 INTERNAL_ERROR）', async () => {
+    await run(['init', '--project-name', 'demo']);
+    const badJson = join(workspace.path, 'bad-candidates.json');
+    await writeFile(badJson, '{ not json', 'utf-8');
+
+    let errOut = '';
+    const program = buildCli({
+      writeOut: () => undefined,
+      writeErr: (text) => { errOut += text; },
+    });
+    const prevExitCode = process.exitCode;
+    await program.parseAsync([
+      'node', 'lrnev', '--workspace', workspace.path, '--json',
+      'session', 'commit', '--summary', '提交候选记忆。', '--candidates-file', badJson,
+    ]);
+    process.exitCode = prevExitCode;
+
+    const res = JSON.parse(errOut);
+    expect(res.ok).toBe(false);
+    expect(res.errors[0].code).toBe('INVALID_INPUT');
+    expect(res.errors[0].field).toBe('candidates');
+  });
+
   it('F-05(auto-gc): agent register 的 CLI JSON 输出与 MCP 同构透传 gc 字段', async () => {
     await run(['init', '--project-name', 'demo']);
     const fs = new FileStorage(workspace.path);

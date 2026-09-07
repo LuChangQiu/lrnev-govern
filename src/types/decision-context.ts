@@ -8,7 +8,7 @@
  * 校验见 src/mcp/types/decision-context-schema.ts（zod/v4 结构层 + superRefine 条件规则）。
  *
  * ⚠️ 命名区分：src/types/evidence-contract.ts 已导出 04-00 观测形状的 `DecisionContext`
- * （无 source/summary/reported_user_quote，direction 允许 null，含 staleness_signals，是
+ * （无 source/summary，direction 允许 null，含 staleness_signals，是
  * 服务端采集到的运行时证据）。本文件的 `DecisionContextInput` 是 05-00 的**客户端请求输入**契约：
  * - source 固定为 'client_asserted'（仅客户端声明，服务端不得伪造 USER_DECISION 来源）；
  * - strength=unspecified 是显式声明，与"未传 decision_context"（缺失 = 未声明）必须可区分；
@@ -68,14 +68,15 @@ export type DecisionContextDirection = (typeof DECISION_CONTEXT_DIRECTION_VALUES
  * DecisionContextInput - v1 工具可选的 decision_context 客户端输入（仅 client_asserted 来源）。
  *
  * 契约要点（requirements F-04 / design D-03，裁决 Q6 命名）：
- * - source / strength / summary 必填；direction / target_ref / reported_user_quote 可选；
+ * - source / strength / summary 必填；direction / target_ref 可选；
  * - explicit/preferred 必须提供 direction；unspecified 必须省略 direction（条件规则在
  *   decision-context-schema.ts 用 superRefine 实现）——避免把 AI Recommendation 包装成用户方向；
  * - target_ref 只在用户/客户端声明具体 Scene/Spec 时提供，必须使用完整稳定引用
  *   （如 reuse_spec + scene=01-user-management, spec=01-00-user-login）；
  *   格式解析/对齐属 T-003（解析失败只返回 DECISION_BOUNDARY 提示，不在本层收紧格式）；
- * - reported_user_quote 是客户端转述的用户原话，服务端无法验证、不写入 Project Truth、
- *   不自动进入跨会话 memory；
+ * - reported_user_quote 已按 T-006 裁决（I6，2026-09-07）移除：380 录制件 0 命中 +
+ *   服务端零使用 + 客户端转述不可验证 → schema/类型/测试同步删除（见
+ *   ai-discussions/结果/2026-09-07-DeepSeek-T006字段裁决.md）；
  * - 缺失（未传 decision_context）是"未声明"，绝不被本契约改写为 strength=unspecified。
  */
 export interface DecisionContextInput {
@@ -89,6 +90,4 @@ export interface DecisionContextInput {
   direction?: DecisionContextDirection;
   /** 用户/客户端声明的具体 Scene/Spec 完整稳定引用（可选，非空）。 */
   target_ref?: string;
-  /** 客户端转述的用户原话（可选；服务端不可验证、不持久化）。 */
-  reported_user_quote?: string;
 }

@@ -10,14 +10,17 @@
  * - isError 基于 shouldSetIsError 规则
  * - D-04 硬性要求：canonical 单源、逃逸层级、体积同步、错误路径 MVC
  *
- * 05-00-lrnev-guidance-profile T-004（裁决 Q3/Q4/Q6）：
- * - 本文件是 Profile 的单点挂载：组装 payload 后、返回前，对 allowlist 四工具
- *   （assess_goal/scene_create/spec_create/task_create）在存在 role 化 instructions
- *   （ROLE_PREFIX 前缀行）时，经 classifyInstructions → buildGuidanceView → diagnoseGuidance
- *   产出结构化 guidance 附加到 payload.guidance（与 ai_followup 并列，不包装、不 bump
- *   response_version）。
- * - 派生失败 / 冲突仅省略 guidance + console.error 诊断；绝不翻 ok、不影响
- *   data/content/errors（裁决 Q3：assertGuidancePublishable 是测试/CI 门禁，不在运行时写后抛错）。
+ * 05-00-lrnev-guidance-profile T-004/T-006：
+ * - T-004 曾在本文件单点挂载 payload.guidance（allowlist 四工具
+ *   assess_goal/scene_create/spec_create/task_create 存在 role 化 instructions 时
+ *   经 classifyInstructions → buildGuidanceView 派生结构化数组附加到响应）。
+ * - T-006 裁决（2026-09-07，ai-discussions/结果/2026-09-07-DeepSeek-T006字段裁决.md
+ *   O6）：**运行时挂载已回退**——三客户端实测零消费（380 录制件）+ 每次挂载 +583 字符
+ *   ≈24.2% 纯重复税；文本通道（ai_followup.instructions / content）是唯一被消费通道，
+ *   G5 归档边界效果不依赖 guidance 数组。本文件不再派生/附加任何 guidance 字段；
+ *   classifyInstructions / buildGuidanceView / diagnoseGuidance / assertGuidancePublishable
+ *   纯函数与 LrnevGuidanceItem 契约类型保留在 mcp/helpers/guidance-profile.ts 与
+ *   mcp/types/guidance-profile.ts（纯函数库 + 契约测试面，未来客户端可用）。
  */
 
 import type { AiFollowupResponse, ErrorInfo } from '../../types/response.js';
@@ -25,8 +28,6 @@ import type { LrnevToolPayload, LrnevErrorInfo } from '../types/response-envelop
 import { shouldSetIsError, wrapInternalError } from '../types/response-envelope.js';
 import { isLrnevError, ErrorCode } from '../../shared/errors.js';
 import { renderModelVisibleContent } from './model-visible-contract.js';
-import { errorRenderer } from './renderers/error.js';
-import { classifyInstructions, buildGuidanceView, diagnoseGuidance } from './guidance-profile.js';
 
 /**
  * MCP 工具返回类型
@@ -52,76 +53,14 @@ function toLrnevErrorInfo(error: ErrorInfo): LrnevErrorInfo {
 }
 
 // ============================================================
-// 05-00 T-004: Guidance Profile 单点挂载
+// 05-00 T-006: Guidance Profile 运行时挂载已回退（O6，2026-09-07）
 // ============================================================
-
-/**
- * 携带 structured guidance 的 v1 工具 allowlist（05-00 requirements 范围，
- * 裁决 Q4：spec_update 等状态/读取工具不携带）。
- *
- * 仅这四个工具的响应会尝试派生 guidance；其余工具即使 ai_followup 含
- * ROLE_PREFIX 行也绝不附加（避免 4 个 handler 各自重复挂载）。
- */
-const GUIDANCE_CARRIER_TOOLS: ReadonlySet<string> = new Set([
-  'assess_goal',
-  'scene_create',
-  'spec_create',
-  'task_create',
-]);
-
-/**
- * 单点挂载：在组装 canonical payload 后、返回前，若工具在 allowlist 且文本通道
- * 存在 ROLE_PREFIX 前缀行，则派生结构化 guidance 并附加到 payload.guidance。
- *
- * 数据驱动（裁决 Q4）：仅五角色前缀行 → classifyInstructions → buildGuidanceView 派生；
- * 文本通道（ai_followup.instructions / content）不被改写 —— 派生只新增同源结构化视图，
- * content 文本字节不变。
- *
- * 降级（裁决 Q3/Q4/D-06）：
- * - 派生失败（抛错）或 diagnoseGuidance 发现冲突 → 只省略 guidance 字段 + console.error
- *   诊断，绝不翻 ok、不改变 data/content/errors；
- * - assertGuidancePublishable 不在运行时写后抛错，只作为测试/CI 发布门禁。
- * - 仅成功响应（payload.ok === true）挂载：错误响应由 errorRenderer 渲染、不投影
- *   instructions，guidance 与其文本通道不一致（无意义）。
- *
- * @param payload 已组装的 canonical payload（将被原地附加 guidance）
- * @param toolName 工具名（allowlist 判定）
- */
-function maybeAttachGuidance(payload: LrnevToolPayload<unknown>, toolName: string): void {
-  if (!GUIDANCE_CARRIER_TOOLS.has(toolName)) return;
-  if (payload.ok !== true) return;
-
-  const instructions = payload.ai_followup?.instructions;
-  if (instructions === undefined || instructions.length === 0) return;
-
-  try {
-    const semanticInputs = classifyInstructions(instructions);
-    if (semanticInputs.length === 0) return; // 无 role 化行 → 无 Profile 语义
-
-    const view = buildGuidanceView(semanticInputs);
-
-    // 冲突显式诊断（D-06）：文本与 Profile 冲突时不允许静默让某一字段胜出 →
-    // 省略整组 guidance 并记录诊断，业务结果（data/content/errors）不受影响。
-    const diagnoses = diagnoseGuidance(view.profileItems);
-    if (diagnoses.length > 0) {
-      console.error(
-        `[guidance-profile] ${toolName} 文本行存在 ${diagnoses.length} 项 Profile 冲突，` +
-          '本次省略 guidance 字段（业务结果不受影响）：' +
-          diagnoses.map((d) => `${d.kind}: ${d.message}`).join(' | '),
-      );
-      return;
-    }
-
-    if (view.profileItems.length > 0) {
-      payload.guidance = view.profileItems;
-    }
-  } catch (err) {
-    console.error(
-      `[guidance-profile] ${toolName} 派生 guidance 失败，省略 guidance 字段（业务结果不受影响）：`,
-      err,
-    );
-  }
-}
+//
+// 曾存在的 maybeAttachGuidance 单点挂载（allowlist 四工具 OK 响应存在 ROLE_PREFIX 行时
+// 派生结构化 guidance 附加 payload.guidance）已按 T-006 裁决移除：三客户端零消费 +
+// 24.2%/响应重复税 → 运行时挂载回退；文本通道（ai_followup.instructions/content）不变，
+// 纯函数（classifyInstructions/buildGuidanceView/diagnoseGuidance）与契约类型保留供
+// 未来客户端使用（见文件头注记）。
 
 /**
  * 将 AiFollowupResponse 转换为 MCP 工具返回格式。
@@ -155,9 +94,6 @@ export async function toMcpToolResult<T>(
       anchor_context: response.anchor_context,
       summary_context: response.summary_context,
     };
-
-    // 步骤 1.5 (05-00 T-004): Guidance Profile 单点挂载（失败/冲突仅省略 guidance）
-    maybeAttachGuidance(payload as LrnevToolPayload<unknown>, toolName);
 
     // 步骤 2: 从 canonical payload 渲染 content (D-04 单源)
     const contentText = renderModelVisibleContent(toolName, payload);
@@ -199,9 +135,6 @@ export async function toMcpToolResultFromData<T>(
       data,
     };
 
-    // 05-00 T-004: Guidance Profile 单点挂载（fromData 工具不在 allowlist，恒为 no-op）
-    maybeAttachGuidance(payload as LrnevToolPayload<unknown>, toolName);
-
     // M2: 使用 ModelVisibleContract 渲染器
     const contentText = renderModelVisibleContent(toolName, payload);
 
@@ -222,6 +155,11 @@ export async function toMcpToolResultFromData<T>(
  * - schema 失败不得回退旧文本声称成功
  * - isError=true 时 content 仍满足 ModelVisibleContract
  * - 完整渲染 code/message/hint/details
+ *
+ * D-04.1 逃逸层级：错误分支不直接调用 errorRenderer，而是以 '__error__' 键经
+ * renderModelVisibleContent 统一出口渲染（errorRenderer 已在 MVC 注册表注册为该键），
+ * 使错误 message/hint/candidates/instructions 中的 '</' 同样被 escapeFrameworkMarkers
+ * 转义（防注入契约 ADR-0002），与成功路径共用唯一逃逸出口。
  */
 function handleToolError(err: unknown): McpToolResult {
   // 处理业务层抛出的 LrnevError
@@ -246,8 +184,8 @@ function handleToolError(err: unknown): McpToolResult {
         },
       };
 
-      // M2: 使用 error renderer（D-04 错误路径 MVC）
-      const contentText = errorRenderer.render(errorPayload);
+      // M2: 错误路径经 MVC 统一出口渲染（__error__ → errorRenderer，D-04.1 逃逸契约生效）
+      const contentText = renderModelVisibleContent('__error__', errorPayload);
 
       return {
         content: [{ type: 'text', text: contentText }],
@@ -265,8 +203,8 @@ function handleToolError(err: unknown): McpToolResult {
       errors: [lrnevError],
     };
 
-    // M2: 使用 error renderer（D-04 错误路径 MVC）
-    const contentText = errorRenderer.render(errorPayload);
+    // M2: 错误路径经 MVC 统一出口渲染（__error__ → errorRenderer，D-04.1 逃逸契约生效）
+    const contentText = renderModelVisibleContent('__error__', errorPayload);
 
     return {
       content: [{ type: 'text', text: contentText }],
@@ -283,8 +221,8 @@ function handleToolError(err: unknown): McpToolResult {
     errors: [internalError],
   };
 
-  // M2: 使用 error renderer（D-04 错误路径 MVC）
-  const contentText = errorRenderer.render(errorPayload);
+  // M2: 错误路径经 MVC 统一出口渲染（__error__ → errorRenderer，D-04.1 逃逸契约生效）
+  const contentText = renderModelVisibleContent('__error__', errorPayload);
 
   return {
     content: [{ type: 'text', text: contentText }],

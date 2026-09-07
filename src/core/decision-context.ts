@@ -22,9 +22,11 @@
  *   前缀文本用本地常量镜像 01-00 ROLE_PREFIX（DECISION_BOUNDARY=【决策边界】
  *   等，guidance-semantics.ts ROLE_PREFIX 当前同值）；T-004 与 Profile 合流
  *   时再统一为单一来源。
- * - 不解析 summary 语义、不回显 reported_user_quote、不持久化、不写入
+ * - 不解析 summary 语义、不持久化、不写入
  *   Project Truth/memory；行内只引用“客户端声明”，服务端不输出 USER_DECISION，
  *   不声称读取用户原话（D-04）。
+ *   （reported_user_quote 输入字段已按 T-006 裁决 I6 2026-09-07 移除——
+ *   服务端本就零使用/不可验证，本文件相应注释同步删除。）
  * - 只做“当前调用”的枚举级核对；任何不一致都只产生提示行，绝不阻断请求、
  *   不重写动作、不自动回滚（F-05/D-03）。
  */
@@ -222,7 +224,7 @@ export interface DecisionBoundaryCheckInput {
  * 维度 2：target_ref 与本次调用参数的单次核对（解析失败 / 不一致时）。
  *
  * 所有行都以【决策边界】开头并遵循：
- * - 不解析 summary、不回显 reported_user_quote、不包含 USER_DECISION；
+ * - 不解析 summary、不包含 USER_DECISION；
  * - 说明“本次请求已正常执行”，把后续决定权交给客户端 AI 与用户确认，
  *   不阻断、不重写、不回滚（F-05/D-03）。
  */
@@ -326,7 +328,7 @@ function pushIfMismatch(
  * - 无 direction（含 strength=unspecified）不追加任何行；
  * - 有 direction：先给一条【事实】（陈述收到 client_asserted 声明，不声称验证），
  *   再按方向给一条【建议】或（no_spec 时）【决策边界】；
- * - 不解析 summary、不回显 reported_user_quote；不产生 USER_DECISION。
+ * - 不解析 summary；不产生 USER_DECISION。
  */
 export function buildAssessContextLines(context: DecisionContextInput): string[] {
   const direction = context.direction;

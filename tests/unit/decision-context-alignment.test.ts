@@ -47,7 +47,7 @@ function ctx(over: Partial<DecisionContextInput>): DecisionContextInput {
 }
 
 const SECRET_SUMMARY = 'PERSIST_SENTINEL_UNIT_9F3';
-const SECRET_QUOTE = 'PERSIST_SENTINEL_QUOTE_9F3';
+// reported_user_quote 输入字段已随 T-006 裁决（I6，2026-09-07）移除，SECRET_QUOTE 哨兵随之删除。
 
 describe('decision-context-alignment（T-003 纯函数）', () => {
   describe('shouldCompareDirection：参与方向对齐的工具集合', () => {
@@ -264,13 +264,12 @@ describe('decision-context-alignment（T-003 纯函数）', () => {
       expect(lines[0]).toContain('user-login');
     });
 
-    it('行内绝不含 summary / reported_user_quote 内容', () => {
+    it('行内绝不含 summary 内容（reported_user_quote 字段已按 T-006 I6 移除）', () => {
       const lines = buildBoundaryLines({
         toolName: 'scene_create',
         context: ctx({
           direction: 'new_scene',
           summary: SECRET_SUMMARY,
-          reported_user_quote: SECRET_QUOTE,
           target_ref: 'scene=07-payroll',
         }),
         call: { name: 'billing' },
@@ -278,7 +277,6 @@ describe('decision-context-alignment（T-003 纯函数）', () => {
       expect(lines.length).toBeGreaterThan(0);
       for (const line of lines) {
         expect(line).not.toContain(SECRET_SUMMARY);
-        expect(line).not.toContain(SECRET_QUOTE);
         expect(line).not.toContain('USER_DECISION');
       }
     });

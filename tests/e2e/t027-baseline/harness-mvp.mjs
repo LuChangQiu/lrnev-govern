@@ -213,14 +213,57 @@ function extractInitFields(initEvent) {
 }
 
 /**
+ * T-006 M1 真扫描（裁决 2026-09-07）：decision_context_sent 不再硬编码"claude -p 不传"
+ * 假设，改为对会话全部 toolCalls 做 input 级真扫描——
+ * v1 四工具（scene_create / spec_create / task_create / assess_goal）的调用 input 是否
+ * 含 decision_context 字段（sha-c 实测 4 次真实命中但 evidence 误记 false，见
+ * ai-discussions/结果/2026-09-07-DeepSeek-T006字段裁决.md M1 与证据整理 §3.0.2）。
+ *
+ * - 工具名按最后一段匹配（mcp__lrnev-t027__<tool> / mcp__lrnev__<tool> 都命中 basename）；
+ * - 判定"已传"= input 为对象且 decision_context !== undefined（含被服务端负向校验
+ *   拒绝的调用——客户端确实传递了，如实记录）；
+ * - 只影响未来批次的 evidence 字段；历史 evidence 不改写。
+ */
+const DECISION_TOOL_BASENAMES = new Set(['scene_create', 'spec_create', 'task_create', 'assess_goal']);
+
+/** 从 input 映射 04 观测形状（evidence.decision_context：strength + direction(nullable) + target_ref?）。 */
+function toEvidenceDecisionContext(dc) {
+  return {
+    strength: dc.strength,
+    direction: dc.direction ?? null,
+    ...(dc.target_ref !== undefined && dc.target_ref !== null ? { target_ref: dc.target_ref } : {}),
+  };
+}
+
+/**
+ * 扫描 toolCalls：返回 { sent, decisionContext }——
+ * sent=是否任一 v1 四工具调用携带 decision_context；decisionContext=首个命中的
+ * 04 观测形状值（未命中为 null；完整原始 input 见录制件/本会话 toolCalls）。
+ */
+function scanDecisionContext(result) {
+  const calls = Array.isArray(result?.toolCalls) ? result.toolCalls : [];
+  for (const call of calls) {
+    if (!call || typeof call !== 'object') continue;
+    const base = String(call.tool ?? '').split('__').pop();
+    if (!DECISION_TOOL_BASENAMES.has(base)) continue;
+    const input = call.input;
+    if (input && typeof input === 'object' && input.decision_context !== undefined) {
+      return { sent: true, decisionContext: toEvidenceDecisionContext(input.decision_context) };
+    }
+  }
+  return { sent: false, decisionContext: null };
+}
+
+/**
  * C 类 / 会话级注记（schema c_class_basis 为 additionalProperties:true 的 object）。
- * 统一登记：C 类字段 null/推断值理由 + decision_context_sent:false 依据 + content_hash 口径 + Q9 说明。
+ * 统一登记：C 类字段 null/推断值理由 + decision_context_sent 真扫描依据 + content_hash 口径 + Q9 说明。
  */
 function buildCBasis(result, shaLabel) {
   const init = extractInitFields(result.initEvent);
+  const { sent } = scanDecisionContext(result);
   const basis = {
-    decision_context_sent: 'T-027 为 claude -p 盲测，客户端不传 decision_context 语义（SHA A/B 均无参数）→ decision_context:null + decision_context_sent:false（裁决 Q3）',
-    fixture_context: '客户端未传语义时工作区快照（scene/existing_specs/spec_count/current_status 等）独立存于 fixture_context（裁决 Q3），不再误存 decision_context',
+    decision_context_sent: `T-006 M1 真扫描（2026-09-07）：v1 四工具（scene_create/spec_create/task_create/assess_goal）调用 input 是否存在 decision_context 字段 → ${sent ? 'true（有命中，evidence.decision_context 记录首个命中的 04 观测形状；完整原始 input 见录制件/toolCalls）' : 'false（无命中）'}（裁决 Q3/M1 口径修正：不再硬编码 claude -p 盲测不传假设）`,
+    fixture_context: '工作区快照（scene/existing_specs/spec_count/current_status 等）独立存于 fixture_context（裁决 Q3），与 decision_context（客户端真实传递值）分离',
     content_hash: `裁决 Q1-B：目标 worktree server 源码字节 sha256；来源文件=${CONTENT_HASH_SOURCE_FILES.join(',')}（按存在性纳入）`,
     fixture_hash: '裁决 Q6：EvidenceCollector 64hex 行为收窄口径（stableStringify 稳定键序）',
     guidance_surfaces: '裁决 Q9：会话级已消费 surface 全集——wrapper/stdio 代理层就绪前不可采，当前为空数组',
@@ -255,6 +298,7 @@ function buildCBasis(result, shaLabel) {
  */
 async function buildEvidenceV2(result, overrides = {}) {
   const init = extractInitFields(result.initEvent);
+  const dcScan = overrides.decisionContextScan ?? scanDecisionContext(result);
   const runId = overrides.runId || `${fixture.id.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   // B3 对照（2026-09-04）：sha-c 快照 git_sha 支持——按 worktree 标签解析，
   // 未知标签回退 sha-b（历史行为）。sha-a/sha-b 结果与历史完全一致。
@@ -299,7 +343,10 @@ async function buildEvidenceV2(result, overrides = {}) {
     model_version: init.modelVersion,
     fixture_hash: computeFixtureHash(fixture),
     // B类：决策与动作（由调用方按判定语义传入）
-    decision_context: null, // 裁决 Q3：客户端未传语义
+    // T-006 M1（2026-09-07）：decision_context_sent 为 v1 四工具 input 真扫描结果，
+    // 非硬编码盲测假设；命中时 decision_context 记录首个命中的 04 观测形状
+    // （历史 evidence 不改写，未来批次生效）。
+    decision_context: dcScan.decisionContext,
     tool_sequence: (overrides.toolSequence || result.toolCalls.map((t) => t.tool)),
     allowed_tools: [...(fixture.allowedTools || [])],
     forbidden_tools: [...(fixture.forbiddenTools || [])],
@@ -316,7 +363,7 @@ async function buildEvidenceV2(result, overrides = {}) {
     session_clean: init.sessionClean,
     // v2 会话级扩展
     scenario_id: fixture.id,
-    decision_context_sent: false,
+    decision_context_sent: dcScan.sent,
     fixture_context: fixtureContext,
     guidance_surfaces: [],
     clean_session_id: init.sessionId, // 无 init 时为 null（可空？见 schema：string；无则不留）

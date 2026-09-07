@@ -71,7 +71,7 @@ const DEFAULT_ERROR_HINTS: Record<ErrorCode, string> = {
   AMBIGUOUS_REF: '使用返回的 candidates 中的完整 ID 重新调用。',
   TASK_NOT_FOUND: '先调用 task list --scene <scene> --spec <spec> 确认 Task ID。',
   ANCHOR_NOT_FOUND: '确认对应文档中存在该锚点标题（requirements 的 "#### F-xx" / design 的 "#### D-xx"），或修正 validates 编号。',
-  INVALID_STATUS_TRANSITION: '按状态机更新：pending -> in_progress，in_progress -> completed/failed/blocked。',
+  INVALID_STATUS_TRANSITION: '按状态机只做合法状态转换；先通过 spec_get/task_list 确认对象当前状态与允许目标，再重试。',
   INVALID_URI: '使用 context:// 开头的合法 URI；可先运行 lrnev guide tools 查看格式。',
   FILE_NOT_FOUND: '确认路径存在且位于工作区内，再重新调用。',
   LOCK_HELD_BY_OTHER: '稍后重试；如果确认无进程占用，可运行 doctor 检查陈旧目录锁。',

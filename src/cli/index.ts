@@ -385,10 +385,21 @@ function buildHookCommand(program: Command, options: BuildCliOptions): Command {
   hook.command('trigger')
     .argument('<event>', '事件名，例如 task.update.completed')
     .option('--payload <json>', '可选 JSON payload')
-    .action(run(program, options, async (opts, event: string) => managers(opts).hooks.triggerResponse(
-      event,
-      opts.payload ? JSON.parse(opts.payload) as Record<string, unknown> : {},
-    )));
+    .action(run(program, options, async (opts, event: string) => {
+      let payload: Record<string, unknown> = {};
+      if (opts.payload) {
+        try {
+          payload = JSON.parse(opts.payload) as Record<string, unknown>;
+        } catch (err) {
+          throw new LrnevError(ErrorCode.INVALID_INPUT, 'hook trigger 的 --payload 不是合法 JSON', {
+            field: 'payload',
+            hint: '检查 JSON 语法；--payload 需传合法 JSON（对象或数组）。',
+            cause: err,
+          });
+        }
+      }
+      return managers(opts).hooks.triggerResponse(event, payload);
+    }));
   hook.command('enable')
     .argument('<name>', 'Hook 名称')
     .action(run(program, options, async (opts, name: string) => managers(opts).hooks.setEnabled(name, true)));
@@ -877,7 +888,16 @@ async function readMemoryCandidates(filePath?: string): Promise<MemoryCandidate[
   const raw = filePath && filePath.trim().length > 0
     ? await readFile(filePath, 'utf-8')
     : await readStdin();
-  const parsed = JSON.parse(raw);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new LrnevError(ErrorCode.INVALID_INPUT, 'session commit candidates 不是合法 JSON', {
+      field: 'candidates',
+      hint: '检查 JSON 语法；传入 JSON 数组，或形如 {"candidates":[...]} 的 JSON 对象。',
+      cause: err,
+    });
+  }
   if (Array.isArray(parsed)) return parsed as MemoryCandidate[];
   if (Array.isArray((parsed as Partial<SessionCommitInput>).candidates)) {
     return (parsed as Partial<SessionCommitInput>).candidates as MemoryCandidate[];

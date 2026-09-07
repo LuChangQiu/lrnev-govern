@@ -9,6 +9,14 @@
  * 只补 T-005 验收要求的【场景级端到端协议边界】：走真实 MCP server + 临时工作区，
  * 每场景同时断言 .lrnev 落盘状态与响应 guidance/文本内容。
  *
+ * T-006 字段回退注记（裁决 2026-09-07，ai-discussions/结果/2026-09-07-DeepSeek-T006字段裁决.md）：
+ * - O6：payload.guidance 运行时挂载与 outputSchema guidance 声明已回退——响应不再携带
+ *   结构化 guidance 数组；role 语义经文本通道（ROLE_PREFIX 行）交付，Profile 保留为纯函数
+ *   库 + 契约类型。本文件所有 role 断言以文本行为准（role 化行经 classifyInstructions 复核），
+ *   并断言 payload 无 guidance 字段（挂载不存在，空字段误导也消除）。
+ * - I6：reported_user_quote 已从 decision_context 输入契约移除（380 录制件 0 命中 +
+ *   服务端零使用 + 转述不可验证）；"服务端不回显用户原话"由 schema 结构层保证。
+ *
  * ─────────────────────────────────────────────────────────────
  * 每个新增字段 → 04 失败模式 / 适配收益映射（F-01 逐字段门禁依据）
  * ─────────────────────────────────────────────────────────────
@@ -50,8 +58,6 @@
  *     unspecified 禁止 direction → 防把 AI Recommendation 包装成用户方向（C）。
  * - target_ref                    → 防 C（direction/target_ref 与原话不符，E-02/E-06 复用错
  *     Spec）：只做当前调用参数核对，解析失败仅提示（D-03/F-05），不升级为事实。
- * - reported_user_quote           → 防 C：客户端转述原话服务端不可验证、不进 Project
- *     Truth/memory（F-04/D-03）；本文件断言响应不回显、磁盘无痕。
  *
  * 每用例开头标注其驱动的 04-00 D-01 场景（E-xx）。
  */
@@ -64,8 +70,8 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { dir as tmpDir, type DirectoryResult } from 'tmp-promise';
 
 import { createMcpServer } from '../../src/mcp/server.js';
-import { ROLE_PREFIX, GUIDANCE_ROLES } from '../../src/core/guidance-semantics.js';
-import { LrnevGuidanceItemSchema } from '../../src/mcp/types/guidance-profile.js';
+import { ROLE_PREFIX } from '../../src/core/guidance-semantics.js';
+import { buildGuidanceView, classifyInstructions } from '../../src/mcp/helpers/guidance-profile.js';
 import { parseFrontmatter } from '../../src/storage/FrontmatterCodec.js';
 import { toMcpToolResult } from '../../src/mcp/helpers/tool-result-adapter.js';
 import type { AiFollowupResponse } from '../../src/types/response.js';
@@ -74,7 +80,6 @@ import type { AiFollowupResponse } from '../../src/types/response.js';
 // 哨兵常量：任何出现即代表客户端声明被解析/回显/持久化（失败）
 // ============================================================
 const MARKER = 'PERSIST_SENTINEL_T005_2B7';
-const QUOTE_MARKER = '先别急着建 B，把登录需求落回 A 这个已有 Spec';
 const USER_DECISION = 'USER_DECISION';
 const PREFIX = {
   FACT: ROLE_PREFIX.FACT,
@@ -251,15 +256,18 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
     await workspace.cleanup();
   });
 
-  /** 断言 payload.guidance 里没有 EXECUTION_CONSTRAINT / DECISION_BOUNDARY 不该有的项 + 无 USER_DECISION。 */
+  /**
+   * 文本通道 role 集合（T-006 O6 口径）：role 化行经 classifyInstructions 分类，
+   * 与挂载时代的结构化 role 数组同源（结构化视图 = 纯函数对同一组文本行的派生）。
+   */
+  function textRoles(payload: any): string[] {
+    return classifyInstructions(instructionsOf(payload)).map((i) => String(i.role));
+  }
+
+  /** 断言无硬约束语义（文本行 + 无 USER_DECISION；结构化数组已随 O6 移除，检查面收敛到文本）。 */
   function expectNoHardConstraint(payload: any): void {
-    const items: any[] = payload?.guidance ?? [];
-    for (const item of items) {
-      expect(GUIDANCE_ROLES).toContain(item.role); // 服务端只输出五角色
-      expect(item.role).not.toBe('EXECUTION_CONSTRAINT');
-      expect(item.role).not.toBe('USER_DECISION');
-      expect(item.enforcement).not.toBe('server_enforced'); // 本文件场景均无硬约束
-    }
+    expect(payload).not.toHaveProperty('guidance'); // O6：响应不携带结构化 guidance
+    expectNoConstraintLine(payload);
     expect(JSON.stringify(payload)).not.toContain(USER_DECISION);
   }
 
@@ -284,9 +292,10 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
       const assessPayload = payloadOf(assess);
       expect(assessPayload.ok).toBe(true);
       expect(assess.isError).toBeFalsy();
-      // 挂载的 guidance 只含评估组织行（FACT/RECOMMENDATION），无边界提示
-      const roles = assessPayload.guidance.map((g: any) => g.role);
-      expect(roles).toEqual(['FACT', 'RECOMMENDATION']);
+      // O6：结构化挂载已回退 → role 集合经文本通道复核；只含评估组织行
+      // （FACT/RECOMMENDATION），无边界提示
+      expect(assessPayload).not.toHaveProperty('guidance');
+      expect(textRoles(assessPayload)).toEqual(['FACT', 'RECOMMENDATION']);
       expect(linesByRole(instructionsOf(assessPayload), PREFIX.DECISION_BOUNDARY)).toEqual([]);
       payloads.push(assessPayload);
 
@@ -335,9 +344,9 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
       specB = payload.data.spec as string;
       expect(specB).toMatch(/^\d\d-\d\d-login-risk$/);
 
-      // 对齐路径无 DECISION_BOUNDARY；guidance 为 spec_create 固有 FACT/RECOMMENDATION
-      const roles = payload.guidance.map((g: any) => g.role);
-      expect(roles).toEqual(['FACT', 'RECOMMENDATION']);
+      // 对齐路径无 DECISION_BOUNDARY；文本通道为 spec_create 固有 FACT/RECOMMENDATION 行
+      expect(payload).not.toHaveProperty('guidance');
+      expect(textRoles(payload)).toEqual(['FACT', 'RECOMMENDATION']);
       expect(linesByRole(instructionsOf(payload), PREFIX.DECISION_BOUNDARY)).toEqual([]);
       expect(JSON.stringify(payload)).not.toContain(MARKER); // summary 不回显
       payloads.push(payload);
@@ -359,7 +368,6 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
         decision_context: ctx({
           direction: 'reuse_spec',
           target_ref: `scene=${sceneA}, spec=${specA}`,
-          reported_user_quote: QUOTE_MARKER,
         }),
       });
       const payload = payloadOf(result);
@@ -371,8 +379,7 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
       const instructions = instructionsOf(payload);
       expect(linesByRole(instructions, PREFIX.DECISION_BOUNDARY)).toEqual([]);
       expect(JSON.stringify(payload)).not.toContain(USER_DECISION);
-      // 服务端不解析/不回显用户原话
-      expect(JSON.stringify(payload)).not.toContain(QUOTE_MARKER);
+      // 服务端不解析/不回显 summary（reported_user_quote 已随 T-006 I6 移除，schema 层不再接收）
       expect(JSON.stringify(payload)).not.toContain(MARKER);
       payloads.push(payload);
 
@@ -394,7 +401,7 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
   // E-07：no_spec —— 只产生 DECISION_BOUNDARY 提示，执行照常，绝不升级为硬约束
   // ============================================================
   describe('E-07：no_spec 边界（assess 正向组织 + 三个落位工具误调用均不阻断）', () => {
-    it('assess_goal + no_spec → guidance=[FACT, DECISION_BOUNDARY]，纯读取无副作用', async () => {
+    it('assess_goal + no_spec → 文本 role 集 = [FACT, DECISION_BOUNDARY]，纯读取无副作用', async () => {
       const before = await lrnevEntries(workspace.path);
       const result = await callTool(client, 'assess_goal', {
         goal: '不建 Spec，直接改代码',
@@ -403,8 +410,8 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
       const payload = payloadOf(result);
       expect(payload.ok).toBe(true);
       expect(result.isError).toBeFalsy();
-      const roles = payload.guidance.map((g: any) => g.role);
-      expect(roles).toEqual(['FACT', 'DECISION_BOUNDARY']);
+      expect(payload).not.toHaveProperty('guidance');
+      expect(textRoles(payload)).toEqual(['FACT', 'DECISION_BOUNDARY']);
 
       const boundary = linesByRole(instructionsOf(payload), PREFIX.DECISION_BOUNDARY);
       expect(boundary).toHaveLength(1);
@@ -429,8 +436,8 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
       expect(result.isError).toBeFalsy(); // 不阻断
       const sceneId = payload.data.id as string;
       expect(sceneId).toBe('02-e07-misfire-scene');
-      const roles = payload.guidance.map((g: any) => g.role);
-      expect(roles).toEqual(['DECISION_BOUNDARY']);
+      expect(payload).not.toHaveProperty('guidance');
+      expect(textRoles(payload)).toEqual(['DECISION_BOUNDARY']);
 
       const boundary = linesByRole(instructionsOf(payload), PREFIX.DECISION_BOUNDARY);
       expect(boundary).toHaveLength(1);
@@ -464,8 +471,8 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
       expect(payload.ok).toBe(true);
       expect(result.isError).toBeFalsy(); // 不阻断
       const specId = payload.data.spec as string;
-      const roles = payload.guidance.map((g: any) => g.role);
-      expect(roles).toEqual(['FACT', 'RECOMMENDATION', 'DECISION_BOUNDARY']);
+      expect(payload).not.toHaveProperty('guidance');
+      expect(textRoles(payload)).toEqual(['FACT', 'RECOMMENDATION', 'DECISION_BOUNDARY']);
 
       const boundary = linesByRole(instructionsOf(payload), PREFIX.DECISION_BOUNDARY);
       expect(boundary).toHaveLength(1);
@@ -501,8 +508,8 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
       expect(result.isError).toBeFalsy();
       const taskId = payload.data.id as string;
       expect(taskId).toMatch(/^T-\d+/);
-      const roles = payload.guidance.map((g: any) => g.role);
-      expect(roles).toEqual(['DECISION_BOUNDARY']);
+      expect(payload).not.toHaveProperty('guidance');
+      expect(textRoles(payload)).toEqual(['DECISION_BOUNDARY']);
 
       const boundary = linesByRole(instructionsOf(payload), PREFIX.DECISION_BOUNDARY);
       expect(boundary).toHaveLength(1);
@@ -601,14 +608,14 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
       payloads.push(missingPayload, unspecifiedPayload);
 
       // 协议层差异断言（2）：explicit + new_spec 在 assess_goal 上确实产生声明 FACT 行
-      // —— guidance 有无声明行成为客户端区分三种调用的观测点。
+      // —— 文本通道的 role 行（而非结构化数组）成为客户端区分三种调用的观测点。
       const explicitResult = await callTool(client, 'assess_goal', {
         goal: GOAL,
         decision_context: ctx({ direction: 'new_spec' }),
       });
       const explicitPayload = payloadOf(explicitResult);
-      const explicitRoles = explicitPayload.guidance.map((g: any) => g.role);
-      expect(explicitRoles).toEqual(['FACT', 'RECOMMENDATION']);
+      expect(explicitPayload).not.toHaveProperty('guidance');
+      expect(textRoles(explicitPayload)).toEqual(['FACT', 'RECOMMENDATION']);
       const factLines = linesByRole(instructionsOf(explicitPayload), PREFIX.FACT);
       expect(factLines.length).toBeGreaterThan(0);
       expect(factLines[0]).toContain('direction=new_spec');
@@ -704,7 +711,9 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
       });
       const specPayload = payloadOf(specResult);
       expect(specPayload.ok).toBe(true);
-      expect(specPayload.guidance.map((g: any) => g.role)).toEqual(['FACT', 'RECOMMENDATION']);
+      // spec_create + other → 文本 role 集为固有 FACT/RECOMMENDATION，无边界行
+      expect(specPayload).not.toHaveProperty('guidance');
+      expect(textRoles(specPayload)).toEqual(['FACT', 'RECOMMENDATION']);
       expect(linesByRole(instructionsOf(specPayload), PREFIX.DECISION_BOUNDARY)).toEqual([]);
       expectNoConstraintLine(specPayload);
       expect(JSON.stringify(specPayload)).not.toContain(MARKER);
@@ -731,10 +740,10 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
   });
 
   // ============================================================
-  // 未知 role 降级（Profile 层，走真实挂载管线，F-03/D-06）
+  // 未知 role 降级（Profile 层纯函数契约，F-03/D-06；O6 后无运行时派生管线）
   // ============================================================
-  describe('unknown role 降级：未知角色行保留在文本通道，绝不结构化/升级为 Constraint', () => {
-    it('注入含未知角色行的 instructions 经 toMcpToolResult(task_create) → 文本原样、guidance 只含可识别角色', async () => {
+  describe('unknown role 降级：未知角色行保留在文本通道，结构化纯函数视图不升级为 Constraint', () => {
+    it('注入含未知角色行的 instructions 经 toMcpToolResult(task_create) → 文本原样、payload 无 guidance、纯函数视图只含可识别角色', async () => {
       const fakeFact = 'Spec "01-00-injected" 已创建于 Scene "00-injected"。';
       const unknownLine = '【用户决定】用户拍板：必须新建独立 Spec。'; // 未知角色（USER_DECISION 语义不在服务端输出集）
       const plainLine = '普通待办文本：直接改代码。';
@@ -756,15 +765,18 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
       const contentText = result.content[0]?.text ?? '';
       expect(contentText).toContain(unknownLine);
       expect(contentText).toContain(fakeFact);
+      // O6：响应不携带结构化 guidance（无运行时派生管线）
+      expect(payload).not.toHaveProperty('guidance');
 
-      // Profile 结构化只含可识别五角色行：未知行不生成任何 guidance 项
-      expect(payload.guidance).toHaveLength(1);
-      expect(payload.guidance[0]).toMatchObject({ role: 'FACT', text: fakeFact, profile_version: 'v1' });
-      expect(LrnevGuidanceItemSchema.safeParse(payload.guidance[0]).success).toBe(true);
-      expect(JSON.stringify(payload.guidance)).not.toContain('用户拍板');
-      expect(JSON.stringify(payload.guidance)).not.toContain('USER_DECISION');
-      // 未知行绝不升级为 EXECUTION_CONSTRAINT
-      expect(payload.guidance.some((g: any) => g.role === 'EXECUTION_CONSTRAINT')).toBe(false);
+      // Profile 结构化视图（纯函数派生，契约面保留）：只含可识别五角色行，
+      // 未知行不生成任何 guidance 项、绝不升级为 EXECUTION_CONSTRAINT
+      const items = buildGuidanceView(classifyInstructions(payload.ai_followup!.instructions)).profileItems;
+      expect(items).toHaveLength(1);
+      expect(items[0]).toMatchObject({ role: 'FACT', text: fakeFact, profile_version: 'v1' });
+      expect(JSON.stringify(items)).not.toContain('用户拍板');
+      expect(JSON.stringify(items)).not.toContain('USER_DECISION');
+      expect(items.some((g) => g.role === 'EXECUTION_CONSTRAINT')).toBe(false);
+      // 无运行时诊断路径 → 零日志（降级语义由纯函数层保证，不产生诊断噪音）
       expect(logAll(errorSpy)).toBe('');
       vi.restoreAllMocks();
       payloads.push(payload);
@@ -817,26 +829,21 @@ describe('T-005: Profile 与 decision_context 场景级协议边界（真实 MCP
   // 哨兵：服务端不生成/不持久化 USER_DECISION、decision_context 任何痕迹
   // ============================================================
   describe('哨兵：guidance/decision_context 不持久化 + 服务端不输出 USER_DECISION', () => {
-    it('.lrnev 全部文件不含 summary/quote 哨兵、decision_context、client_asserted、USER_DECISION', async () => {
+    it('.lrnev 全部文件不含 summary 哨兵、decision_context、client_asserted、USER_DECISION', async () => {
       expect(await scanLrnevForMarker(workspace.path, MARKER)).toEqual([]);
-      expect(await scanLrnevForMarker(workspace.path, QUOTE_MARKER)).toEqual([]);
       expect(await scanLrnevForMarker(workspace.path, 'decision_context')).toEqual([]);
       expect(await scanLrnevForMarker(workspace.path, 'client_asserted')).toEqual([]);
       expect(await scanLrnevForMarker(workspace.path, USER_DECISION)).toEqual([]);
     });
 
-    it('所有收集的响应：无 USER_DECISION、不回显哨兵、response_version 恒 1、guidance 项形状合法', () => {
+    it('所有收集的响应：无 guidance 字段、无 USER_DECISION、不回显哨兵、response_version 恒 1', () => {
       expect(payloads.length).toBeGreaterThan(0);
       for (const payload of payloads) {
+        // O6：任何响应（含 role 化四工具 OK 响应）都不携带结构化 guidance
+        expect(payload).not.toHaveProperty('guidance');
         expect(JSON.stringify(payload)).not.toContain(USER_DECISION);
         expect(JSON.stringify(payload)).not.toContain(MARKER);
-        expect(JSON.stringify(payload)).not.toContain(QUOTE_MARKER);
         expect(payload.response_version).toBe('1');
-        for (const item of payload.guidance ?? []) {
-          expect(LrnevGuidanceItemSchema.safeParse(item).success).toBe(true);
-          expect(GUIDANCE_ROLES).toContain(item.role);
-          expect(item).not.toHaveProperty('priority');
-        }
       }
     });
   });

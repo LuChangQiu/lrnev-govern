@@ -6,7 +6,9 @@
  *
  * 本模块是 decision_context 客户端输入的**结构层 + 条件规则**校验（纯函数，无副作用）：
  * - 结构层：source literal 'client_asserted'、strength 枚举、summary 非空 string、
- *   direction 枚举（可选）、target_ref / reported_user_quote 可选 string；
+ *   direction 枚举（可选）、target_ref 可选 string；
+ *   （reported_user_quote 已按 T-006 裁决 I6 2026-09-07 移除——380 录制件 0 命中 +
+ *   服务端零使用 + 客户端转述不可验证，schema/类型/测试同步删除）；
  * - 条件规则（superRefine）：explicit/preferred 必须提供 direction；
  *   unspecified 必须省略 direction——缺失与 unspecified 因此可区分，
  *   也避免把 AI Recommendation 包装成用户方向（requirements F-04）；
@@ -65,7 +67,8 @@ const FORBIDDEN_DIRECTION_MESSAGE =
  * - direction:     可选枚举；条件必填/禁止规则见下方 superRefine；
  * - target_ref:    可选 string；一旦传入就要求非空（须为完整稳定引用；
  *                  引用格式/解析对齐属 T-003，本层不预加格式约束）；
- * - reported_user_quote: 可选 string，服务端不可验证、不持久化，故不做空值收紧。
+ *                  曾有的 reported_user_quote 可选字段已移除（T-006 裁决 I6，
+ *                  2026-09-07：0 命中 + 服务端零使用 + 转述不可验证）。
  */
 export const DecisionContextInputSchema: z.ZodType<DecisionContextInput> = z
   .object({
@@ -93,9 +96,6 @@ export const DecisionContextInputSchema: z.ZodType<DecisionContextInput> = z
           '（例如 scene=01-user-management, spec=01-00-user-login）；未声明引用时省略该字段',
       })
       .optional(),
-    reported_user_quote: z.string({
-      message: `reported_user_quote 必须是字符串（${FIELD_PREFIX}.reported_user_quote）`,
-    }).optional(),
   })
   .superRefine((value, ctx) => {
     const { strength, direction } = value;

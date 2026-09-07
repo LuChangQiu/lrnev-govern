@@ -113,7 +113,7 @@ const GUIDE_SECTIONS: Record<GuideTopic, GuideSection> = {
       'AMBIGUOUS_REF：从 candidates 里选完整 id，重新调用刚才的工具。',
       'ready gate 未过：按 checks 里的 name/message/hint 修 requirements；常见原因是 FILL 哨兵、缺必填章节或验收未勾选。',
       'completion gate 未过：先 task_list 找未 completed 的任务，继续 task_update，别强行标 spec completed。',
-      'INVALID_STATUS_TRANSITION：按状态机走；pending 先到 in_progress，completed 是终态，返工请新建 task。',
+      'INVALID_STATUS_TRANSITION：按状态机走；pending 先到 in_progress、completed 是终态；failed/blocked 可合法回退 pending 重试，返工请新建 task。',
       '文件缺失或 broken 条目：先运行 lrnev_doctor，必要时重新 spec_create 或恢复缺失文档。',
     ].join('\n'),
   },

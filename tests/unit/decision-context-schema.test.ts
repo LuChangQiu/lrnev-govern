@@ -44,14 +44,13 @@ describe('decision-context-schema', () => {
       }
     });
 
-    it('preferred + direction + target_ref + reported_user_quote 全字段形态通过', () => {
+    it('preferred + direction + target_ref 全可选字段形态通过（reported_user_quote 已随 T-006 I6 移除）', () => {
       const input: DecisionContextInput = {
         source: 'client_asserted',
         strength: 'preferred',
         summary: '用户倾向复用已有 Spec',
         direction: 'reuse_spec',
         target_ref: 'scene=01-user-management, spec=01-00-user-login',
-        reported_user_quote: '先看看有没有现成的能用，别重复造',
       };
       const result = parseDecisionContextInput(input);
       expect(result.ok).toBe(true);
@@ -312,14 +311,6 @@ describe('decision-context-schema', () => {
       });
       expect(result.ok).toBe(true);
     });
-
-    it('reported_user_quote 为空字符串不报错（服务端不可验证的转述原话，仅约束类型）', () => {
-      const result = parseDecisionContextInput({
-        ...EXPLICIT_INPUT,
-        reported_user_quote: '',
-      });
-      expect(result.ok).toBe(true);
-    });
   });
 
   describe('非法输入显式报错，不静默填充', () => {
@@ -340,13 +331,11 @@ describe('decision-context-schema', () => {
         source: 'client_asserted',
         strength: 'unspecified',
         summary: '  带空白但非空的概括  ',
-        reported_user_quote: '  原话两侧空白原样保留  ',
       };
       const result = parseDecisionContextInput(input);
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.data.summary).toBe(input.summary);
-        expect(result.data.reported_user_quote).toBe(input.reported_user_quote);
         expect(result.data).toEqual(input);
       }
     });

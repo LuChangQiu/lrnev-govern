@@ -41,9 +41,10 @@ describe('G5 归档边界语义（E-06a/b 自动归档观测修复）', () => {
   });
 
   it('spec_create 成功响应不带无条件【决策边界】行（DECISION_BOUNDARY 是 direction 不一致专用语义，05-00 裁决 Q4）', async () => {
-    // G5 归档边界不进 spec_create 的无条件 instructions——否则 Profile guidance 恒带
-    // DECISION_BOUNDARY，破坏 T-004/T-005 协议锁定（spec_create 无 context 时
-    // guidance=[FACT, RECOMMENDATION]）。归档边界由 WORKFLOW_OVERVIEW 全局句 +
+    // G5 归档边界不进 spec_create 的无条件 instructions——否则文本通道恒带
+    // DECISION_BOUNDARY 行，破坏 T-004/T-005 协议锁定（spec_create 无 context 时
+    // role 行集合恒为 [FACT, RECOMMENDATION]；T-006 O6 2026-09-07 后 Profile 结构化
+    // 挂载已回退，角色语义由文本行承载）。归档边界由 WORKFLOW_OVERVIEW 全局句 +
     // spec_update 工具描述承担（两者在动作前可见；WORKFLOW_OVERVIEW 是实测最高频
     // 消费的 guidance 面）。
     const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');

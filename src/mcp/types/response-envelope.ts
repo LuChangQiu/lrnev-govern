@@ -15,7 +15,6 @@
 
 import type { ErrorCode } from '../../shared/errors.js';
 import type { AiFollowup, AnchorContext, SummaryContext } from '../../types/response.js';
-import type { LrnevGuidanceItem } from './guidance-profile.js';
 
 /**
  * lrnev MCP 响应信封版本。
@@ -80,19 +79,15 @@ export interface LrnevToolPayload<T = unknown> {
    */
   ai_followup?: AiFollowup;
 
-  /**
-   * lrnev Guidance Profile v1 结构化 guidance（可选，05-00 T-004 挂载）。
-   *
-   * 与 ai_followup 等字段并列的顶层可选附加字段，不包装对象、向后兼容：
-   * - 通用 MCP 客户端忽略本字段仍可仅靠 ai_followup.instructions / content 文本
-   *   正确使用结果（F-07 保留 01 文本降级），故**不 bump response_version**；
-   * - 仅 role 化工具（assess_goal / scene_create / spec_create / task_create）携带，
-   *   且只在文本通道存在 ROLE_PREFIX 行（五角色前缀行）时由唯一构建源
-   *   buildGuidanceView 派生（见 mcp/helpers/tool-result-adapter.ts 单点挂载）；
-   * - 派生失败或 Profile/文本冲突时省略本字段 + 诊断日志，绝不翻 ok、
-   *   不影响 data/content/errors（D-06）。
-   */
-  guidance?: LrnevGuidanceItem[];
+  // 05-00-lrnev-guidance-profile T-006（O6，2026-09-07）：曾声明的顶层可选
+  // `guidance?: LrnevGuidanceItem[]`（role 化四工具挂载的 Profile 结构化数组）已随
+  // 运行时挂载回退一并从 payload 移除——裁决依据：三客户端零消费（380 录制件 0 引用）
+  // + 每次挂载 +583 字符 ≈24.2% 响应纯重复税；文本通道（ai_followup.instructions /
+  // content 的 ROLE_PREFIX 五角色行）是唯一被实测消费的通道，G5 归档边界效果走文本、
+  // 不依赖 guidance 数组（B4 V2 实证）。Profile 现以纯函数库 + 契约类型交付
+  // （mcp/helpers/guidance-profile.ts、mcp/types/guidance-profile.ts），schema 不再对
+  // MCP 响应声明 guidance 字段，避免空字段误导。详见
+  // ai-discussions/结果/2026-09-07-DeepSeek-T006字段裁决.md。
 
   /**
    * F-03 任务启动上下文：回填的锚点段落（可选）。

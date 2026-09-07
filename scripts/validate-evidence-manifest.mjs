@@ -250,8 +250,11 @@ function semanticAdvisories(ev, id) {
   if (ev.decision_context_sent === false && ev.decision_context !== null && ev.decision_context !== undefined) {
     warns.push(`decision_context_sent=false 但 decision_context 非 null（裁决 Q3：未传语义时应为 null）`);
   }
-  if (ev.fixture_context !== undefined && ev.decision_context !== null && ev.decision_context !== undefined) {
-    warns.push(`fixture_context 与 decision_context 同时非空（裁决 Q3：两者用途互斥——快照放 fixture_context，客户端意图放 decision_context）`);
+  // fixture_context 与 decision_context 互斥只适用于"客户端未传"（sent=true/false 缺失）场景；
+  // T-006 M1（2026-09-07）后 harness 对 v1 四工具 input 真扫描，客户端真实传递时
+  // decision_context 记录观测值、fixture_context 仍存工作区快照——两者同存为合法形态
+  if (ev.fixture_context !== undefined && ev.decision_context !== null && ev.decision_context !== undefined && ev.decision_context_sent !== true) {
+    warns.push(`fixture_context 与 decision_context 同时非空且 decision_context_sent≠true（裁决 Q3：快照放 fixture_context，客户端意图放 decision_context；sent=true 的真实传递形态除外）`);
   }
   return warns;
 }

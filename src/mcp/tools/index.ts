@@ -45,7 +45,6 @@ import { GUIDE_TOPIC_VALUES, TOOL_DESCRIPTIONS, buildGuide } from '../guidance.j
 import { toMcpToolResult, toMcpToolResultFromData } from '../helpers/tool-result-adapter.js';
 import {
   createToolOutputSchema,
-  createGuidanceToolOutputSchema,
   AgentDataSchema,
   AgentRegisterResultSchema,
   AgentHeartbeatResultSchema,
@@ -101,13 +100,15 @@ type ToolResult = {
 // - 不一致只返回【决策边界】文本行（追加进 ai_followup.instructions，由 MVC
 //   renderer 投影），不解析 summary、不阻断、不重写、不自动回滚；
 // - 服务端不输出 USER_DECISION，不声称读取用户原话。
+// - reported_user_quote 字段已按 T-006 裁决（I6，2026-09-07）从输入契约移除
+//   （380 录制件 0 命中 + 服务端零使用 + 客户端转述不可验证），schema/类型/测试同步。
 
 /**
  * decision_context 参数广告层（可选字段，v1 四工具共用）。
  *
- * 仅结构层：source literal、strength/direction 枚举、summary/target_ref/
- * reported_user_quote 基本类型。条件规则（superRefine）不在此广告，
- * 由 handler 层 parseDecisionContextInput 完整校验（裁决 Q2）。
+ * 仅结构层：source literal、strength/direction 枚举、summary/target_ref 基本类型。
+ * 条件规则（superRefine）不在此广告，由 handler 层 parseDecisionContextInput 完整
+ * 校验（裁决 Q2）。
  */
 const decisionContextArgumentField = z
   .object({
@@ -126,10 +127,6 @@ const decisionContextArgumentField = z
       .string()
       .optional()
       .describe('可选：客户端声明的具体 Scene/Spec 完整稳定引用，如 scene=01-user-management, spec=01-00-user-login'),
-    reported_user_quote: z
-      .string()
-      .optional()
-      .describe('可选：客户端转述的用户原话；服务端不可验证、不写入 Project Truth/memory'),
   })
   .optional()
   .describe('可选：v1 客户端声明的决策上下文（缺失=未声明，不等同 strength=unspecified）');
@@ -160,7 +157,7 @@ function decisionContextOrThrow(raw: unknown): DecisionContextInput | null {
 /**
  * 把【决策边界】等行追加进响应 ai_followup.instructions（裁决 Q1 文本通道）。
  *
- * 纯投影：不解析/不回显 summary 或 reported_user_quote；ai_followup 缺失时
+ * 纯投影：不解析/不回显 summary；ai_followup 缺失时
  * 补齐（现有 Manager 写入响应均自带 ai_followup）。
  */
 function appendFollowupInstructions<T>(response: AiFollowupResponse<T>, lines: string[]): AiFollowupResponse<T> {
@@ -311,8 +308,9 @@ function registerSceneTools(server: McpServer): void {
         intent: z.string().optional().describe('可选：业务意图一句话说明'),
         decision_context: decisionContextArgumentField,
       },
-      // 05-00 T-004：scene_create 为 role 化工具，response schema 声明顶层可选 guidance。
-      outputSchema: createGuidanceToolOutputSchema(SceneDataSchema),
+      // 05-00 T-004/T-006：scene_create 曾为 role 化工具声明顶层可选 guidance（T-006 O6
+      // 2026-09-07 回退挂载与 schema 字段——响应不再携带 guidance，改回标准信封 schema）。
+      outputSchema: createToolOutputSchema(SceneDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(
@@ -374,8 +372,9 @@ function registerSpecTools(server: McpServer): void {
         priority: z.enum(['P0', 'P1', 'P2', 'P3']).optional().describe('可选：优先级'),
         decision_context: decisionContextArgumentField,
       },
-      // 05-00 T-004：spec_create 为 role 化工具，response schema 声明顶层可选 guidance。
-      outputSchema: createGuidanceToolOutputSchema(SpecDataSchema),
+      // 05-00 T-004/T-006：spec_create 曾声明顶层可选 guidance（T-006 O6 2026-09-07
+      // 回退挂载与 schema 字段——响应不再携带 guidance，改回标准信封 schema）。
+      outputSchema: createToolOutputSchema(SpecDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(
@@ -497,8 +496,9 @@ function registerTaskTools(server: McpServer): void {
         validates: z.array(z.string()).optional().describe('可选：需求/设计锚点，例如 F-01 或 D-02'),
         decision_context: decisionContextArgumentField,
       },
-      // 05-00 T-004：task_create 为 role 化工具，response schema 声明顶层可选 guidance。
-      outputSchema: createGuidanceToolOutputSchema(TaskDataSchema),
+      // 05-00 T-004/T-006：task_create 曾声明顶层可选 guidance（T-006 O6 2026-09-07
+      // 回退挂载与 schema 字段——响应不再携带 guidance，改回标准信封 schema）。
+      outputSchema: createToolOutputSchema(TaskDataSchema),
       annotations: { destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async (args) => toMcpToolResult(
@@ -691,8 +691,9 @@ function registerGoalTools(server: McpServer): void {
         goal: z.string().describe('用户目标描述'),
         decision_context: decisionContextArgumentField,
       },
-      // 05-00 T-004：assess_goal 为 role 化工具，response schema 声明顶层可选 guidance。
-      outputSchema: createGuidanceToolOutputSchema(GoalAssessmentDataSchema),
+      // 05-00 T-004/T-006：assess_goal 曾声明顶层可选 guidance（T-006 O6 2026-09-07
+      // 回退挂载与 schema 字段——响应不再携带 guidance，改回标准信封 schema）。
+      outputSchema: createToolOutputSchema(GoalAssessmentDataSchema),
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async ({ goal, decision_context }) => toMcpToolResult(
