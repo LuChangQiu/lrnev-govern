@@ -118,6 +118,9 @@ lrnev-govern/
 │   │   ├── templates.ts
 │   │   └── workspace.ts
 │   │
+│   ├── schemas/                    # JSON Schema 契约文件
+│   │   └── evidence-contract.schema.json   # T-027 观测证据契约（src/types/evidence-contract.ts 的 JSON 版）
+│   │
 │   └── shared/                     # 跨模块共享
 │       ├── config.ts               # 可调阈值、默认限制和契约常量
 │       ├── errors.ts               # 错误码和 LrnevError
@@ -139,6 +142,7 @@ lrnev-govern/
 │   └── fixtures/                   # 测试样板项目
 │
 ├── docs/                           # 面向用户的说明
+│   └── examples/                   # 完整配置示例（lrnev.json / hooks.json）
 ├── examples/                       # 可运行样例项目
 ├── package.json                    # name: lrnev, bin: lrnev + lrnev-mcp
 ├── tsconfig.json                   # ES2022 + NodeNext + strict
