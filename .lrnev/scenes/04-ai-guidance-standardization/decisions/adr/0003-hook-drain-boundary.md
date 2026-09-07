@@ -1,12 +1,13 @@
 ---
-number: 0003
-title: Hook Drain 边界与超时策略
+number: '0003'
+title: 'Hook Drain 边界与超时策略'
 status: accepted
-date: 2026-08-28
-supersedes: []
+scope: 'scene:04-ai-guidance-standardization'
+created: '2026-08-28'
+date: '2026-08-28'
 ---
 
-# ADR-0003: Hook Drain 边界与超时策略
+# 0003. Hook Drain 边界与超时策略
 
 ## 背景
 

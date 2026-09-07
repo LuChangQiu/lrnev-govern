@@ -1,12 +1,13 @@
 ---
-number: 0001
-title: 截断语义类型选择
+number: '0001'
+title: '截断语义类型选择'
 status: accepted
-date: 2026-08-28
-supersedes: []
+scope: 'scene:04-ai-guidance-standardization'
+created: '2026-08-28'
+date: '2026-08-28'
 ---
 
-# ADR-0001: 截断语义类型选择
+# 0001. 截断语义类型选择
 
 ## 背景
 

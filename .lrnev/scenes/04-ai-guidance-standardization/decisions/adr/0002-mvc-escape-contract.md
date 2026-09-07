@@ -1,12 +1,13 @@
 ---
-number: 0002
-title: MVC 逃逸层级契约
+number: '0002'
+title: 'MVC 逃逸层级契约'
 status: accepted
-date: 2026-08-28
-supersedes: []
+scope: 'scene:04-ai-guidance-standardization'
+created: '2026-08-28'
+date: '2026-08-28'
 ---
 
-# ADR-0002: MVC 逃逸层级契约
+# 0002. MVC 逃逸层级契约
 
 ## 背景
 
