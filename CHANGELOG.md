@@ -2,6 +2,43 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [SemVer 2.0](https://semver.org/lang/zh-CN/)。
 
+## [3.0.0] - 2026-09-07
+
+lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-standardization` 承载，T-027 真实客户端双 SHA 三客户端对照驱动）：MCP 响应从"JSON 文本 + 无 schema"重构为 **structuredContent canonical 信封 + outputSchema 声明 + 逐工具渲染文本**；引导从散落文案收敛为**五角色语义体系**；新增 `decision_context` 客户端声明通道与 `--profile` 工具面分层。**破坏性变更：text 通道内容格式**（详见升级指南）；其余向后兼容（42 工具默认全量、数据文件格式不变）。
+
+### Added
+
+- **MCP 响应双通道（03-00 M1/M2）**：每次工具调用同时返回 `structuredContent`（canonical 信封 `response_version:'1'` / `ok` / `data` / `errors` / `ai_followup` / `anchor_context` / `summary_context`）与 `content[0].text`（逐工具 ModelVisibleContract 渲染文本，43 个渲染器）；全工具在 `tools/list` 声明 `outputSchema`（此前无结构化机器通道）。
+- **Guidance Profile v1 语义体系（05-00）**：五角色引导前缀（【事实】【建议】【决策边界】【执行约束】【下一步】）+ `classifyInstructions`/`buildGuidanceView`/`diagnoseGuidance` 纯函数库；spec_get 分层引导（未完成 Spec 给"开发请求先 task_create 登记"边界）、归档边界语义（archived 终态、用户改主意不构成自动归档依据——B4 真机验证归档率 4/5→0/5）、工具描述档位标记（[核心]/[自动]/[配置]）。
+- **`decision_context` 可选入参（05-00 T-002/T-003）**：`scene_create`/`spec_create`/`task_create`/`assess_goal` 接受 client_asserted 决策上下文（strength/summary/direction/target_ref）；只影响本次调用、不落盘、不阻断；条件规则（缺失≠unspecified、explicit 强制 direction 等）由真实链路负向校验验证（缺 direction 被拒后模型自纠）。
+- **工具面分层 `--profile core|full`（L7）**：MCP 服务启动参数；`core`（33）= full − 9 个"AI 不该主动选"（agent_* 自动面 + hook_* 配置面），弱模型客户端受益；默认 `full` 向后兼容。
+- **开发入口 `src/mcp/dev-entry.ts`**：修复 `dev:mcp`/`dev:inspect`（原 server.ts 无自启，脚本实际无法启动）。
+
+### Changed
+
+- **text 通道破坏性变更**：`content[0].text` 由 `JSON.stringify(payload)` 改为逐工具渲染的模型可见文本；机器数据契约 = `structuredContent`。曾用 `JSON.parse(content[0].text)` 取数据的接入方必须迁移到 `structuredContent`（信封字段与旧 payload 同构）。
+- **业务拒绝统一 `isError=true`**：`ok:false` 的业务拒绝（参数错误、状态机冲突、歧义引用 AMBIGUOUS_REF、内部错误）一律置 isError（2.x 的 AMBIGUOUS_REF 不带 isError，易被客户端当成功）；`INTERNAL_ERROR` 不再回传异常原文（只给 code/message）。
+- **引导措辞收敛（真机驱动）**：开发/扩展功能请求 → 先 `task_create` 登记再实施（直接编辑 requirements/design 只限需求细化/文档维护，不能替代登记——E-02 四 SHA 0/5 直写观测驱动）；用户决定优先条款显式化；状态机提示与合法回退（failed/blocked→pending）表述修正。
+- **错误路径统一转义出口**（D-04.1 防注入契约）：错误 message/hint 含用户可控文本时经统一转义（此前错误路径绕过转义出口）。
+
+### Fixed
+
+- **严格客户端 -32602 输出契约缺陷**（T-027 发现 #3）：frontmatter 全展开泄漏裁剪（Scene/Spec/Memory 白名单化，spec_update 写路径 round-trip 不丢用户键）+ outputSchema/DataSchema 对齐（task_create_many 数组错配、ADR 嵌套 body、6 处 SimpleConfirmation 误用）——opencode 33 错 → 0。
+- 渲染器输出 undefined（`data.scene`/`data.task_id` → `data.id`）。
+- `dev:mcp`/`dev:inspect` 脚本实际无法启动 MCP 服务。
+- CLI 两处 JSON.parse 裸抛误归 INTERNAL_ERROR（改 INVALID_INPUT）。
+- tests 类型门禁缺失（`typecheck:test`，101 个游离类型错误修复）。
+
+### Tests
+
+- 全量 **1055 条全绿**（v2.3.0 为 692；3.0.0 前夜 09-04 达 1051，其后文档守护与转义回归增至 1055）。新增覆盖：输出契约严格镜像（data-output-contract）、错误路径转义、--profile 42/33 集合差、归档边界语义（G5）、decision_context 负向校验、E-06 v2 判定（真实续接双轮）。
+
+### 升级指南
+
+- **接入方必读（破坏性）**：`content[0].text` 不再是 JSON——机器数据改读 `structuredContent`（`response_version:'1'` 信封，字段同旧 payload：ok/data/errors/ai_followup/anchor_context/summary_context）；`ok:false` 一律 `isError=true`（此前需特判 AMBIGUOUS_REF）。
+- 工具集 42 = 42 无删改；`--profile` 默认 full 零配置变化；`.lrnev` 数据文件格式不变。
+- `lrnev-mcp --profile core` 可选裁剪（弱模型/工具面板拥挤客户端）。
+
 ## [2.3.0] - 2026-07-06
 
 工作区运行态卫生 + 批量拆任务两件实事，均源于真实项目观察：xpaas 项目 3 周积累 64 条死 agent 记录（文件里全标 active）与 14 个过期 claim（显式 `doctor --gc-agents` 存在但没人会主动跑——与维护态缺口同构的"有门但找不到门"发现性问题）；GPT-5.5 真机反馈"连续 10 次 task_create 逐条建任务成本高"。用 lrnev 自身治理实现（新 scene `03-workspace-hygiene` 的 `01-00-auto-gc` + `00-default` 的 `01-00-task-create-many`），两份 spec 均经独立 AI 只读复核（5 处错误 + 3 处风险逐条修正后实现）。**无破坏性改动**：响应契约只新增可选字段，registry/claim 文件格式不变。
@@ -221,6 +258,7 @@
 
 ---
 
+[3.0.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v3.0.0
 [2.3.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v2.3.0
 [2.2.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v2.2.0
 [2.1.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v2.1.0
