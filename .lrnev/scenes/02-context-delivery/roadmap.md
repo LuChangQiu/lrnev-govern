@@ -7,7 +7,7 @@ created: '2026-06-15'
 
 > 本 Scene 的中长期规划。Spec 是路线图的具体实施。
 > 业务线：把治理数据在正确时刻送进 AI 上下文。
-> 战略依据：`dev-docs/PRODUCT-STRATEGY.md`（战略四步）+ `dev-docs/NEXT-STEPS.md`（检索三件套 + 执行顺序）。
+> 战略依据：PRODUCT-STRATEGY（战略四步）+ NEXT-STEPS（检索三件套 + 执行顺序；两文档 2026-09 移除，全文见 git 历史）。
 
 ## 当前阶段
 

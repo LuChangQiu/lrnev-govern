@@ -9,13 +9,13 @@
 ```
 dev-docs/
 ├── PUBLISH.md ……………… 发布流程（docs.test 硬校验此路径，勿移动）
-├── NEXT-STEPS.md ………… 发布后待办路线
-├── PRODUCT-STRATEGY.md … 产品策略
-├── INTEGRATION-TEST.md … 集成测试总览
+├── INTEGRATION-TEST.md … 集成测试总览（3.0.0 实况）
 ├── ai-guidance-standardization/ … Scene 04「引导标准化」战役档案（见下）
 ├── decisions/ ……………… 审定决策档案（DeepSeek 终稿入库镜像，只增不改）
-└── archive/ ………………… 封存物（含 scripts/ 归档代码；历史内容，引用不保证）
+└── archive/ ………………… 封存物（含 decisions/ 背书；历史内容，引用不保证）
 ```
+
+> NEXT-STEPS.md / PRODUCT-STRATEGY.md（v2 时代战略文档）已于 2026-09 移除——3.0 整体重构后内容不再准确，且顶层不再保留"战略承诺"供后续反复推演；全文见 git 历史，边界裁决见 `decisions/`（3.1 路线裁决）。
 
 ### ai-guidance-standardization/ — Scene 04 战役档案
 

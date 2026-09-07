@@ -9,7 +9,7 @@ updated: '2026-06-18'
 
 # 02-00 定位升级：治理地图 + 锚点抽段 + BM25 - 需求
 
-> 权威依据：`dev-docs/NEXT-STEPS.md` 第三节（检索与规模化结论，源码证据已核）+ `dev-docs/PRODUCT-STRATEGY.md`（收割结构化数据主线）。
+> 权威依据：NEXT-STEPS 第三节（检索与规模化结论，源码证据已核）+ PRODUCT-STRATEGY（收割结构化数据主线；两文档 2026-09 移除，全文见 git 历史）。
 > 前置：本 scene 的 spec 01-00 沉淀 `extractAnchorSections`（锚点 ID→段落映射），本 spec 的 F-02 复用它。
 
 ## L0 摘要

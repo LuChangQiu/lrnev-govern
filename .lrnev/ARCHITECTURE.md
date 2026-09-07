@@ -42,7 +42,7 @@ updated: '2026-09-07'
 - tests/ — unit / integration / e2e + fixtures/；e2e 含 04-00 场景套件（E-01…E-11，自 tests/fixtures/04-00 载入场景契约）与顶层进程级测试（mcp-stdio-lifecycle 真 stdio、report-cli、governance-hardening-fixes）
 - tests/e2e/t027-baseline/ — T-027 观测资产：harness 驱动器（harness-mvp）、客户端驱动器与配置契约（claude-code / codex / opencode）、HARNESS-DESIGN + `.evidences/` 契约物——蒸馏 .json/.md 报告入库，原始录制 `*-session.jsonl` 与 `.smoke-results/` 不入库（#9f 分级）
 - docs/ — 用户文档：AI-ADAPTATION / ARCHITECTURE / CONFIG / GOVERNANCE-FLOW / HOOKS / MULTI-AGENT + client-integration-guide.md / mcp-response-conformance.md（2026-09-07 自 dev-docs 迁入）+ examples/（lrnev.json / hooks.json 配置样例）
-- dev-docs/ — 研发档案：顶层活文档（PRODUCT-STRATEGY / NEXT-STEPS / INTEGRATION-TEST / PUBLISH）+ archive/（历史快照，含 FINDINGS-CHECKLIST 与 E2E-REPORT-{CLAUDE,CODEX,OPENCODE}-V23-2026-07-06 归档报告；decisions/ 复审通过背书亦归档于此）+ ai-guidance-standardization/（scene 04 研究档案 24 件）
+- dev-docs/ — 研发档案：顶层活文档（INTEGRATION-TEST / PUBLISH；PRODUCT-STRATEGY / NEXT-STEPS 战略文档 2026-09 移除，全文见 git 历史，边界裁决见 dev-docs/decisions）+ archive/（历史快照，含 FINDINGS-CHECKLIST 与 E2E-REPORT-{CLAUDE,CODEX,OPENCODE}-V23-2026-07-06 归档报告与 decisions/ 复审通过背书；ai-guidance-standardization/（scene 04 研究档案，deliverables/evidence/notes 分组）
 - examples/sample-project/ — CLI 上手教程
 - .lrnev/ — 本仓库自身治理档案：本文件与 PROJECT.md、scenes 00-04 数据入库；runtime / state / locks 等运行态目录忽略
 
