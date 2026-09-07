@@ -229,7 +229,7 @@ npm run typecheck                # 类型检查（发布门禁：0 错误）
 npm test                         # 全量测试（3.0.0 基准 1055 条）
 npm run dev:mcp                  # tsx watch 热重载跑 MCP（入口 src/mcp/dev-entry.ts）
 npm run dev:inspect              # MCP Inspector 图形调试（同 dev-entry）
-npm run lrnev -- init            # 本地直跑 CLI
+node bin/lrnev.mjs init          # 本地跑已构建 CLI（需先 npm run build；等价全局 lrnev）
 ```
 
 本地开发细节与提交规范见 [CONTRIBUTING.md](https://github.com/LuChangQiu/lrnev-govern/blob/main/CONTRIBUTING.md)。

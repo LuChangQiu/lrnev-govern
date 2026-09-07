@@ -30,7 +30,6 @@
     "test:e2e": "vitest run tests/e2e",
     "dev:mcp": "tsx watch src/mcp/dev-entry.ts",
     "dev:inspect": "npx @modelcontextprotocol/inspector tsx src/mcp/dev-entry.ts",
-    "lrnev": "tsx src/cli/index.ts",
     "clean": "rimraf dist",
     "prepublishOnly": "npm run clean && npm run build && npm test"
   },

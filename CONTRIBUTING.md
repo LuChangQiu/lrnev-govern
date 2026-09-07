@@ -22,9 +22,9 @@ npm run build
 # 跑全部测试
 npm test
 
-# 本地 CLI
-npm run lrnev -- init --project-name demo
-npm run lrnev -- status
+# 本地 CLI（bin 走 dist，需先 npm run build）
+node bin/lrnev.mjs init --project-name demo
+node bin/lrnev.mjs status
 
 # 本地 MCP 服务(stdio)
 node bin/lrnev-mcp.mjs
