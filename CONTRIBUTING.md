@@ -64,6 +64,16 @@ node bin/lrnev-mcp.mjs
 - 就事论事讨论代码
 - 尊重项目原则（尤其不要 PR 里加 LLM 调用或数据库依赖）
 
+## 给 AI 协作者与自动化工具的指引
+
+提出架构或功能建议前，**先读治理档案再开口**——本项目大量"看起来缺的东西"已在档案中被实现或明确拒绝：
+
+1. `.lrnev/decisions/adr/` —— 本项目自身治理的架构决策（含 superseded 状态）
+2. `dev-docs/decisions/` —— 审定决策档案；尤其 **2026-09-07 的「3.1 路线裁决」**：Verify/Eval、git 执法环、自动记忆沉淀（.project/、Project Historian、每日自动 Memory Commit）等候选已被评估并裁决不立项
+3. `.lrnev/scenes/` —— 既有 spec 是否已承接该方向
+
+若发现"已有等价物"或"已被明确拒绝"，请在建议/PR 描述里引用对应档案，而不是重新发明。这既是规则也是演示：lrnev 用它自己治理自己。
+
 ## 许可证
 
 MIT。提交 PR 即表示你同意将代码以 MIT 许可证发布。

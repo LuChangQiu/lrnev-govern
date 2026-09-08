@@ -126,6 +126,20 @@ lrnev report                                                                 # 9
 └── agents/ · runtime/ · locks/ · state/   # 运行态（进程生命周期相关，可忽略并出库不跟踪）
 ```
 
+### 治理档案层：项目记忆由文件承载
+
+`.lrnev/` 不只是配置，它是**项目记忆与治理档案层**——长期事实以结构化文件沉淀，而不是存在某个 AI 的上下文里：
+
+| 档案 | 承载 | 工具 |
+|---|---|---|
+| `decisions/adr/` | 架构决策与选型（accepted/superseded 状态机） | `adr_create` / `adr_list` / `adr_get` |
+| `errorbook/` | 踩坑、根因与已验证修法（指纹去重，可提升为手册） | `error_record` / `error_search` / `error_promote` |
+| `memory/` | 跨会话的约定、偏好与模式 | `memory_save` / `memory_search` |
+| `scenes/*/specs/` | 需求、设计与任务闭环（可 gate 验收） | spec / task / gate 系列 |
+| `steering/` | 给 AI 的行为指引（原则、范围） | — |
+
+**边界原则**：AI 生成的总结不会静默成为项目事实——决策、教训、约定经 `adr_create` / `error_record` / `memory_save` 等**显式动作**沉淀，AI 提议、用户决定、文件为证。全部档案可被 `context_search` 全文检索：接手或新建前先查既有决策与已记录的错误，避免与历史冲突或重复踩坑。
+
 ### ID 与锚点
 
 | 对象 | 格式 | 例子 |
