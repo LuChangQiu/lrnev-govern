@@ -8,7 +8,7 @@ updated: '2026-09-07'
 
 ## L0 摘要
 
-分层确定性架构：CLI / MCP 双形态薄入口 → core 确定性业务 Manager → storage 文件层读写 `.lrnev/` 下 Markdown；3.0.0 起 MCP 出口带契约层——structuredContent canonical 信封 + 逐工具 MVC 文本渲染，42 工具全量 outputSchema。全程零 LLM、零模型，当前 1055 测试。
+分层确定性架构：CLI / MCP 双形态薄入口 → core 确定性业务 Manager → storage 文件层读写 `.lrnev/` 下 Markdown；3.0.0 起 MCP 出口带契约层——structuredContent canonical 信封 + 逐工具 MVC 文本渲染，42 工具全量 outputSchema。全程零 LLM、零模型，当前 1070 测试。
 
 ## L1 概览
 
@@ -16,7 +16,7 @@ updated: '2026-09-07'
 
 - TypeScript（ESM，Node >= 20）
 - 运行依赖：`@modelcontextprotocol/sdk`（MCP）、`commander`（CLI）、`glob`、`gray-matter`（frontmatter）、`zod`（schema 校验）
-- 开发/测试：`vitest`（1079 测试，unit/integration/e2e）、`tsx`、`tsc`；tests 另有独立类型门禁 `typecheck:test`（tsconfig.test.json）
+- 开发/测试：`vitest`（1070 测试，unit/integration/e2e）、`tsx`、`tsc`；tests 另有独立类型门禁 `typecheck:test`（tsconfig.test.json）
 - 双入口（import dist）：`bin/lrnev.mjs`（CLI）、`bin/lrnev-mcp.mjs`（MCP stdio 服务）；开发入口 `src/mcp/dev-entry.ts`（`dev:mcp`）
 
 ### 模块分层
@@ -57,7 +57,7 @@ updated: '2026-09-07'
   - resources/ — context:// 资源注册与 handlers
   - types/ — response-envelope / output-schemas（信封 + 逐工具 schema）/ decision-context-schema / guidance-profile
   - helpers/ — tool-result-adapter（canonical 信封组装 + 错误转义出口）、model-visible-contract（MVC 渲染注册表 + 唯一转义）、guidance-profile（纯函数库）、renderers/（43 个逐工具渲染器）
-- `src/core/`：确定性业务 Manager——Scene / Spec / Task / Gate / ADR / Errorbook / Memory / Summarizer / Searcher / AgentRegistry / ClaimStore / Doctor / HookManager / ProjectStatus / GovernanceMap / GovernanceReport / GoalAssessor / AutoAnalyzer / WorkspaceManager / SessionCommit 等；引导语义模块：SpecGuidance（spec_get 引导）、GateGuidance（gate followup）、guidance-semantics（语义角色类型）、decision-context（客户端声明核对）
+- `src/core/`：确定性业务 Manager——Scene / Spec / Task / Gate / ADR / Errorbook / Memory / Summarizer / Searcher / AgentRegistry / ClaimStore / Doctor / HookManager / ProjectStatus / GovernanceMap / GovernanceReport / GoalAssessor / WorkspaceManager / SessionCommit 等；引导语义模块：SpecGuidance（spec_get 引导）、GateGuidance（gate followup）、guidance-semantics（语义角色类型）、decision-context（客户端声明核对）
 - `src/storage/`：FileStorage（目录锁）/ FrontmatterCodec / MarkdownParser / URIRouter / WorkspaceLocator
 - `src/schemas/`：evidence-contract.schema.json——T-027 证据契约（与 src/types/evidence-contract.ts 同源）
 - `src/shared/`：config / errors / paths / text / version
@@ -95,7 +95,7 @@ updated: '2026-09-07'
 - **Gate 只查结构契约**：不判断 prose 质量；ready/completion gate 章节标题须与中文模板完全一致（契约），FILL 哨兵 / 孤儿 / 坏引用等确定性硬校验自 2.0 起为常态。
 - **多 Agent 存活按进程生命周期惰性判定**：同主机 pid 探活为主、跨主机 last_heartbeat 兜底；无后台线程、无定时心跳要求。
 - **引导有效性取决于送达时刻与动作绑定**：动作点引导（工具描述 / 决策时刻）优先于过程点建议（真机观测 2026-09，scene 04）。
-- **行为变更须有测试**：既有 `.lrnev/` 数据持续可读，变更须覆盖——当前 1079 测试 + `typecheck:test` 门禁。
+- **行为变更须有测试**：既有 `.lrnev/` 数据持续可读，变更须覆盖——当前 1070 测试 + `typecheck:test` 门禁。
 
 ### 外部依赖
 
