@@ -28,7 +28,7 @@
 - "不引入微服务，单体保持"
 - "不用 TS 严格模式，用宽松配置"
 
-**AI 行为**：把"为什么不选"作为决策记录下来。
+**AI 行为**：与用户确认后调 `adr_create`，把"为什么不选"作为决策记录下来。
 
 ### 触发 3：改变之前的决定
 
@@ -38,9 +38,8 @@
 - "原来设计的多租户去掉了"
 
 **AI 行为**：
-- 生成新 ADR
-- 在新 ADR 的 frontmatter 里加 `supersedes: ['XXXX']` 引用旧 ADR
-- 把旧 ADR 状态改为 `superseded`
+- 与用户确认后调 `adr_create`，新 ADR 的 **`supersedes: ['旧编号']` 是 adr_create 入参**，不是手改 frontmatter
+- 旧 ADR 文件**无需手动改状态**——取代关系（`superseded_by`）由系统读时派生显示，没有"改 ADR 状态"的工具
 
 ### 触发 4：引入新依赖 / 新服务
 
@@ -50,7 +49,7 @@
 - "引入 Stripe"
 - "用 Cloudflare R2 替代 S3"
 
-**AI 行为**：记录"为什么需要它 / 备选方案 / 影响"。
+**AI 行为**：与用户确认后调 `adr_create`，记录"为什么需要它 / 备选方案 / 影响"。
 
 ### 触发 5：设定全局约束
 
@@ -60,7 +59,7 @@
 - "所有 API 必须有版本号"
 - "禁止任何 console.log"
 
-**AI 行为**：写为 global scope 的 ADR。
+**AI 行为**：与用户确认后调 `adr_create`，写为 global scope 的 ADR。
 
 ---
 
@@ -92,7 +91,7 @@
 
 ## 用户确认后的流程
 
-1. 调 `adr_create({ title, scope, context, decision, alternatives, consequences })`
+1. 调 `adr_create({ title, scope, context, decision, alternatives, consequences, supersedes? })`（取代旧决策时传 `supersedes: ['旧编号']`）
 2. 工具返回 ADR 文件路径
 3. 把 ADR 内容展示给用户确认
 4. 按 ai_followup 生成 L0/L1 摘要
@@ -103,4 +102,4 @@
 
 - 跨 Scene 的决策 → `global`
 - 仅某个 Scene 的决策 → `scene:{id}`
-- 不确定 → `global` + tentative: true
+- 不确定 → `global`（注：tentative 标记仅 `memory_save` 支持，ADR 不支持）

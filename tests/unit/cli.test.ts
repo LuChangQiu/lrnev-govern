@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { dir as tmpDir, type DirectoryResult } from 'tmp-promise';
-import { writeFile } from 'node:fs/promises';
+import { writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { buildCli } from '../../src/cli/index.js';
@@ -319,6 +319,12 @@ describe('CLI', () => {
 
     const doctor = await run(['doctor']);
     expect(doctor.summary.errors).toBe(0);
+
+    // PROJECT/ARCHITECTURE 模板已 FILL 化（2026-09 steering 修订，init 产物不再含旧 TODO）——
+    // 显式构造存量旧 TODO 占位，验证 doctor --migrate-todos 迁移机制仍工作
+    const legacyReqPath = join(workspace.path, '.lrnev/scenes/01-user-management/specs/01-00-user-login/requirements.md');
+    const legacyReq = await readFile(legacyReqPath, 'utf-8');
+    await writeFile(legacyReqPath, `${legacyReq}\n- TODO\n`);
 
     const migrateTodos = await run(['doctor', '--migrate-todos']);
     expect(migrateTodos.ok).toBe(true);

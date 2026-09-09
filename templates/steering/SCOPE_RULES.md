@@ -49,8 +49,7 @@
 tentative: true
 ```
 
-表示"我不太确定 scope，用户后续可下沉"。
-M2 的 `lrnev_doctor` 会提示用户审核所有 tentative 记录。
+表示"我不太确定 scope，待用户后续确认/收敛"（`tentative` 标记仅 `memory_save` 支持；ADR/Errorbook 不支持该标记）。
 
 ## 写作提示：验收可测
 
@@ -61,18 +60,15 @@ requirements 的验收标准鼓励写成 EARS 风格，例如：
 
 ## 写作提示：frontmatter 日期
 
-文档 frontmatter 里的 `created` / `updated` 等日期由 lrnev 工具生成。手写正文时不要改 `created`，更新文档时用对应工具写入，不要手敲字面量日期。
+结构化状态与 spec/task 的 `created` / `updated` 由 lrnev 工具生成（`spec_update` 等回写）；**无工具的正文文档**（PROJECT / ARCHITECTURE / scene 三件套）由编辑者维护日期，不要伪造工具时间戳。
 
 ## 写作提示：Spec 版本号
 
-修改现有 Spec 内容时直接编辑当前 `requirements.md` / `design.md` / `tasks.md`，不要改 Spec 版本号。只有整体推翻重写并需要保留旧版对照时，才用 `spec_create --version` 开新版。
-## 提升 / 下沉（M2 实现）
+修改现有 Spec 内容时直接编辑当前 `requirements.md` / `design.md` / `tasks.md`，不要改 Spec 版本号。只有整体推翻重写并需要保留旧版对照时，才用 `spec_create --version` 开新版。**尚未实现（draft、无 completed task）的整体重写直接编辑即可，不开新版。**
 
-- `adr_promote(scope_adr_id)`：Scene → global
-- `adr_demote(global_adr_id, target_scope)`：global → Scene
-- `memory_promote` / `memory_demote` 同理
+## 提升 / 下沉（当前无工具）
 
-M1 阶段如需迁移，用户手工 mv 文件 + 改 frontmatter 即可（Markdown 友好）。
+目前**没有** `adr_promote` / `adr_demote` / `memory_promote` / `memory_demote` 工具（勿在建议/流程中引用它们）。scope 需要收敛（如某条记录实际应属 Scene 或全局）时：与用户确认后手工迁移（mv 文件 + 改 frontmatter，Markdown 友好）或重新保存。
 
 ## 速查表
 

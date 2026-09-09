@@ -20,11 +20,12 @@
 
 **优先用 L0/L1**（`?level=L0` 或 `?level=L1`），需要时再读 L2 全文，节省 token。
 
-## 2. 文件是真相，URI 是别名
+## 2. 文件是真相；工具管状态，正文直接编辑是正常路径
 
-- 所有数据真相存在 `.lrnev/` 目录下的 Markdown / JSON 文件
-- `context://` URI 是稳定的访问别名
-- 修改时直接调相应的 MCP 工具，不要绕过去手编文件（除非用户明确这么要求）
+- 所有数据真相存在 `.lrnev/` 目录下的 Markdown / JSON 文件；`context://` URI 是稳定的访问别名。
+- **结构化状态走工具**：spec/task 状态与创建走 `spec_update` / `task_update` / `spec_gate_check` / `spec_create` / `scene_create` / `adr_create` / `memory_save` / `error_record`——**不手改 tasks.md 的状态注释或 spec frontmatter 绕过状态机**（非法转换会被拒绝）。
+- **正文类文档没有更新工具，按流程直接编辑是正常路径**：PROJECT / ARCHITECTURE / scene 三件套，以及 requirements / design / tasks 正文（编辑 requirements/design 只限需求细化/文档维护，不能替代 task 登记）。大改后重新调 `summarize_save` 同步 L0/L1——**不手写 sidecar、不生成旧式 `.abstract.md`**。
+- 不手建/手删规范文件、不改文件命名；不确定先问用户或跑 `lrnev_doctor`。
 
 ## 3. 写入工具的 `ai_followup` 必须执行
 
@@ -46,27 +47,22 @@
 
 ## 5. 不确定就问，不要猜
 
+- 找相关文档/锚点 → `context_search`（治理文档全文检索）；看全景 → `project_status` / `governance_map`
 - 不知道用户偏好 → 调 `memory_search` 看是否有偏好记录
 - 不知道历史决策 → 调 `adr_list` 看 ADR
 - 不知道是否有同类错误 → 调 `error_search`
 - 都没找到 → 直接问用户
 
-## 6. Scope 默认 global
+## 6. Scope 判定看 SCOPE_RULES
 
-写 ADR / Memory / Errorbook 时，scope 默认 `global`（更显眼）。
-**仅在确认仅适用于某个 Scene 时**才用 `scene:{id}`。
-详见 `context://steering/scope`。
+写 ADR / Memory / Errorbook 时按 `context://steering/scope` 判定：默认 `global`（更显眼）；**仅在确认仅适用于某个 Scene 时**才用 `scene:{id}`。注：`adr_create` 的 scope 必填（不传即错），其余写入类默认 global；`tentative` 标记仅 `memory_save` 支持。
 
 ## 7. 状态机不能跨
 
-`task_update` 必须遵守 Task 状态机：
+状态变更必须走工具且遵守合法转换（非法转换会被拒绝并返回 `INVALID_STATUS_TRANSITION`）：
 
-```
-pending → in_progress → completed
-        → blocked       → failed → pending（可重试）
-```
-
-非法转换会被工具拒绝并返回 `INVALID_STATUS_TRANSITION`。
+- **Task**：`pending → in_progress | blocked`；`in_progress → completed | failed | blocked`；`blocked → pending | in_progress`；`failed → pending`（可重试）；`completed` 是终态——返工请新建 task。
+- **Spec**：`draft → ready → in-progress → completed → archived`；合法回退 `ready → draft`、`completed → in-progress`（维护增量）；**archived 是终态、只由用户明确决定**——AI 不自动归档，刚创建的 Spec 不得自我回退。
 
 ## 8. Gate 失败时先修，不要绕过
 
@@ -74,6 +70,8 @@ pending → in_progress → completed
 **不要**：
 - 假装通过
 - 把不达标的内容强行标记 completed
+
+任务全 completed 后跑 `spec_gate_check(gate=completion)`，通过再 `spec_update` 回填 completed（收口动作点）。
 
 ## 9. 用 lrnev_doctor 自检
 
@@ -84,3 +82,9 @@ pending → in_progress → completed
 - 是否有僵死的锁
 
 发现问题及时提醒用户。
+
+## 10. 用户决定优先；如实声明；文档维护时机
+
+- **用户决定优先**：以上皆为建议非强制——用户已明确要求（如"直接帮我建 Spec"）照做即可，即使与建议相左也不劝返。ai_followup 的【执行约束】是系统硬约束；【决策边界】指"未经用户确认不得改变其明确目标"。
+- **如实声明**：`scene_create` / `spec_create` / `task_create` / `assess_goal` 可附 `decision_context`（source: `client_asserted`）说明本次调用照用户的什么组织决定来——用户没说过就不编造，不传 = 未声明。
+- **文档维护时机**：PROJECT.md = init 补全一次 + 项目定位/阶段变化（用户确认后更新）；ARCHITECTURE.md = 跨 Scene 架构约束/技术栈变化（与 global ADR 联动）；scene.md = Scene 边界/intent 变化；scene architecture.md = 新跨 Spec 共享约束出现；**roadmap.md = Spec 新建/收口/计划变化时同步**；所有文档大改后重新 `summarize_save`（不手写 sidecar）。

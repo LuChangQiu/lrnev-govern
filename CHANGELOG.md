@@ -2,6 +2,19 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [SemVer 2.0](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Fixed
+
+- **steering / init 模板按 3.0.0 语义全面修订**（此前自 1.0.0 起未回流，1.1~3.0 演进缺失/过时）：
+  - CORE_PRINCIPLES：§2 改为"工具管结构化状态 + 无工具文档正文直接编辑是正常路径"（原"禁止手编"教条让 AI 不敢更新 PROJECT/roadmap 等无工具文档）；§5 补 context_search/governance_map；§7 换真实 Task/Spec 状态机（原图 blocked→failed 非法）；新增 §10（用户决定优先 + decision_context 如实声明 + 文档维护时机——roadmap/architecture/PROJECT 何时更新）；
+  - SCOPE_RULES：删除不存在的 adr_promote/demote/memory_promote/memory_demote 承诺与虚假"M2 doctor 审核 tentative"；tentative 标记限定 memory_save；日期/版本号条款限缩；
+  - ADR_TRIGGERS：触发 2/4/5 明确"与用户确认后调 adr_create"（与 CORE §4 一致）；触发 3 改用 `supersedes` 入参（旧 ADR 状态读时派生，无手改 frontmatter 流程）；
+  - scene.md.tmpl：摘要文件名修正为按文档键控的 `.scene.abstract.md` / `.scene.overview.md`（旧名 `.abstract.md` 是 doctor 要删除的 LEGACY_SUMMARY，照做会生成→删除死循环）；
+  - scene architecture/roadmap 与 project 两模板：补"维护时机"说明尾注；PROJECT/ARCHITECTURE 裸 TODO 统一为 `<!-- FILL: -->`。
+  - 模板为 write-if-missing：**存量工作区刷新** = 删除 `.lrnev/steering/*.md`（及待更新的 project/scene 文档）后重跑 `lrnev init` 自动补新模板，或按 `templates/` 手工覆盖。
+- **steering 送达**（连接注入 + 常驻模板补指针）见上一条目；本条目为内容修订。
+
 ## [3.0.0] - 2026-09-07
 
 lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-standardization` 承载，T-027 真实客户端双 SHA 三客户端对照驱动）：MCP 响应从"JSON 文本 + 无 schema"重构为 **structuredContent canonical 信封 + outputSchema 声明 + 逐工具渲染文本**；引导从散落文案收敛为**五角色语义体系**；新增 `decision_context` 客户端声明通道与 `--profile` 工具面分层。**破坏性变更：text 通道内容格式**（详见升级指南）；其余向后兼容（42 工具默认全量、数据文件格式不变）。

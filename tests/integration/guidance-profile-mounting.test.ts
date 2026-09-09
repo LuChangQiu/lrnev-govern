@@ -87,6 +87,8 @@ async function scanLrnevForMarker(root: string, marker: string): Promise<string[
       const full = path.join(dir, child);
       const stat = await fs.stat(full);
       if (stat.isDirectory()) {
+        // steering/ 是引导文档（init 模板，教学性提及协议词），非运行时持久化声明，不参与哨兵
+        if (child === 'steering') continue;
         await walk(full);
       } else if (stat.size < 2_000_000) {
         try {

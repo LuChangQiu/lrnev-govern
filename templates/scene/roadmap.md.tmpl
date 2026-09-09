@@ -26,3 +26,11 @@ created: '{{date}}'
 ## 待评估
 
 - <!-- FILL: 路线图条目或无 -->
+
+---
+
+## 维护说明
+
+- **更新时机（与 spec 状态跃迁联动）**：新 Spec 立项 → 加入"计划中/待评估"；Spec ready 后拆任务实施 → 移入"进行中"；Spec 收口（completion gate 通过 + spec_update completed）→ 移入"已完成"并更新"当前阶段"；方向被用户否决/改变 → 同步移除或改写。**每次 spec 状态跃迁后检查本路线图是否需同步**（通常与 spec_update 同时进行）。
+- 无专用更新工具：直接编辑正文（遵守 steering/core §2）。
+- 大改后重新 `summarize_save`（若生成过摘要）。

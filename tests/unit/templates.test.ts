@@ -108,7 +108,8 @@ describe('renderTemplate', () => {
     expect(out).toContain('Scope（范围）判定规则');
     expect(out).toContain('EARS');
     expect(out).toContain('不是 gate 硬规则');
-    expect(out).toContain('frontmatter 里的 `created` / `updated` 等日期由 lrnev 工具生成');
+    expect(out).toContain('frontmatter 日期');
+    expect(out).toContain('结构化状态与 spec/task 的 `created` / `updated` 由 lrnev 工具生成');
     expect(out).toContain('修改现有 Spec 内容时直接编辑当前');
     expect(out).toContain('不要改 Spec 版本号');
     expect(out).toContain('spec_create --version');

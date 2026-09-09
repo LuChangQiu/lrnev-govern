@@ -53,6 +53,7 @@ async function lrnevEntries(root: string): Promise<string[]> {
       const full = path.join(dir, child);
       const stat = await fs.stat(full);
       if (stat.isDirectory()) {
+        if (child === 'steering') continue; // 引导文档非持久化声明
         await walk(full);
       } else {
         entries.push(path.relative(lrnevDir, full).replace(/\\/g, '/'));
@@ -78,6 +79,7 @@ async function scanLrnevForMarker(root: string, marker: string): Promise<string[
       const full = path.join(dir, child);
       const stat = await fs.stat(full);
       if (stat.isDirectory()) {
+        if (child === 'steering') continue; // 引导文档非持久化声明
         await walk(full);
       } else if (stat.size < 2_000_000) {
         try {
