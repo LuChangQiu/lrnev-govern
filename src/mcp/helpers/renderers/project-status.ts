@@ -36,7 +36,7 @@ export const projectStatusRenderer: ModelVisibleRenderer = {
       lines.push('');
     } else {
       for (const scene of data.scenes) {
-        lines.push(`- **${scene.id}** (${scene.name}): ${scene.status} | ${scene.spec_count} specs`);
+        lines.push(`- **${scene.id}** (${scene.name}) — ${scene.spec_count} specs`);
       }
       lines.push('');
     }

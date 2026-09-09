@@ -7,12 +7,13 @@ import type { Scene } from '../../../types/scene.js';
  *
  * MVC required 字段（D-04 选择/歧义类）:
  * - id/number/name（身份）
- * - status
  * - intent（如有）
  * - spec_count（统计）
  * - path
  * - broken（如损坏）
  * - ai_followup（如有）
+ *
+ * 注：scene 无状态机，不展示 status（旧版模板 status: draft 已于 2026-09 移除）
  */
 export const sceneGetRenderer: ModelVisibleRenderer<Scene> = {
   render(payload: LrnevToolPayload<Scene>): string {
@@ -20,14 +21,13 @@ export const sceneGetRenderer: ModelVisibleRenderer<Scene> = {
       return 'Scene 读取失败';
     }
 
-    const { id, number, name, status, intent, spec_count, path, broken } = payload.data;
+    const { id, number, name, intent, spec_count, path, broken } = payload.data;
     const lines: string[] = [];
 
     lines.push(`# Scene ${id}`);
     lines.push('');
     lines.push(`**序号**: ${number}`);
     lines.push(`**名称**: ${name}`);
-    lines.push(`**状态**: ${status}`);
     lines.push(`**Spec 数量**: ${spec_count}`);
     lines.push(`**路径**: ${path}`);
     lines.push('');

@@ -66,9 +66,8 @@ describe('M2 第 4 批 A 组渲染器', () => {
 
       const content = governanceMapRenderer.render(payload);
 
-      // Required 字段：scene, spec, status
+      // Required 字段：scene（无状态机，不展示假状态）、spec status
       expect(content).toContain('Scene: 01-auth - Authentication');
-      expect(content).toContain('状态: active');
       expect(content).toContain('意图: User authentication system');
       expect(content).toContain('Spec: 01-01-login - Login [P0]');
       expect(content).toContain('状态: completed');
@@ -461,8 +460,8 @@ describe('M2 第 4 批 A 组渲染器', () => {
 
       const content = projectStatusRenderer.render(payload);
 
-      // Scenes 格式：**id** (name): status | N specs
-      expect(content).toContain('**01-auth** (Authentication): active | 2 specs');
+      // Scenes 格式：**id** (name) — N specs（scene 无状态机，不展示假状态）
+      expect(content).toContain('**01-auth** (Authentication) — 2 specs');
 
       // Active tasks（完整）
       expect(content).toContain('Active Tasks');

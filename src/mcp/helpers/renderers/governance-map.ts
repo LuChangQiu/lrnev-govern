@@ -7,7 +7,7 @@ import type { GovernanceMapResult } from '../../../types/governance-map.js';
  *
  * D-04 list/inspection 类 required 字段：
  * - 完整层级：scene→spec（status/L0 标题）→anchor（F-/D-/T- 锚点标题）
- * - 每个条目的决策字段（status）
+ * - spec 条目的决策字段（status）；scene 无状态机（status 已从模板移除），不展示假状态
  * - 层级关系（scene→spec→anchors）
  *
  * 职责：投影 canonical payload 已有数据，不创作 guidance 文本
@@ -29,7 +29,6 @@ export const governanceMapRenderer: ModelVisibleRenderer = {
     // 完整层级：scene→spec→anchors
     for (const scene of data.scenes) {
       lines.push(`## Scene: ${scene.scene} - ${scene.name}`);
-      lines.push(`   状态: ${scene.status}`);
       if (scene.intent) {
         lines.push(`   意图: ${scene.intent}`);
       }

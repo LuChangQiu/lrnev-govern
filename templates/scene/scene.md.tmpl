@@ -2,7 +2,8 @@
 id: '{{id}}'
 number: {{number}}
 name: '{{name}}'
-status: draft
+# Scene 无状态机：不写 status 字段（旧版模板的 status: draft 为历史占位，已于 2026-09 移除；
+# 读方对存量文件的兜底值为 'draft'，仅用于兼容，不代表任何流转语义）
 created: '{{date}}'
 intent: '{{intent}}'
 ---
