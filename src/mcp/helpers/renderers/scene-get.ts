@@ -13,7 +13,7 @@ import type { Scene } from '../../../types/scene.js';
  * - broken（如损坏）
  * - ai_followup（如有）
  *
- * 注：scene 无状态机，不展示 status（旧版模板 status: draft 已于 2026-09 移除）
+ * 注：scene 无状态机，不展示 status
  */
 export const sceneGetRenderer: ModelVisibleRenderer<Scene> = {
   render(payload: LrnevToolPayload<Scene>): string {
