@@ -21,7 +21,7 @@ npm run build
 # 1. 登录 npm（需要 npm 账号，首次会提示输入用户名/密码/邮箱）
 npm login
 
-# 2. 发布（prepublishOnly 钩子会自动 clean + build + test）
+# 2. 发布（prepublishOnly 钩子会自动 clean + typecheck + typecheck:test + test + build）
 npm publish
 
 # 3. 验证安装

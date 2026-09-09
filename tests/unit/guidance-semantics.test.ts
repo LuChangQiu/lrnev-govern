@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WORKFLOW_OVERVIEW, TOOL_DESCRIPTIONS } from '../../src/mcp/guidance.js';
 import { SPEC_REWRITE_GUIDANCE } from '../../src/core/SpecGuidance.js';
-import { USER_DECISION_PRIORITY_CLAUSE } from '../../src/core/guidance-semantics.js';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 

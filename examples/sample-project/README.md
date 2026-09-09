@@ -254,7 +254,7 @@ lrnev error record \
 ```
 .lrnev/
 ├── PROJECT.md · ARCHITECTURE.md     # 项目定位与约定 / 全局架构约束
-├── steering/                         # 给 AI 的行为指引（原则、范围、ADR/memory 触发条件）
+├── steering/                         # 给 AI 的行为指引（原则、范围、ADR/memory/文档维护触发条件）
 ├── scenes/00-default/
 │   ├── scene.md                      # 默认 Scene
 │   └── specs/01-00-user-login/

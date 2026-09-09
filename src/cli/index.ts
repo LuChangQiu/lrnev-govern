@@ -24,14 +24,14 @@ import { ErrorbookManager } from '../core/ErrorbookManager.js';
 import { MemoryManager } from '../core/MemoryManager.js';
 import { SessionCommit } from '../core/SessionCommit.js';
 import { Doctor } from '../core/Doctor.js';
-import { getHookManager, HookManager } from '../core/HookManager.js';
+import { getHookManager } from '../core/HookManager.js';
 import { ProjectStatus } from '../core/ProjectStatus.js';
 import { GovernanceMap } from '../core/GovernanceMap.js';
 import { GovernanceReport } from '../core/GovernanceReport.js';
 import type { GovernanceReportResult } from '../types/governance-report.js';
 import { buildGateFollowup } from '../core/GateGuidance.js';
 import { AgentRegistry } from '../core/AgentRegistry.js';
-import { MemoryCategory, type MemoryCandidate, type SessionCommitInput } from '../types/memory.js';
+import type { MemoryCategory, MemoryCandidate, SessionCommitInput } from '../types/memory.js';
 import { ErrorCode, LrnevError, isLrnevError } from '../shared/errors.js';
 import { buildGuide, GUIDE_TOPIC_VALUES, type GuideTopic } from '../mcp/guidance.js';
 import type { Scope } from '../types/response.js';
@@ -623,7 +623,7 @@ function buildReportCommand(program: Command, options: BuildCliOptions): Command
 }
 
 /** 人类可读的 text 体检单（CLI 首个非 JSON 输出）。 */
-export function renderReportText(data: GovernanceReportResult): string {
+function renderReportText(data: GovernanceReportResult): string {
   const L: string[] = [];
   const sub = (title: string): string => `━━ ${title} ${'━'.repeat(Math.max(4, 46 - title.length))}`;
   const date = data.generated_at.slice(0, 10);
@@ -726,7 +726,7 @@ export function renderReportText(data: GovernanceReportResult): string {
 }
 
 /** markdown 体检单（供 --md，贴 PR / release notes 用）。 */
-export function renderReportMarkdown(data: GovernanceReportResult): string {
+function renderReportMarkdown(data: GovernanceReportResult): string {
   const L: string[] = [];
   const scope = data.scope === 'all' ? '全部 scene' : data.scope;
   L.push(`# lrnev 治理体检 · ${scope}`);
@@ -978,5 +978,3 @@ function isCommandActionTail(value: unknown): value is { opts: () => Record<stri
 function isGuideTopic(value: string): value is GuideTopic {
   return (GUIDE_TOPIC_VALUES as readonly string[]).includes(value);
 }
-
-void MemoryCategory;

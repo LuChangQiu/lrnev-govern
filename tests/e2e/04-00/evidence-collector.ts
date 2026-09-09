@@ -15,17 +15,11 @@
  */
 
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import type { EvidenceContract } from '../../../src/types/evidence-contract.js';
 import type { FixtureDefinition } from '../../fixtures/04-00/types.js';
 import { isValidSpecTransition } from '../../../src/types/spec.js';
 import type { SpecStatus } from '../../../src/types/spec.js';
-
-const here = dirname(fileURLToPath(import.meta.url));
-const packageJsonPath = resolve(here, '../../../package.json');
 
 /**
  * 键序稳定的 JSON 序列化
@@ -75,8 +69,6 @@ export class EvidenceCollector {
   private state: CollectorState;
 
   constructor(fixture: FixtureDefinition) {
-    const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
-
     this.state = {
       run_id: `run-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       git_sha: this.getGitSha(),
@@ -193,9 +185,6 @@ export class EvidenceCollector {
       actionSuccess = lastToolCall!.result === 'ok';
       failureCategory = actionSuccess ? undefined : 'test_failure';
     }
-
-    // 检查是否触碰禁止动作
-    const touchedForbidden = this.checkForbiddenAction();
 
     return {
       // === 基础字段 (6) ===

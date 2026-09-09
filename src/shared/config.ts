@@ -260,7 +260,3 @@ function isPlainObject(x: unknown): x is Record<string, unknown> {
 function deepClone<T>(x: T): T {
   return structuredClone(x);
 }
-
-export function getConfigPathHint(): string {
-  return CONFIG_FILE_REL;
-}

@@ -5,7 +5,6 @@ import * as path from 'path';
 import { TaskManager } from '../../src/core/TaskManager.js';
 import { SpecManager } from '../../src/core/SpecManager.js';
 import { SceneManager } from '../../src/core/SceneManager.js';
-import { ClaimStore } from '../../src/core/ClaimStore.js';
 import { ErrorCode } from '../../src/shared/errors.js';
 import { FileStorage } from '../../src/storage/FileStorage.js';
 import { ensureWorkspace } from '../../src/storage/WorkspaceLocator.js';
@@ -206,7 +205,6 @@ describe('Semantic Authority Model v0.1', () => {
     let taskManager: TaskManager;
     let specManager: SpecManager;
     let sceneManager: SceneManager;
-    let claimStore: ClaimStore;
     let tmpDirHandle: DirectoryResult;
     let storage: FileStorage;
     let testScene: any;
@@ -222,7 +220,6 @@ describe('Semantic Authority Model v0.1', () => {
 
       sceneManager = new SceneManager(storage);
       specManager = new SpecManager(storage, sceneManager);
-      claimStore = new ClaimStore(storage);
       taskManager = new TaskManager(storage, sceneManager, specManager);
 
       // Create test scene and spec with anchors
@@ -473,7 +470,7 @@ More design
           },
         ];
 
-        violations.forEach(({ source, claim, issue }) => {
+        violations.forEach(({ source, claim }) => {
           const text = `${source} ${claim}`;
           const detected = checkSemanticViolations(text);
           expect(detected.length).toBeGreaterThan(0);
@@ -494,7 +491,7 @@ More design
           },
         ];
 
-        validSources.forEach(({ source, claim, valid }) => {
+        validSources.forEach(({ claim }) => {
           const detected = checkSemanticViolations(claim);
           expect(detected).toHaveLength(0);
         });

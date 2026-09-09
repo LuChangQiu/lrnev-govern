@@ -49,6 +49,8 @@ cd your-project
 lrnev init                  # 生成 .lrnev/（Markdown 档案，可 git add .lrnev/ 版本管理；不传 --project-name 则默认用当前文件夹名）
 ```
 
+> 交互式终端里 `lrnev init` 会额外问一句"是否在项目根生成 AGENTS.md"（指针式入口，给 AI 会话指向 `.lrnev/steering/` 行为指引；默认不生成）。`--with-agents-md` 跳过询问、强制生成——脚本/CI 用这个 flag。已存在 AGENTS.md 时不覆盖。
+
 ### 2.2 接入 AI 客户端（MCP）
 
 在客户端的 MCP 配置里加一段：
@@ -113,7 +115,7 @@ lrnev report                                                                 # 9
 ```text
 .lrnev/
 ├── PROJECT.md · ARCHITECTURE.md    # 项目定位与团队约定 / 全局架构约束
-├── steering/                       # 给 AI 的行为指引（原则、范围、ADR/memory 触发条件）
+├── steering/                       # 给 AI 的行为指引（原则、范围、ADR/memory/文档维护触发条件）
 ├── scenes/<NN-name>/               # 业务域；00-default 是不指定 scene 时的兜底
 │   └── specs/<NN-VV-name>/
 │       ├── requirements.md         # L0/L1/L2 分层 + #### F-xx 需求与验收
@@ -124,6 +126,7 @@ lrnev report                                                                 # 9
 ├── memory/                         # 项目记忆（约定/偏好/模式等）
 ├── config/hooks.json               # Hooks 配置
 └── agents/ · runtime/ · locks/ · state/   # 运行态（进程生命周期相关，可忽略并出库不跟踪）
+# steering/ · config/ 由 lrnev init 生成，属运行副本：出库不跟踪（steering/ 真源在 templates/steering/）
 ```
 
 ### 治理档案层：项目记忆由文件承载
@@ -241,7 +244,7 @@ lrnev doctor --migrate-todos              # 工作区结构自检（含旧 TODO 
 ```bash
 npm install && npm run build     # tsc 编译到 dist/
 npm run typecheck                # 类型检查（发布门禁：0 错误）
-npm test                         # 全量测试（3.0.0 基准 1079 条）
+npm test                         # 全量测试（2026-09-10 基准 1070 条 = unit 949 + integration/e2e 121，以 npm test 实跑为准）
 npm run dev:mcp                  # tsx watch 热重载跑 MCP（入口 src/mcp/dev-entry.ts）
 npm run dev:inspect              # MCP Inspector 图形调试（同 dev-entry）
 node bin/lrnev.mjs init          # 本地跑已构建 CLI（需先 npm run build；等价全局 lrnev）

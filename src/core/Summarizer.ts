@@ -107,7 +107,7 @@ function normalizeSummary(content: string): string {
 
 /**
  * 摘要读取契约（01-00 F-03 / 02-00 F-01 共用）：**sidecar 优先、requirements 内联兜底**。
- * 即 summarize_save 产出的 `.requirements.abstract.md` / `.overview.md` 是可更新摘要源；
+ * 即 summarize_save 产出的 `.requirements.abstract.md` / `.requirements.overview.md` 是可更新摘要源；
  * 没有 sidecar 时，回退读 requirements.md 里的 `## L0 摘要` / `## L1 概览` 段。
  * 不做迁移、不假装单一物理存储——只把读取优先级定成系统契约。返回原始文本（不截断），由调用方按场景截断。
  */
@@ -185,7 +185,7 @@ async function readInlineLevel(
  * 抽 requirements 内联 `## L0 摘要` / `## L1 概览` 段的真实正文（跳过空行与模板哨兵），到下一个标题为止。
  * 只按精确模板哨兵判占位（HTML 注释、整行全角括号占位）——不按"含 FILL 单词"过滤，避免误伤真实摘要。
  */
-export function extractInlineSection(content: string, level: 'L0' | 'L1'): string | undefined {
+function extractInlineSection(content: string, level: 'L0' | 'L1'): string | undefined {
   const lines = content.split(/\r?\n/);
   const headRe = new RegExp(`^##\\s*${level}\\b`);
   let inSection = false;

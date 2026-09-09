@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { dir as tmpDir, type DirectoryResult } from 'tmp-promise';
+import { dir as tmpDir } from 'tmp-promise';
 
 import { FileStorage } from '../../src/storage/FileStorage.js';
 import { DEFAULT_SCENE_ID } from '../../src/core/SceneManager.js';

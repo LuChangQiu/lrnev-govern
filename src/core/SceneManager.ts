@@ -13,7 +13,7 @@
  *   - 删除最高序号后会复用该序号；引用依赖 name/路径，序号复用可接受
  */
 
-import { parseFrontmatter, serializeFrontmatter } from '../storage/FrontmatterCodec.js';
+import { parseFrontmatter } from '../storage/FrontmatterCodec.js';
 import { FileStorage } from '../storage/FileStorage.js';
 import { LrnevError, ErrorCode } from '../shared/errors.js';
 import { loadConfig } from '../shared/config.js';
@@ -460,7 +460,5 @@ function makeBrokenScene(fs: FileStorage, id: string, scenePath: string, err: un
   };
 }
 
-// 让生产代码也能复用这些工具函数
-export { formatSceneId, extractNumber, extractName, validateName };
-// 为序列化骨架预留（未用，suppress lint）
-void serializeFrontmatter;
+// 纯工具函数只服务本文件；formatSceneId 同时被 tests 引用，故保留导出。
+export { formatSceneId };

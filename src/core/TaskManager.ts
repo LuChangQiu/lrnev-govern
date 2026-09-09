@@ -32,6 +32,7 @@
 import { FileStorage } from '../storage/FileStorage.js';
 import { LrnevError, ErrorCode, type BatchErrorDetail } from '../shared/errors.js';
 import { loadConfig } from '../shared/config.js';
+import { sanitizePathSegment } from '../shared/text.js';
 import { SceneManager } from './SceneManager.js';
 import { SpecManager } from './SpecManager.js';
 import { appendHookWarnings, getHookManager } from './HookManager.js';
@@ -44,7 +45,6 @@ import type {
   TaskStatus,
   ReadableTask,
   CreateTaskInput,
-  CreateManyTaskEntry,
   CreateManyTasksInput,
   CreateManyTasksResult,
   UpdateTaskInput,
@@ -59,9 +59,6 @@ import type {
   TaskClaimReleaseResult,
   TaskClaimResult,
 } from '../types/claim.js';
-
-/** 嵌入 Task 标题行的元数据注释正则 */
-const META_REGEX = /<!--\s*lrnev-task:\s*([^>]*?)\s*-->/;
 
 /** Task 标题行格式：### T-001 标题 <!-- lrnev-task: ... -->（meta 注释必填，作为"真 lrnev Task"的标记） */
 const TASK_HEADING_LINE_RE = /^###\s+T-\d{3,}\s/;
@@ -772,7 +769,7 @@ export class TaskManager {
     // 边界：lrnev 只记录父子任务并串行化 tasks.md 写入；
     // 不执行客户端工作，也不裁决源码文件冲突。
     return this.fs.withDirectoryLock(
-      `.lrnev/locks/tasks-${safeId(sceneId)}-${safeId(specId)}.lockdir`,
+      `.lrnev/locks/tasks-${sanitizePathSegment(sceneId)}-${sanitizePathSegment(specId)}.lockdir`,
       fn,
     );
   }
@@ -834,7 +831,7 @@ type TaskUpdateClaimResult =
  * 返回 ids 中不在 pool 内的项，用于引用存在性硬校验。
  * depends_on（task id 池）与 S6 的 validates F-xx/D-xx（文档锚点池）复用此谓词，口径一致。
  */
-export function findMissingReferences(ids: string[], pool: Set<string>): string[] {
+function findMissingReferences(ids: string[], pool: Set<string>): string[] {
   return ids.filter((id) => !pool.has(id));
 }
 
@@ -848,7 +845,7 @@ export function extractAnchorPool(content: string, prefix: 'F' | 'D'): Set<strin
 }
 
 /** validates 锚点校验的单个问题：code + 可直接抛出的 message（field 由调用方补）。 */
-export interface AnchorValidationIssue {
+interface AnchorValidationIssue {
   code: ErrorCode;
   message: string;
   hint?: string;
@@ -858,7 +855,7 @@ export interface AnchorValidationIssue {
  * validates 锚点校验判据（纯函数）：废弃格式 → 非法格式 → requirements 缺锚点 → design 缺锚点。
  * 单条 create（抛第一类）与批量 createMany（收集全部）共用本函数，保证两条路径口径一致。
  */
-export function validateAnchorsAgainstPools(
+function validateAnchorsAgainstPools(
   validates: string[],
   fPool: Set<string>,
   dPool: Set<string>,
@@ -937,12 +934,12 @@ export function extractAnchorSections(content: string, prefix: 'F' | 'D'): Map<s
 }
 
 /** F-03 锚点回填截断上限（保守起始值，真机用后再调）：单段字符数 / 总量字符数。 */
-export const ANCHOR_CONTEXT_SECTION_CAP = 400;
-export const ANCHOR_CONTEXT_TOTAL_CAP = 1200;
+const ANCHOR_CONTEXT_SECTION_CAP = 400;
+const ANCHOR_CONTEXT_TOTAL_CAP = 1200;
 
 /** F-03 降级档 summary_context 截断：L0 短、L1 概览也要控量（L1 模板预算约 2000 token，全塞会撑爆启动上下文）。 */
-export const SUMMARY_CONTEXT_L0_CAP = 200;
-export const SUMMARY_CONTEXT_L1_CAP = 600;
+const SUMMARY_CONTEXT_L0_CAP = 200;
+const SUMMARY_CONTEXT_L1_CAP = 600;
 
 /**
  * 按上限截断文本，超出标记 truncated。
@@ -1102,7 +1099,7 @@ export function renderTaskBlock(task: Task): string {
  *
  * 实现：先按 Task ID 找到原标题行 + 下一块边界，替换整段。
  */
-export function updateTaskInMarkdown(content: string, task: Task): string {
+function updateTaskInMarkdown(content: string, task: Task): string {
   const lines = content.split('\n');
   const range = findTaskBlockRange(lines, task.id);
   if (!range) {
@@ -1362,16 +1359,12 @@ function findCompletedParentReadyForClose(task: Task, tasks: Task[]): string | u
  * 顶层任务需命中任一信号（验收条数多 / 描述较长 / 已有子任务 / 多锚点）才提，
  * 避免“改个文案”级小任务也被劝拆的噪音。
  */
-export function shouldSuggestParallelSplit(task: Task, all: Task[]): boolean {
+function shouldSuggestParallelSplit(task: Task, all: Task[]): boolean {
   if (task.parent) return false;
   return (task.acceptance?.length ?? 0) >= 3
     || (task.description?.length ?? 0) >= 80
     || (task.validates?.length ?? 0) >= 2
     || all.some((t) => t.parent === task.id);
-}
-
-function safeId(value: string): string {
-  return value.replace(/[^a-zA-Z0-9._-]+/g, '_');
 }
 
 function statusTransitionHint(status: TaskStatus): string {
@@ -1587,6 +1580,3 @@ async function hasParallelClaimContext(claims: ClaimStore, result: TaskClaimResu
 function hasDeclaredTouchesFiles(claim: TaskClaimResult['claim']): boolean {
   return (claim.touches_files?.length ?? 0) > 0;
 }
-
-// 兼容 import：未使用但保留可观测
-void META_REGEX;

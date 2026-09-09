@@ -98,18 +98,6 @@ export const QueryMetaSchema = z.object({
 });
 
 /**
- * 基础响应信封 schema（不含 data）
- */
-const BaseEnvelopeSchema = z.object({
-  response_version: ResponseVersionSchema,
-  ok: z.boolean(),
-  errors: z.array(ErrorInfoSchema).optional(),
-  ai_followup: AiFollowupSchema.optional(),
-  anchor_context: z.array(AnchorContextSchema).optional(),
-  summary_context: SummaryContextSchema.optional(),
-});
-
-/**
  * 创建完整的工具响应 schema
  *
  * @param dataSchema 业务数据的 zod schema
@@ -137,35 +125,6 @@ export function createToolOutputSchema<T extends z.ZodTypeAny>(dataSchema: T) {
  */
 
 /**
- * 纯确认类工具的 data schema（无业务数据或仅返回简单确认）
- */
-export const SimpleConfirmationDataSchema = z.object({
-  message: z.string().optional(),
-});
-
-/**
- * 写入/状态变更类工具的通用字段
- */
-export const WriteOperationDataSchema = z.object({
-  id: z.string(), // 资源标识
-  status: z.string().optional(), // 当前状态
-  path: z.string().optional(), // 文件路径
-  message: z.string().optional(), // 操作结果描述
-});
-
-/**
- * 列表/搜索类工具的通用字段
- */
-export const ListOperationDataSchema = z.object({
-  items: z.array(z.unknown()), // 条目列表（具体结构由各工具定义）
-  total_count: z.number().optional(), // 总数（如果已知）
-  has_more: z.boolean().optional(), // 是否有更多数据
-  truncated: z.boolean().optional(), // 是否被截断
-  truncation_reason: z.string().optional(), // 截断原因
-  next_query_hint: z.string().optional(), // 继续查询的提示
-});
-
-/**
  * Gate/Validation 类工具的通用字段
  */
 export const ValidationDataSchema = z.object({
@@ -182,61 +141,6 @@ export const ValidationDataSchema = z.object({
   gate: z.string().optional(), // gate 类型（creation/ready/completion）
   can_proceed: z.boolean().optional(), // 是否可以继续操作
 });
-
-/**
- * 选择/歧义类工具的通用字段
- */
-export const AmbiguityDataSchema = z.object({
-  candidates: z.array(
-    z.object({
-      id: z.string(),
-      display: z.string(),
-      context: z.string().optional(),
-    }),
-  ),
-  retry_hint: z.string(),
-});
-
-/**
- * 错误响应的 schema（ok=false 时）
- *
- * 注意：errors 必填且至少包含一个错误
- */
-export const ErrorResponseSchema = z.object({
-  response_version: ResponseVersionSchema,
-  ok: z.literal(false),
-  errors: z.array(ErrorInfoSchema).min(1),
-  data: z.unknown().optional(),
-  ai_followup: AiFollowupSchema.optional(),
-  anchor_context: z.array(AnchorContextSchema).optional(),
-  summary_context: SummaryContextSchema.optional(),
-});
-
-/**
- * 成功响应的 schema 工厂（ok=true 时）
- *
- * @param dataSchema 业务数据的 zod schema
- */
-export function createSuccessResponseSchema<T extends z.ZodTypeAny>(dataSchema: T) {
-  return z.object({
-    response_version: ResponseVersionSchema,
-    ok: z.literal(true),
-    data: dataSchema,
-    errors: z.never().optional(), // 成功时不应有 errors
-    ai_followup: AiFollowupSchema.optional(),
-    anchor_context: z.array(AnchorContextSchema).optional(),
-    summary_context: SummaryContextSchema.optional(),
-  });
-}
-
-/**
- * 通用响应 schema（成功或失败）
- *
- * @param dataSchema 业务数据的 zod schema
- */
-export function createResponseSchema<T extends z.ZodTypeAny>(dataSchema: T) {
-  return z.union([createSuccessResponseSchema(dataSchema), ErrorResponseSchema]);
-}
 
 /**
  * Scene data schema
@@ -520,21 +424,6 @@ export const ErrorEntryDataSchema = z.object({
     verification: z.string().optional(),
     references: z.array(z.string()).optional(),
   }),
-});
-
-/**
- * Hook data schema
- */
-export const HookDataSchema = z.object({
-  name: z.string(),
-  event: z.string(),
-  command: z.string(),
-  enabled: z.boolean(),
-  last_run: z.object({
-    at: z.string(),
-    status: z.string(),
-    duration_ms: z.number().optional(),
-  }).optional(),
 });
 
 /**
@@ -937,26 +826,3 @@ export const HookLogEntrySchema = z.object({
   stdout_tail: z.string().optional(),
   stderr_tail: z.string().optional(),
 });
-
-// 导出常用的完整响应 schema
-export const SimpleConfirmationResponseSchema = createResponseSchema(SimpleConfirmationDataSchema);
-export const WriteOperationResponseSchema = createResponseSchema(WriteOperationDataSchema);
-export const ListOperationResponseSchema = createResponseSchema(ListOperationDataSchema);
-export const ValidationResponseSchema = createResponseSchema(ValidationDataSchema);
-export const AmbiguityResponseSchema = createResponseSchema(AmbiguityDataSchema);
-
-// 导出资源特定的响应 schema
-export const SceneResponseSchema = createResponseSchema(SceneDataSchema);
-export const SpecResponseSchema = createResponseSchema(SpecDataSchema);
-export const TaskResponseSchema = createResponseSchema(TaskDataSchema);
-export const ADRResponseSchema = createResponseSchema(ADRDataSchema);
-export const AgentResponseSchema = createResponseSchema(AgentDataSchema);
-export const MemoryResponseSchema = createResponseSchema(MemoryDataSchema);
-export const ErrorEntryResponseSchema = createResponseSchema(ErrorEntryDataSchema);
-export const HookResponseSchema = createResponseSchema(HookDataSchema);
-export const GoalAssessmentResponseSchema = createResponseSchema(GoalAssessmentDataSchema);
-export const ProjectStatusResponseSchema = createResponseSchema(ProjectStatusDataSchema);
-export const GovernanceMapResponseSchema = createResponseSchema(GovernanceMapDataSchema);
-export const GovernanceReportResponseSchema = createResponseSchema(GovernanceReportDataSchema);
-export const GuideResponseSchema = createResponseSchema(GuideDataSchema);
-export const DoctorResponseSchema = createResponseSchema(DoctorResultSchema);

@@ -305,12 +305,6 @@ describe('GateRunner', () => {
     expect(result.checks.find((check) => check.name === 'tasks_readable')?.passed).toBe(false);
   });
 
-  async function markSceneActive(): Promise<void> {
-    const path = `.lrnev/scenes/${sceneId}/scene.md`;
-    const content = await fs.read(path);
-    await fs.write(path, content.replace('status: draft', 'status: active'));
-  }
-
   async function writeReadyRequirements(
     opts: {
       acceptanceText?: string;

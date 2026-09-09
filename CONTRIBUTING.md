@@ -34,7 +34,7 @@ node bin/lrnev-mcp.mjs
 
 ## 代码规范
 
-- **文件命名**：core/storage 层用 PascalCase（如 `ClaimStore.ts`）；types/shared/mcp/cli 用小写（如 `errors.ts`/`config.ts`）。
+- **文件命名**：core/storage 层用 PascalCase（如 `ClaimStore.ts`）；types/shared/mcp/cli 用小写（如 `errors.ts`/`config.ts`）。例外：`src/core/decision-context.ts`、`src/core/guidance-semantics.ts` 是 05-00 引入的 kebab-case 纯函数模块（历史产物，治理档案引用其文件名，**保持原名不改**）；新文件的纯函数模块按所在层规则命名。
 - **类型**：禁止 `any`/`as any`，该标的类型都要标。
 - **错误处理**：统一走 `LrnevError` + `ErrorCode`，带可操作 `hint`；禁止裸 `throw new Error()`。
 - **配置**：可调阈值（超时/TTL/条数/深度）进 `src/shared/config.ts`；契约值（ID 格式/目录名/状态机/错误码）写死在代码里。

@@ -19,7 +19,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   DECISION_CONTEXT_DIRECTION_VALUES,
-  type DecisionContextDirection,
   type DecisionContextInput,
 } from '../../src/types/decision-context.js';
 import {

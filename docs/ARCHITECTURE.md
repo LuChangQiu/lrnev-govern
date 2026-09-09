@@ -133,6 +133,7 @@ lrnev-govern/
 │   ├── scene/
 │   ├── spec/
 │   ├── adr/
+│   ├── agents/                     # AGENTS.md.tmpl：init 可选生成的项目根指针模板（ADR 0003）
 │   └── steering/
 │
 ├── tests/

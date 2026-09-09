@@ -73,13 +73,13 @@ function toLrnevErrorInfo(error: ErrorInfo): LrnevErrorInfo {
  *
  * @param promise 业务层返回的 Promise<AiFollowupResponse<T>>
  * @param toolName 工具名称（必填，用于查找 MVC renderer；未注册则回退 legacy JSON）
- * @param legacyRawFormat 已弃用（M2 不再支持，保留参数兼容性）
+ * @param _legacyRawFormat 已弃用（M2 不再支持，保留参数兼容性；下划线前缀豁免 noUnusedParameters）
  * @returns MCP 工具返回对象
  */
 export async function toMcpToolResult<T>(
   promise: Promise<AiFollowupResponse<T>>,
   toolName: string,
-  legacyRawFormat = false,
+  _legacyRawFormat = false,
 ): Promise<McpToolResult> {
   try {
     const response = await promise;
@@ -117,13 +117,13 @@ export async function toMcpToolResult<T>(
  *
  * @param promise 返回普通数据的 Promise
  * @param toolName 工具名称（必填，用于查找 MVC renderer；未注册则回退 legacy JSON）
- * @param legacyRawFormat 已弃用（M2 不再支持，保留参数兼容性）
+ * @param _legacyRawFormat 已弃用（M2 不再支持，保留参数兼容性；下划线前缀豁免 noUnusedParameters）
  * @returns MCP 工具返回对象
  */
 export async function toMcpToolResultFromData<T>(
   promise: Promise<T>,
   toolName: string,
-  legacyRawFormat = false,
+  _legacyRawFormat = false,
 ): Promise<McpToolResult> {
   try {
     const data = await promise;

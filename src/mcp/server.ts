@@ -9,6 +9,7 @@ import { resolve } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { VERSION, PACKAGE_NAME } from '../shared/version.js';
+import { LrnevError, ErrorCode } from '../shared/errors.js';
 import { resolveWorkspaceRoot } from '../storage/WorkspaceLocator.js';
 import { FileStorage } from '../storage/FileStorage.js';
 import { AgentRegistry } from '../core/AgentRegistry.js';
@@ -82,7 +83,14 @@ export function parseMcpProfileArg(argv: readonly string[] = process.argv): McpP
     if (token === '--profile') {
       const value = argv[i + 1];
       if (value === undefined || value.startsWith('-')) {
-        throw new Error('--profile 缺少取值：仅支持 core|full（默认 full），例如 --profile core');
+        throw new LrnevError(
+          ErrorCode.INVALID_INPUT,
+          '--profile 缺少取值：仅支持 core|full（默认 full），例如 --profile core',
+          {
+            field: 'profile',
+            hint: '在 MCP 客户端的 args 配置中传 --profile core 或 --profile full；缺省为 full。',
+          },
+        );
       }
       return assertMcpProfile(value);
     }
@@ -95,7 +103,14 @@ export function parseMcpProfileArg(argv: readonly string[] = process.argv): McpP
 
 function assertMcpProfile(value: string): McpProfile {
   if (value === 'core' || value === 'full') return value;
-  throw new Error(`--profile 取值无效：收到 "${value}"，仅支持 core|full（默认 full）。`);
+  throw new LrnevError(
+    ErrorCode.INVALID_INPUT,
+    `--profile 取值无效：收到 "${value}"，仅支持 core|full（默认 full）。`,
+    {
+      field: 'profile',
+      hint: '支持 --profile core / --profile=core / --profile full / --profile=full 四种写法；缺省为 full。',
+    },
+  );
 }
 
 export async function startMcpServer(argv: readonly string[] = process.argv): Promise<void> {

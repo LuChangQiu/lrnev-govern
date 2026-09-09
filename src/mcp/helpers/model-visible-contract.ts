@@ -153,28 +153,6 @@ function initializeRenderers(): void {
 initializeRenderers();
 
 /**
- * 注册工具的 ModelVisibleContract 渲染器。
- *
- * @param toolName 工具名称
- * @param renderer 渲染器实现
- */
-export function registerRenderer(toolName: string, renderer: ModelVisibleRenderer): void {
-  renderers.set(toolName, renderer);
-}
-
-/**
- * 批量注册工具的 ModelVisibleContract 渲染器。
- *
- * @param toolNames 工具名称列表
- * @param renderer 共享的渲染器实现
- */
-export function registerRendererBatch(toolNames: string[], renderer: ModelVisibleRenderer): void {
-  for (const toolName of toolNames) {
-    renderers.set(toolName, renderer);
-  }
-}
-
-/**
  * 渲染 content（M2 主入口）。
  *
  * 查找工具的 renderer，如果未找到则回退到 M1 legacy JSON。

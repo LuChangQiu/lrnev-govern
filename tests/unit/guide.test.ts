@@ -177,11 +177,6 @@ describe('lrnev guide', () => {
   });
 });
 
-function readPayload(result: Awaited<ReturnType<Client['callTool']>>): unknown {
-  const text = contentText(result.content);
-  return JSON.parse(text);
-}
-
 async function runCli(args: string[]): Promise<any> {
   let out = '';
   const program = buildCli({ writeOut: (text) => { out += text; } });

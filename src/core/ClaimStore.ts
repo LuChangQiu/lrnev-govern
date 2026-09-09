@@ -1,5 +1,6 @@
 import { loadConfig } from '../shared/config.js';
 import { LrnevError, ErrorCode } from '../shared/errors.js';
+import { sanitizePathSegment } from '../shared/text.js';
 import { FileStorage } from '../storage/FileStorage.js';
 import type {
   ClaimTaskInput,
@@ -199,11 +200,11 @@ export class ClaimStore {
 }
 
 function claimPath(scene: string, spec: string, task: string): string {
-  return `${CLAIMS_DIR_REL}/${safePart(scene)}__${safePart(spec)}__${safePart(task)}.json`;
+  return `${CLAIMS_DIR_REL}/${sanitizePathSegment(scene)}__${sanitizePathSegment(spec)}__${sanitizePathSegment(task)}.json`;
 }
 
 function claimLockPath(scene: string, spec: string, task: string): string {
-  return `.lrnev/locks/claim-${safePart(scene)}__${safePart(spec)}__${safePart(task)}.lockdir`;
+  return `.lrnev/locks/claim-${sanitizePathSegment(scene)}__${sanitizePathSegment(spec)}__${sanitizePathSegment(task)}.lockdir`;
 }
 
 function claimKey(claim: Pick<TaskClaim, 'scene' | 'spec' | 'task'>): string {
@@ -236,10 +237,6 @@ function isTaskClaim(value: unknown): value is TaskClaim {
 
 function normalizeTouches(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-}
-
-function safePart(value: string): string {
-  return value.replace(/[^a-zA-Z0-9._-]+/g, '_');
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

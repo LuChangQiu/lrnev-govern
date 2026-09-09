@@ -31,7 +31,7 @@ import { GovernanceReport } from '../../core/GovernanceReport.js';
 import { buildGateFollowup } from '../../core/GateGuidance.js';
 import { AgentRegistry } from '../../core/AgentRegistry.js';
 import { MemoryCategory } from '../../types/memory.js';
-import { ErrorCode, LrnevError, isLrnevError } from '../../shared/errors.js';
+import { ErrorCode, LrnevError } from '../../shared/errors.js';
 import type { AiFollowupResponse, Scope } from '../../types/response.js';
 import {
   DECISION_CONTEXT_SOURCE_VALUES,
@@ -45,7 +45,6 @@ import { GUIDE_TOPIC_VALUES, TOOL_DESCRIPTIONS, buildGuide, type McpProfile } fr
 import { toMcpToolResult, toMcpToolResultFromData } from '../helpers/tool-result-adapter.js';
 import {
   createToolOutputSchema,
-  AgentDataSchema,
   AgentRegisterResultSchema,
   AgentHeartbeatResultSchema,
   AgentListResultSchema,
@@ -60,7 +59,6 @@ import {
   MemoryDataSchema,
   MemoryForgetResultSchema,
   ErrorEntryDataSchema,
-  HookDataSchema,
   HookConfigDataSchema,
   HookListResultSchema,
   GoalAssessmentDataSchema,
@@ -78,11 +76,6 @@ import {
   AgentUnregisterResultSchema,
   InitWorkspaceResultSchema,
 } from '../types/output-schemas.js';
-
-type ToolResult = {
-  content: Array<{ type: 'text'; text: string }>;
-  isError?: boolean;
-};
 
 // ============================================================
 // 05-00 lrnev Guidance Profile - decision_context 接线（T-003）

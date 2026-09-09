@@ -19,6 +19,7 @@ import { parseFrontmatter, serializeFrontmatter } from '../storage/FrontmatterCo
 import { FileStorage } from '../storage/FileStorage.js';
 import { LrnevError, ErrorCode } from '../shared/errors.js';
 import { loadConfig } from '../shared/config.js';
+import { sanitizePathSegment } from '../shared/text.js';
 import { renderTemplate, today, toTitleCase } from './Templates.js';
 import { DEFAULT_SCENE_ID, SceneManager } from './SceneManager.js';
 import { appendHookWarnings, getHookManager } from './HookManager.js';
@@ -28,12 +29,9 @@ import type {
   Spec,
   SpecFrontmatter,
   SpecStatus,
-  SpecDocument,
   CreateSpecInput,
 } from '../types/spec.js';
 import type { AiFollowupResponse } from '../types/response.js';
-
-const SPEC_DOCS: SpecDocument[] = ['requirements', 'design', 'tasks'];
 
 interface ExistingSpecInfo {
   spec: string;
@@ -208,7 +206,7 @@ export class SpecManager {
     }
 
     const { spec, siblingSpecIds } = await this.fs.withDirectoryLock(
-      `.lrnev/locks/create-spec-${safeId(sceneId)}.lockdir`,
+      `.lrnev/locks/create-spec-${sanitizePathSegment(sceneId)}.lockdir`,
       () => this.createUnderLock(sceneId, input, version),
     );
 
@@ -571,9 +569,3 @@ function makeBrokenSpec(
     },
   };
 }
-
-function safeId(value: string): string {
-  return value.replace(/[^a-zA-Z0-9._-]+/g, '_');
-}
-
-export { SPEC_DOCS, validateSpecName };

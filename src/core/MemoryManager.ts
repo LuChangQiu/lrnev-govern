@@ -203,7 +203,7 @@ export class MemoryManager {
   }
 }
 
-export function makeMemoryId(category: MemoryCategory, content: string, source: string): string {
+function makeMemoryId(category: MemoryCategory, content: string, source: string): string {
   const hash = createHash('sha256')
     .update(`${category}|${content.trim()}|${source.trim()}`)
     .digest('hex')

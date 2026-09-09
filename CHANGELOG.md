@@ -15,6 +15,7 @@
 - **SceneManager 零接线共享文档更新通道删除（设计遗物）**：`getSharedDocument` / `updateSharedDocument` / `SharedSceneDocument` 类型族——1.0.0"文档更新走工具"哲学的配套实现（目录锁 + sha256 revision 乐观锁），3.0.0 语义转"正文直接编辑是正常路径"后无 MCP / CLI / 渲染器 / 测试任何消费。
 - **AutoAnalyzer → `.lrnev/auto/codebase.json` 机制删除（init 一次性探测，误导 > 价值）**：仅 init 调用一次、永不刷新，而 CORE_PRINCIPLES 引导 AI 会话中读这份"可能过时且可能空"的快照。移除：资源 `context://auto/codebase`、URIRouter `auto` kind、`.lrnev/auto` 目录创建与路径、doctor REQUIRED_DIRS、`codebase_detected` 输出字段、`lrnev_init` 渲染行与 CLI 横幅相应措辞。ARCHITECTURE.md 模板的技术栈/主要模块/目录结构改为**静态 FILL 占位**，init 引导 AI 读构建/清单文件核实补全（不再自动探测）。
 - **破坏性配置变更（迁移提示）**：`auto_analyzer.*` 配置域移除；其中 `ignore_dirs`（context_search 忽略目录，实为 Searcher 复用）**迁移至 `search.ignore_dirs`**（默认值不变，docs/CONFIG.md 与 docs/examples/lrnev.json 已同步）。存量 `lrnev.json` 中的 `auto_analyzer.ignore_dirs` 覆盖升级后会静默失效——请改配到 `search.ignore_dirs`；`max_manifest_depth` / `max_sample_files` 随机制删除。
+- **scene 假状态移除（伪状态承诺，无用即删）**：scene 无状态机——scene.md.tmpl frontmatter 不再写 `status: draft`（该字段自 1.0.0 起无任何写入方，scene 没有 `scene_update` 状态工具），scene_get / governance_map / project_status 渲染文本不再输出 scene 状态行（恒 `draft` 的死字段，fixture 甚至用过不存在的 `'active'`）。数据层 `scene.status` 字段保留、MCP 响应契约不变；读方对存量文件的 `'draft'` 兜底仅供兼容，不承担状态语义。（ac4b3a0+d854605，2026-09-09）
 
 ### Fixed
 

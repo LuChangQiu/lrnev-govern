@@ -12,7 +12,7 @@
 
 不确定时一律写 `global`，理由：
 1. 全局数据更显眼，不会被埋在某个 Scene 里
-2. 后续可下沉到 Scene（M2 提供 `adr_demote` / `memory_demote`），反向更难
+2. 后续如需收敛到 Scene scope，手工迁移比反向（Scene→global）容易
 
 ## 写 `scene:{id}` 的判定条件
 

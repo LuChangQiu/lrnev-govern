@@ -24,17 +24,21 @@ tests/e2e/t027-baseline/.smoke-results/
 # 裁决文档仅本机 ai-discussions/结果/2026-09-07-DeepSeek-文件治理汇总裁决表.md）：
 # 治理文档（PROJECT.md/ARCHITECTURE.md、scenes/*/scene.md|architecture.md|roadmap.md、
 # specs/*/requirements|design|tasks.md、decisions/adr/、memory/、全局 steering 规范）入库；
-# 运行态/本机产物精确忽略（不再整忽略 /.lrnev/）：
+# 运行态 / 本机生成物精确忽略（不再整忽略 /.lrnev/；.lrnev/auto/ 已随 AutoAnalyzer 机制整体删除，2026-09）：
 .lrnev/agents/
 .lrnev/runtime/
 .lrnev/locks/
 .lrnev/config/
-.lrnev/auto/
 .lrnev/state/
 # steering 规范以 templates/steering/ 为库内真源（tracked，内容一致校验通过 2026-09-07）；
 # .lrnev/steering/ 是 init 生成的运行副本，出库但保留本机工作副本，若日后被实质编辑需重新入库：
 .lrnev/steering/
+# .lrnev/**/*.backup：防御性忽略（全仓当前无写方，保留防误入库）：
 .lrnev/**/*.backup
+# errorbook/（incidents/promoted，写方 ErrorbookManager）与键控摘要 sidecar
+# （.scene.abstract.md/.overview.md、.requirements.abstract.md 等，写方 Summarizer/summarize_save）：
+# 两处均无单独忽略规则、本仓库亦零写入零入库先例（git 无跟踪条目）；入库政策待文件治理汇总
+# 裁决 —— 裁决前不新增忽略规则、不承诺入库（维持现状）。
 # scene04 04-00 工作残留（不入库，本机留存；审计 3f5d6381 §7 排除项）：
 .lrnev/scenes/04-ai-guidance-standardization/specs/04-00-agent-e2e-observability/04-00-tasks-created.md
 .lrnev/scenes/04-ai-guidance-standardization/specs/04-00-agent-e2e-observability/04-00-tasks-rewritten-v4.md

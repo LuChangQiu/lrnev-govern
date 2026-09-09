@@ -23,6 +23,7 @@ const REQUIRED_DIRS = [
   '.lrnev',
   '.lrnev/scenes',
   '.lrnev/decisions/adr',
+  '.lrnev/errorbook',
   '.lrnev/errorbook/incidents',
   '.lrnev/errorbook/promoted',
   '.lrnev/memory',
