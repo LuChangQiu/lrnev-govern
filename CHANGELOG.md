@@ -23,6 +23,14 @@
 
 lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-standardization` 承载，T-027 真实客户端双 SHA 三客户端对照驱动）：MCP 响应从"JSON 文本 + 无 schema"重构为 **structuredContent canonical 信封 + outputSchema 声明 + 逐工具渲染文本**；引导从散落文案收敛为**五角色语义体系**；新增 `decision_context` 客户端声明通道与 `--profile` 工具面分层。**破坏性变更：text 通道内容格式**（详见升级指南）；其余向后兼容（42 工具默认全量、数据文件格式不变）。
 
+### 60 秒接入方摘要（用户视角）
+
+**第一次接触 lrnev？** lrnev 是给"人 + 多个 AI 编码会话"协作的项目治理层：Scene/Spec/Task 文件化追溯、Gate 结构门禁、ADR/Errorbook/Memory 轻产物、多会话并发保护。两种接入形态：MCP 服务（Claude Code / Cursor / Codex / OpenCode 等，工具前缀 `lrnev_`）与命令行 `lrnev`（能力对等）。`npm i -g lrnev` 后在项目根跑 `lrnev init` 即得一套 `.lrnev/` 治理骨架；AI 会话开始时按约定读取 `.lrnev/steering/` 宪法文档。
+
+**从 2.x 升级到 3.0.0？** 唯一破坏性变更：MCP 工具响应的 `content[0].text` 不再是 `JSON.stringify` 的裸 JSON——机器数据改读 `structuredContent`（信封 `response_version:'1'`，字段与旧 payload 同构，迁移见下节升级指南）。未消费过 text 通道 JSON 的接入方**无需任何改动**；数据文件格式不变、42 工具默认全量。升级后建议跑一次 `lrnev doctor` 看欠债提示。
+
+**3.0.0 给你什么：** 每工具响应 = 人/AI 可读渲染文本 + 机器可读 canonical 数据双通道，全工具声明 `outputSchema`；业务拒绝统一 `isError`；截断/源残缺显式标注（不再静默省略，`total_count` 恒可得）；错误路径不再回传内部异常原文；`--profile core` 可裁掉 9 个"AI 不该主动选"的工具（agent 自动面 + hook 配置面）供弱模型客户端使用。
+
 ### Added
 
 - **MCP 响应双通道（03-00 M1/M2）**：每次工具调用同时返回 `structuredContent`（canonical 信封 `response_version:'1'` / `ok` / `data` / `errors` / `ai_followup` / `anchor_context` / `summary_context`）与 `content[0].text`（逐工具 ModelVisibleContract 渲染文本：42 个工具渲染器 + 错误路径渲染器，共 43 项）；全工具在 `tools/list` 声明 `outputSchema`（此前无结构化机器通道）。

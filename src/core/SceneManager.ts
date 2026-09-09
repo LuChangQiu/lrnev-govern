@@ -135,12 +135,13 @@ export class SceneManager {
    * 创建 Scene。
    *
    * 流程：
-   *   1. 校验 name（kebab-case）
-   *   2. 分配序号（用户指定 or 自动取 next）
-   *   3. 校验 id 不冲突
-   *   4. 渲染三文档模板
-   *   5. 写入 + 更新 scene-numbers.json
-   *   6. 返回 ai_followup
+   *   1. 校验 name（kebab-case）与同名冲突
+   *   2. 分配序号（用户指定 or 自动扫描 max+1，目录被抢则 number++ 重试）
+   *   3. mkdirExclusive 原子抢目录
+   *   4. 渲染三文档模板（scene.md / architecture.md / roadmap.md）并写入
+   *   5. 返回 ai_followup
+   *
+   * 注：序号分配不维护 scene-numbers.json 中心化计数器（v1.0 起按需扫描，见 :11）
    */
   async create(input: CreateSceneInput): Promise<AiFollowupResponse<Scene>> {
     validateName(input.name);

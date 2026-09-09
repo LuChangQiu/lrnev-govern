@@ -23,7 +23,7 @@
  *
  * 关键设计：
  *   - 用 HTML 注释承载状态元数据（不污染人类阅读）
- *   - Task ID 由 manager 分配（T-001 / T-002 ...），Scene 全局递增（在 Spec 内）
+ *   - Task ID 由 manager 分配（T-001 / T-002 ...），在 Spec 内递增
  *   - 阶段名（## X）由用户在模板里编辑，本 manager 不强制
  *   - 创建 Task 时若无 ## 章节则塞进默认 "## 任务" 章节
  *   - 只治理 tasks.md 与运行态 claim，不调用 LLM、不 spawn agent、不读取或锁定源码文件
