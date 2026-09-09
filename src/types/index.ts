@@ -15,7 +15,6 @@ export * from './memory.js';
 export * from './gate.js';
 export * from './hooks.js';
 export * from './agent.js';
-export * from './auto-analyzer.js';
 export * from './doctor.js';
 export * from './goal.js';
 export * from './legacy-todo.js';

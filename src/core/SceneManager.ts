@@ -13,8 +13,6 @@
  *   - 删除最高序号后会复用该序号；引用依赖 name/路径，序号复用可接受
  */
 
-import { createHash } from 'node:crypto';
-
 import { parseFrontmatter, serializeFrontmatter } from '../storage/FrontmatterCodec.js';
 import { FileStorage } from '../storage/FileStorage.js';
 import { LrnevError, ErrorCode } from '../shared/errors.js';
@@ -39,23 +37,6 @@ const SPEC_SPLITTING_RUBRIC = [
   '2. 它们是否共享同一套验收标准？共享 -> 合并为一个 Spec。',
   '3. 某块方案不确定、要先调研？是 -> 那块单独做研究型 Spec 或先记 ADR。',
 ];
-
-type SharedSceneDocument = 'architecture' | 'roadmap';
-
-interface SharedSceneDocumentSnapshot {
-  scene: string;
-  document: SharedSceneDocument;
-  path: string;
-  content: string;
-  revision: string;
-}
-
-interface UpdateSharedSceneDocumentInput {
-  scene: string;
-  document: SharedSceneDocument;
-  content: string;
-  expected_revision: string;
-}
 
 export class SceneManager {
   constructor(
@@ -259,64 +240,6 @@ export class SceneManager {
     );
   }
 
-  async getSharedDocument(
-    sceneInput: string,
-    document: SharedSceneDocument,
-  ): Promise<SharedSceneDocumentSnapshot> {
-    const sceneId = await this.resolveId(sceneInput);
-    const path = this.sharedDocumentPath(sceneId, document);
-    if (!this.fs.exists(path)) {
-      throw new LrnevError(
-        ErrorCode.SCENE_CORRUPTED,
-        `Scene "${sceneInput}" 的 ${document}.md 缺失`,
-        { field: 'document', hint: '运行 lrnev_doctor 定位损坏文件；恢复文档后重新读取并合并修改。' },
-      );
-    }
-    const content = await this.fs.read(path);
-    return {
-      scene: sceneId,
-      document,
-      path: this.fs.abs(path),
-      content,
-      revision: hashContent(content),
-    };
-  }
-
-  async updateSharedDocument(
-    input: UpdateSharedSceneDocumentInput,
-  ): Promise<AiFollowupResponse<SharedSceneDocumentSnapshot>> {
-    const sceneId = await this.resolveId(input.scene);
-    const document = input.document;
-    const lockPath = `.lrnev/locks/scene-${safeId(sceneId)}-${document}.lockdir`;
-    return this.fs.withDirectoryLock(lockPath, async () => {
-      const current = await this.getSharedDocument(sceneId, document);
-      if (current.revision !== input.expected_revision) {
-        throw new LrnevError(
-          ErrorCode.INVALID_INPUT,
-          `Scene "${sceneId}" 的 ${document}.md 已被修改，拒绝覆盖`,
-          {
-            field: 'expected_revision',
-            hint: '重新读取最新文档，合并修改后再写入',
-          },
-        );
-      }
-
-      const relPath = this.sharedDocumentPath(sceneId, document);
-      await this.fs.write(relPath, input.content);
-      const updated = await this.getSharedDocument(sceneId, document);
-      return {
-        ok: true,
-        data: updated,
-        ai_followup: {
-          instructions: [
-            `${document}.md 已更新。`,
-            '如果另一个会话写入失败，请让它重新读取最新文档并合并修改。',
-          ],
-        },
-      };
-    });
-  }
-
   private async createUnderLock(input: CreateSceneInput): Promise<Scene> {
     const sameName = (await this.list()).find((s) => s.name === input.name);
     if (sameName) {
@@ -409,10 +332,6 @@ export class SceneManager {
       if (n > max) max = n;
     }
     return max + 1;
-  }
-
-  private sharedDocumentPath(sceneId: string, document: SharedSceneDocument): string {
-    return `${SCENES_DIR}/${sceneId}/${document}.md`;
   }
 
   private assessSplittingSignal(intent?: string): string[] {
@@ -539,14 +458,6 @@ function makeBrokenScene(fs: FileStorage, id: string, scenePath: string, err: un
       path: fs.abs(scenePath),
     },
   };
-}
-
-function hashContent(content: string): string {
-  return createHash('sha256').update(content).digest('hex');
-}
-
-function safeId(value: string): string {
-  return value.replace(/[^a-zA-Z0-9._-]+/g, '_');
 }
 
 // 让生产代码也能复用这些工具函数

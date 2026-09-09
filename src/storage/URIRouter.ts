@@ -12,7 +12,7 @@
  *   context://{type}[/{id}[/{sub_id}...]]?level=L0|L1|L2&scope=global|scene:{id}
  *
  * 6 大类（详见 design.md 4.1 ~ 4.5）：
- *   project / scene / spec / adr / errorbook / memory + steering + auto
+ *   project / scene / spec / adr / errorbook / memory + steering
  *
  * 设计注意点：
  *   - URI 内的路径用 / 分隔，与文件系统的 sep 解耦
@@ -29,7 +29,6 @@ export const URI_SCHEME = 'context';
 /** URI 顶级类型 */
 export type URIKind =
   | 'project' // PROJECT.md / ARCHITECTURE.md
-  | 'auto' // auto/codebase.json
   | 'steering' // steering/{name}.md
   | 'scene' // scenes/{id}/...
   | 'spec' // scenes/{scene}/specs/{spec}/...
@@ -185,7 +184,7 @@ function parseScopeQuery(query: Record<string, string>): Scope {
 }
 
 function isValidKind(s: string): s is URIKind {
-  return ['project', 'auto', 'steering', 'scene', 'spec', 'adr', 'errorbook', 'memory'].includes(s);
+  return ['project', 'steering', 'scene', 'spec', 'adr', 'errorbook', 'memory'].includes(s);
 }
 
 /**
@@ -203,8 +202,6 @@ export function uriToFilePath(parsed: ParsedURI): string | null {
   switch (parsed.kind) {
     case 'project':
       return resolveProject(parsed);
-    case 'auto':
-      return resolveAuto(parsed);
     case 'steering':
       return resolveSteering(parsed);
     case 'scene':
@@ -227,16 +224,6 @@ function resolveProject(p: ParsedURI): string {
   throw new LrnevError(ErrorCode.INVALID_URI, `未知 project 子路径："${p.raw}"`, { field: 'uri' });
 }
 
-/** context://auto/codebase | context://auto/tech-stack */
-function resolveAuto(p: ParsedURI): string {
-  const sub = p.segments[0];
-  if (sub === 'codebase') return '.lrnev/auto/codebase.json';
-  // tech-stack / coding-style 是 codebase.json 内字段，路径仍是 codebase.json，
-  // 字段提取由 handler 解析 "#fragment"
-  if (sub === 'tech-stack' || sub === 'coding-style') return '.lrnev/auto/codebase.json';
-  throw new LrnevError(ErrorCode.INVALID_URI, `未知 auto 子路径："${p.raw}"`, { field: 'uri' });
-}
-
 /** context://steering/{name} */
 function resolveSteering(p: ParsedURI): string {
   if (p.segments.length === 0) {
@@ -249,6 +236,7 @@ function resolveSteering(p: ParsedURI): string {
     scope: 'SCOPE_RULES',
     adr: 'ADR_TRIGGERS',
     memory: 'MEMORY_TRIGGERS',
+    'context-docs': 'CONTEXT_DOCS_TRIGGERS',
   };
   const fileBase = alias[name] ?? name.toUpperCase();
   return `.lrnev/steering/${fileBase}.md`;
@@ -378,7 +366,6 @@ export function filePathToURI(relPath: string): string | null {
   // 全局根文档
   if (path === 'PROJECT.md') return 'context://project';
   if (path === 'ARCHITECTURE.md') return 'context://project/architecture';
-  if (path === 'auto/codebase.json') return 'context://auto/codebase';
 
   // steering
   const steeringMatch = /^steering\/(.+)\.md$/.exec(path);
@@ -389,6 +376,7 @@ export function filePathToURI(relPath: string): string | null {
       SCOPE_RULES: 'scope',
       ADR_TRIGGERS: 'adr',
       MEMORY_TRIGGERS: 'memory',
+      CONTEXT_DOCS_TRIGGERS: 'context-docs',
     };
     return `context://steering/${reverseAlias[name] ?? name.toLowerCase()}`;
   }

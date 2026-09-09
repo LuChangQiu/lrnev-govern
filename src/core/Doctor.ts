@@ -27,7 +27,6 @@ const REQUIRED_DIRS = [
   '.lrnev/errorbook/promoted',
   '.lrnev/memory',
   '.lrnev/steering',
-  '.lrnev/auto',
   '.lrnev/config',
   '.lrnev/agents',
   '.lrnev/runtime',
@@ -200,7 +199,7 @@ export class Doctor {
         severity: 'warning',
         message: `${path} 仍有未补全的 FILL 字段`,
         path,
-        suggestion: '读构建/清单文件与核心源码后补全 PROJECT/ARCHITECTURE；auto/codebase.json 的探测仅供参考。',
+        suggestion: '读构建/清单文件与核心源码后补全 PROJECT/ARCHITECTURE（FILL 处替换为核实后的内容）。',
       });
     }
     // ADR 0003（2026-09）：项目根无 AGENTS.md 时软提示（info 级，仅引导不强制）。

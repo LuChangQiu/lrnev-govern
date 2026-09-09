@@ -33,7 +33,6 @@ lrnev-govern/
 │   │   ├── index.ts                # core 统一导出
 │   │   ├── ADRManager.ts
 │   │   ├── AgentRegistry.ts
-│   │   ├── AutoAnalyzer.ts
 │   │   ├── ClaimStore.ts
 │   │   ├── decision-context.ts     # decision_context 非阻断边界行渲染（05-00，纯函数）
 │   │   ├── Doctor.ts
@@ -95,7 +94,6 @@ lrnev-govern/
 │   ├── types/                      # 共享类型定义
 │   │   ├── adr.ts
 │   │   ├── agent.ts
-│   │   ├── auto-analyzer.ts
 │   │   ├── claim.ts
 │   │   ├── decision-context.ts     # DecisionContextInput：decision_context 客户端输入契约（05-00）
 │   │   ├── doctor.ts
@@ -178,7 +176,7 @@ lrnev-govern/
 | 类型 | 风格 | 例子 |
 |------|------|------|
 | 类（Manager / Store / Runner） | PascalCase | `TaskManager.ts` |
-| 功能聚合文件 | kebab-case | `auto-analyzer.ts` |
+| 功能聚合文件 | kebab-case | `decision-context.ts` |
 | MCP tools / CLI commands 聚合入口 | index.ts | `src/mcp/tools/index.ts` |
 | 测试文件 | `<被测>.test.ts` | `task-manager.test.ts` |
 

@@ -37,14 +37,7 @@ export interface LrnevConfig {
     snippet_length: number;
     /** 是否使用 L0/L1 摘要加权。 */
     use_l0_ranking: boolean;
-  };
-
-  auto_analyzer: {
-    /** 从 workspace root 开始搜索 manifest 的最大目录深度。 */
-    max_manifest_depth: number;
-    /** 自动分析时最多抽样多少个源码文件。 */
-    max_sample_files: number;
-    /** 自动分析和搜索跳过的目录名。 */
+    /** context_search 跳过检索的目录名（如 node_modules、.git）。 */
     ignore_dirs: string[];
   };
 
@@ -148,10 +141,6 @@ export const DEFAULT_CONFIG: LrnevConfig = {
     top_k: 10,
     snippet_length: 240,
     use_l0_ranking: true,
-  },
-  auto_analyzer: {
-    max_manifest_depth: 3,
-    max_sample_files: 20,
     ignore_dirs: [
       'node_modules', 'dist', 'build', '.git', 'coverage', '.next', 'target',
       '.idea', '.vscode', 'logs', '.gradle', 'vendor', '__pycache__', '.venv', 'venv', 'out', 'tmp',

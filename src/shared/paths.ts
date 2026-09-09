@@ -42,10 +42,6 @@ export function workspacePaths(root: string): {
   memory: string;
   /** .lrnev/steering/ */
   steering: string;
-  /** .lrnev/auto/ */
-  auto: string;
-  /** .lrnev/auto/codebase.json */
-  codebaseJson: string;
   /** .lrnev/config/ */
   config: string;
   /** .lrnev/agents/ */
@@ -71,8 +67,6 @@ export function workspacePaths(root: string): {
     errorbookPromoted: join(base, 'errorbook', 'promoted'),
     memory: join(base, 'memory'),
     steering: join(base, 'steering'),
-    auto: join(base, 'auto'),
-    codebaseJson: join(base, 'auto', 'codebase.json'),
     config: join(base, 'config'),
     agents: join(base, 'agents'),
     runtime: join(base, 'runtime'),

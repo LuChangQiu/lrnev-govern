@@ -14,7 +14,7 @@
  */
 
 import { existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { dirname, join, parse, resolve } from 'node:path';
 
 import {
@@ -132,7 +132,6 @@ export async function ensureWorkspace(root: string): Promise<boolean> {
     paths.errorbookPromoted,
     paths.memory,
     paths.steering,
-    paths.auto,
     paths.config,
     paths.agents,
     paths.runtime,
@@ -147,16 +146,6 @@ export async function ensureWorkspace(root: string): Promise<boolean> {
   // 五类记忆分类目录
   for (const category of MEMORY_CATEGORIES) {
     await mkdir(join(paths.memory, category), { recursive: true });
-  }
-
-  // 写入版本标记文件（state/version.json）
-  const versionPath = join(paths.state, 'version.json');
-  if (!existsSync(versionPath)) {
-    const versionInfo = {
-      lrnev_schema_version: '1',
-      created_at: new Date().toISOString(),
-    };
-    await writeFile(versionPath, JSON.stringify(versionInfo, null, 2), 'utf-8');
   }
 
   return wasNew;

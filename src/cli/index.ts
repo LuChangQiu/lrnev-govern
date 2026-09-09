@@ -182,8 +182,8 @@ function buildInitCommand(program: Command, options: BuildCliOptions): Command {
       if (!opts.json && result.data.agents_md === 'created') {
         writeErr(options, '✓ 已在项目根生成 AGENTS.md（指针式，规则真源 .lrnev/steering；AI 不得自行修改本文件）。\n');
       }
-      if (!opts.json && result.data.codebase_detected) {
-        writeErr(options, '✓ 已初始化并检测到已有代码。auto/codebase.json 里的探测信号仅供参考；请读构建/清单文件和核心源码补全 PROJECT 与 ARCHITECTURE。\n');
+      if (!opts.json && result.data.files_created.includes('.lrnev/PROJECT.md')) {
+        writeErr(options, '✓ 已初始化。PROJECT/ARCHITECTURE 是新建的 FILL 骨架：请读项目的构建/清单文件与核心源码，自行核实并补全。\n');
       }
       return result;
     }));

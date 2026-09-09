@@ -53,7 +53,7 @@ describe('Doctor', () => {
     await fs.write('.lrnev/ARCHITECTURE.md', [
       '# demo 架构',
       '',
-      '<!-- FILL: 技术栈；自动探测疑似候选（待核实）：typescript -->',
+      '<!-- FILL: 技术栈；请读项目的构建/清单文件与核心源码核实 -->',
     ].join('\n'));
 
     const report = await doctor.diagnose();

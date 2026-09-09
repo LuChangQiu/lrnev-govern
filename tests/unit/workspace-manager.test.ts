@@ -2,7 +2,7 @@
  * WorkspaceManager 单元测试。
  *
  * 覆盖 lrnev_init 的核心行为：完整初始化、幂等不覆盖用户内容、
- * steering 写入与最小 codebase 探测。
+ * steering 写入与 PROJECT/ARCHITECTURE 的静态 FILL 骨架引导。
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -41,14 +41,13 @@ describe('WorkspaceManager', () => {
     expect(fs.exists('.lrnev/steering/SCOPE_RULES.md')).toBe(true);
     expect(fs.exists('.lrnev/steering/ADR_TRIGGERS.md')).toBe(true);
     expect(fs.exists('.lrnev/steering/MEMORY_TRIGGERS.md')).toBe(true);
-    expect(fs.exists('.lrnev/auto/codebase.json')).toBe(true);
+    expect(fs.exists('.lrnev/steering/CONTEXT_DOCS_TRIGGERS.md')).toBe(true);
     expect(fs.exists(`.lrnev/scenes/${DEFAULT_SCENE_ID}/scene.md`)).toBe(true);
     expect(await fs.read('.lrnev/PROJECT.md')).toContain('<!-- FILL: 一句话说明这个项目是什么 -->');
     expect(await fs.read('.lrnev/PROJECT.md')).toContain('<!-- FILL: 这个项目要解决什么问题 -->');
     expect(await fs.read('.lrnev/ARCHITECTURE.md')).toContain('<!-- FILL: 一句话说明项目整体架构 -->');
-    expect(await fs.read('.lrnev/ARCHITECTURE.md')).toContain('<!-- FILL: 技术栈；未探测到明确候选，请读构建/清单文件与源码核实 -->');
-    expect(await fs.read('.lrnev/ARCHITECTURE.md')).toContain('<!-- FILL: 主要模块/源码目录；未探测到明确候选，请读源码核实 -->');
-    expect(res.data.codebase_detected).toBe(false);
+    expect(await fs.read('.lrnev/ARCHITECTURE.md')).toContain('<!-- FILL: 技术栈；请读项目的构建/清单文件与核心源码核实 -->');
+    expect(await fs.read('.lrnev/ARCHITECTURE.md')).toContain('<!-- FILL: 主要模块/源码目录；请读源码核实 -->');
     expect(res.ai_followup?.instructions.join('\n')).not.toContain('校对并补全');
     expect(res.ai_followup?.instructions.join('\n')).not.toContain('识别技术栈与架构');
     expect(res.ai_followup?.suggested_tools?.[0]?.name).toBe('spec_create');
@@ -100,23 +99,7 @@ describe('WorkspaceManager', () => {
     expect(await fs.read('.lrnev/PROJECT.md')).toBe('# 用户自定义内容\n');
   });
 
-  it('有 package.json 时应记录最小 codebase 探测结果', async () => {
-    await fs.write('package.json', JSON.stringify({ name: 'demo' }));
-
-    const res = await manager.init({ root: workspace.path, project_name: 'demo-project' });
-    const codebase = await fs.readJson<{
-      analyzer: string;
-      primary_language: string;
-      tech_stack: Array<{ manifest: string; ecosystem: string; language: string }>;
-    }>('.lrnev/auto/codebase.json');
-
-    expect(res.data.codebase_detected).toBe(true);
-    expect(codebase.analyzer).toBe('AutoAnalyzer');
-    expect(codebase.primary_language).toBe('javascript');
-    expect(codebase.tech_stack[0]).toEqual({ manifest: 'package.json', ecosystem: 'node', language: 'javascript', name: 'demo' });
-  });
-
-  it('F-09: 已有代码项目应写入待核实哨兵并引导 AI 自行判断', async () => {
+  it('F-09: 已有代码时 ARCHITECTURE 仍写静态 FILL 哨兵并引导 AI 读构建文件自行判断', async () => {
     await fs.writeJson('product/lrnev-govern/package.json', {
       name: 'lrnev-govern',
       version: '0.1.0',
@@ -127,58 +110,36 @@ describe('WorkspaceManager', () => {
 
     const res = await manager.init({ root: workspace.path, project_name: 'demo-project' });
     const architecture = await fs.read('.lrnev/ARCHITECTURE.md');
-    const codebase = await fs.readJson<{
-      tech_stack: Array<{ manifest: string; ecosystem: string; language: string; name?: string; version?: string }>;
-      directories: Array<{ path: string; kind: string }>;
-    }>('.lrnev/auto/codebase.json');
     const followup = res.ai_followup?.instructions.join('\n') ?? '';
 
-    expect(res.data.codebase_detected).toBe(true);
-    expect(architecture).toContain('<!-- FILL: 技术栈；自动探测疑似候选');
-    expect(architecture).toContain('待核实，可能不准');
-    expect(architecture).toContain('typescript (node) lrnev-govern 0.1.0 - product/lrnev-govern/package.json');
-    expect(architecture).not.toContain('\n- typescript (node) lrnev-govern 0.1.0 - product/lrnev-govern/package.json');
-    expect(architecture).toContain('<!-- FILL: 主要模块/源码目录；自动探测疑似候选');
-    expect(architecture).toContain('product/lrnev-govern/src/ (source)');
-    expect(architecture).not.toContain('### 主要模块\n\n- product/lrnev-govern/src/ (source)');
+    // 无自动探测：不写任何"疑似候选"，统一留静态 FILL 由 AI 核实补全
+    expect(architecture).toContain('<!-- FILL: 技术栈；请读项目的构建/清单文件与核心源码核实 -->');
+    expect(architecture).toContain('<!-- FILL: 主要模块/源码目录；请读源码核实 -->');
+    expect(architecture).not.toContain('自动探测疑似候选');
     expect(architecture).not.toContain('### 技术栈\n\n- TODO');
-    expect(codebase.tech_stack[0]).toEqual({
-      manifest: 'product/lrnev-govern/package.json',
-      ecosystem: 'node',
-      language: 'typescript',
-      name: 'lrnev-govern',
-      version: '0.1.0',
-    });
-    expect(codebase.directories.some((dir) => dir.path === 'product/lrnev-govern/src' && dir.kind === 'source')).toBe(true);
-    expect(followup).toContain('检测到当前目录已有代码');
+    // 新建骨架时 ai_followup 引导 AI 读构建文件自行判断技术栈与架构
+    expect(followup).toContain('请读项目的构建/清单文件');
     expect(followup).toContain('自行判断技术栈与架构');
-    expect(followup).toContain('auto/codebase.json 只是未经核实的探测信号');
-    expect(followup).toContain('不限于这些');
-    expect(followup).not.toContain('已预填部分技术栈/目录到 ARCHITECTURE.md');
+    expect(followup).toContain('PROJECT.md');
+    expect(followup).not.toContain('codebase');
   });
 
-  it('F-10-01: Java/Maven 项目(pom.xml + backend/frontend，无 src/lib/app)应判为已有项目并引导 AI 识别', async () => {
+  it('F-10-01: Java/Maven 项目(pom.xml + backend/frontend，无 src/lib/app)init 仍生成 FILL 骨架并引导 AI 识别', async () => {
     await fs.write('pom.xml', '<project><artifactId>xpaas-boot</artifactId></project>\n');
     await fs.write('backend/Application.java', 'public class Application {}\n');
     await fs.write('frontend/index.html', '<html></html>\n');
     await fs.write('.idea/workspace.xml', '<x/>\n');
 
     const res = await manager.init({ root: workspace.path, project_name: 'xpaas-boot' });
-    const codebase = await fs.readJson<{ root_files: string[]; tech_stack: unknown[]; directories: Array<{ path: string }> }>(
-      '.lrnev/auto/codebase.json',
-    );
+    const architecture = await fs.read('.lrnev/ARCHITECTURE.md');
     const followup = res.ai_followup?.instructions.join('\n') ?? '';
 
-    // 生态无关：没认出 pom.xml 的技术栈，但仍判为已有项目
-    expect(res.data.codebase_detected).toBe(true);
-    expect(codebase.tech_stack).toHaveLength(0);
-    // root_files 给 AI 当地图，含 pom.xml
-    expect(codebase.root_files).toContain('pom.xml');
-    // 未探到技术栈时也引导 AI 去识别并写回，不再死局
+    // 生态无关：lrnev 不识别具体技术栈，统一留静态 FILL，由 AI 读构建文件自行判断
+    expect(res.ok).toBe(true);
+    expect(architecture).toContain('<!-- FILL: 技术栈；请读项目的构建/清单文件与核心源码核实 -->');
+    expect(followup).toContain('请读项目的构建/清单文件');
     expect(followup).toContain('自行判断技术栈与架构');
     expect(followup).toContain('PROJECT.md');
-    // .idea 噪音不进目录地图
-    expect(codebase.directories.some((d) => d.path === '.idea')).toBe(false);
   });
 
   it('F-10-03: 向上查找命中祖先 .lrnev 时应在 followup 提示确认工作区根', async () => {

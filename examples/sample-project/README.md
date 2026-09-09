@@ -31,7 +31,7 @@ cd /tmp/lrnev-demo
 lrnev init --project-name lrnev-demo
 ```
 
-init 的返回里 `was_new: true`、`data.root` 指向 `/tmp/lrnev-demo`，就说明工作区定位正确。你会看到 `.lrnev/` 目录生成了 `PROJECT.md`、`ARCHITECTURE.md`、`steering/`、默认 Scene `00-default/scene.md`、`config/hooks.json`（空数组）、`auto/codebase.json`，以及 `scenes/`、`decisions/adr/`、`errorbook/`、`memory/`、`agents/`、`runtime/`、`locks/`、`state/` 等目录骨架。**治理数据全在 `.lrnev/` 下的 Markdown 文件里**，可以 `git add .lrnev/` 版本管理；其中 `agents/`、`runtime/`、`locks/`、`state/` 是进程运行态（claim 软占用、锁等），建议出库不跟踪。
+init 的返回里 `was_new: true`、`data.root` 指向 `/tmp/lrnev-demo`，就说明工作区定位正确。你会看到 `.lrnev/` 目录生成了 `PROJECT.md`、`ARCHITECTURE.md`（二者都是带 `FILL` 占位的骨架，供 AI 读构建/清单文件后补全）、`steering/`、默认 Scene `00-default/scene.md`、`config/hooks.json`（空数组），以及 `scenes/`、`decisions/adr/`、`errorbook/`、`memory/`、`agents/`、`runtime/`、`locks/`、`state/` 等目录骨架。**治理数据全在 `.lrnev/` 下的 Markdown 文件里**，可以 `git add .lrnev/` 版本管理；其中 `agents/`、`runtime/`、`locks/`、`state/` 是进程运行态（claim 软占用、锁等），建议出库不跟踪。
 
 > 想顺手练 git 跟踪的话：示例目录自带的 `.gitignore` 忽略了整个 `.lrnev/`（那是防止有人误在仓库里跑 demo 的保险），复制出来后先删掉它，再 `git init && git add .lrnev/` 即可看到治理档案入库。
 
@@ -265,7 +265,6 @@ lrnev error record \
 ├── errorbook/incidents/xxx.md        # 步骤 11 的记录（指纹命名的 incident）
 ├── memory/                           # 项目记忆（decisions/errors/facts/patterns/preferences 五类）
 ├── config/hooks.json                 # Hooks 配置（init 后是空数组 []）
-├── auto/codebase.json                # 代码库指纹（init 生成）
 └── agents/ · runtime/claims/ · locks/ · state/   # 运行态：可忽略、出库不跟踪
 ```
 

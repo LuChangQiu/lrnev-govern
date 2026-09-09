@@ -16,11 +16,11 @@ export function registerResources(server: McpServer): void {
 function registerStaticResources(server: McpServer): void {
   registerFixed(server, 'project', 'context://project', '项目全局概述');
   registerFixed(server, 'project-architecture', 'context://project/architecture', '项目全局架构');
-  registerFixed(server, 'auto-codebase', 'context://auto/codebase', '自动分析的代码库信息');
   registerFixed(server, 'steering-core', 'context://steering/core', 'AI 核心行为原则');
   registerFixed(server, 'steering-scope', 'context://steering/scope', 'global / scene scope 判定规则');
   registerFixed(server, 'steering-adr', 'context://steering/adr', 'ADR 触发规则');
   registerFixed(server, 'steering-memory', 'context://steering/memory', '记忆提取触发规则');
+  registerFixed(server, 'steering-context-docs', 'context://steering/context-docs', '文档维护时机触发规则');
   registerFixed(server, 'scene-list', 'context://scene', 'Scene 列表');
   registerFixed(server, 'adr-list', 'context://adr', '全局 ADR 索引');
 }

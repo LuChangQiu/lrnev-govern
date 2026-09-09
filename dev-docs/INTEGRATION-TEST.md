@@ -47,7 +47,7 @@ lrnev --help
 ## 三、完整生命周期黄金路径（端到端真机走查）
 
 ```
-1. lrnev_init（不传名）   → .lrnev/ 骨架 + steering/ + auto/codebase.json + PROJECT/ARCHITECTURE 预填
+1. lrnev_init（不传名）   → .lrnev/ 骨架 + steering/ + PROJECT/ARCHITECTURE 静态 FILL 骨架
 2. scene_create          → 三文档 + followup 给出拆分标尺（见五）
 3. spec_create user-login → 不传 scene 自动挂 00-default；生成 requirements/design/tasks
 4. AI 填 requirements     → 替换所有 FILL 哨兵，填 L0/L1/L2（真机项：AI 是否真填）
@@ -144,7 +144,7 @@ lrnev --help
 
 ## 八、真实环境特性（单测 mock 不了）
 
-- [ ] **真实项目 init**：在有真实 `package.json`/`go.mod` 的项目里 init → AutoAnalyzer 探到技术栈、预填 ARCHITECTURE。
+- [ ] **真实项目 init**：在有真实 `package.json`/`go.mod` 的项目里 init → 生成静态 FILL 骨架，验证 AI 能按引导读构建/清单文件补全 ARCHITECTURE。
 - [ ] **BOM/编码**：Windows 下 init 真实文件不解析失败（历版已修，回归抽核）。
 - [ ] **路径大小写**：Linux/Mac 上 import 大小写一致（跨平台能测最好）。
 - [ ] **CLI vs MCP 一致**：同一能力 `lrnev xxx` 命令与 MCP 工具行为一致。〔自动：`cli-mcp-interoperability`（InMemoryTransport 进程内真注册，同一份 .lrnev 双向读写）〕真机残留：装全局包后 bin 实跑一遍。

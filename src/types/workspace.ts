@@ -18,7 +18,6 @@ export interface InitWorkspaceResult {
   files_created: string[];
   files_existing: string[];
   directories_ensured: string[];
-  codebase_detected: boolean;
   /** ADR 0003：AGENTS.md 生成结果（created / skipped-existing / not-requested）。 */
   agents_md?: 'created' | 'skipped-existing';
 }

@@ -438,13 +438,12 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
   });
 
   describe('lrnev_init 渲染器', () => {
-    it('必须渲染 root/was_new/files_created/codebase_detected', () => {
+    it('必须渲染 root/was_new/files_created/files_existing', () => {
       const payload: LrnevToolPayload<{
         root: string;
         was_new: boolean;
         files_created: string[];
         files_existing: string[];
-        codebase_detected: boolean;
       }> = {
         response_version: '1',
         ok: true,
@@ -453,7 +452,6 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
           was_new: true,
           files_created: ['.lrnev/PROJECT.md', '.lrnev/ARCHITECTURE.md'],
           files_existing: [],
-          codebase_detected: true,
         },
       };
 
@@ -461,7 +459,7 @@ describe('M2 第 2 批渲染器 - MVC required 字段验收', () => {
 
       expect(content).toContain('/path/to/project');
       expect(content).toContain('已创建');
-      expect(content).toContain('检测到代码: 是');
+      expect(content).not.toContain('检测到代码');
       expect(content).toContain('.lrnev/PROJECT.md');
       expect(content).toContain('.lrnev/ARCHITECTURE.md');
     });

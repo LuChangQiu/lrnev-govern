@@ -11,7 +11,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { dir as tmpDir, type DirectoryResult } from 'tmp-promise';
-import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -141,7 +141,6 @@ describe('ensureWorkspace', () => {
       '.lrnev/memory/errors',
       '.lrnev/memory/facts',
       '.lrnev/steering',
-      '.lrnev/auto',
       '.lrnev/config',
       '.lrnev/agents',
       '.lrnev/runtime',
@@ -154,15 +153,6 @@ describe('ensureWorkspace', () => {
     }
   });
 
-  it('应写入 state/version.json', async () => {
-    await ensureWorkspace(workspace.path);
-    const versionPath = join(workspace.path, '.lrnev', 'state', 'version.json');
-    expect(existsSync(versionPath)).toBe(true);
-    const content = JSON.parse(await readFile(versionPath, 'utf-8'));
-    expect(content.lrnev_schema_version).toBe('1');
-    expect(typeof content.created_at).toBe('string');
-  });
-
   it('wasNew 以 PROJECT.md 为判据：无档案时重复调用仍为 true，有档案后为 false', async () => {
     // 目录骨架存在但 PROJECT.md 未写（如 MCP 自动注册先建了 .lrnev/agents/）→ 仍视为未初始化
     await ensureWorkspace(workspace.path);
@@ -172,21 +162,6 @@ describe('ensureWorkspace', () => {
     await writeFile(join(workspace.path, '.lrnev', 'PROJECT.md'), '# demo');
     const third = await ensureWorkspace(workspace.path);
     expect(third).toBe(false);
-  });
-
-  it('再次调用不应覆盖已有 version.json', async () => {
-    await ensureWorkspace(workspace.path);
-    const versionPath = join(workspace.path, '.lrnev', 'state', 'version.json');
-    const before = `${JSON.stringify({
-      lrnev_schema_version: '1',
-      created_at: '2026-01-01T00:00:00.000Z',
-    }, null, 2)}\n`;
-    await writeFile(versionPath, before, 'utf-8');
-
-    await ensureWorkspace(workspace.path);
-
-    const after = await readFile(versionPath, 'utf-8');
-    expect(after).toBe(before);
   });
 
   it('已存在但缺某个子目录时应补齐（容灾）', async () => {

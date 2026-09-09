@@ -2,17 +2,17 @@
  * WorkspaceManager 负责工作区初始化和项目骨架维护。
  *
  * 这一层面向 MCP/CLI 的 lrnev_init，把存储层的惰性初始化补成用户可读的
- * PROJECT、ARCHITECTURE、steering 和最小 codebase 探测结果。
+ * PROJECT、ARCHITECTURE 与 steering 骨架。PROJECT/ARCHITECTURE 由模板直接
+ * 写入静态 FILL 哨兵（lrnev 不做自动代码库探测），由 AI 读构建/清单文件与
+ * 源码后自行补全。
  */
 
 import { basename, resolve } from 'node:path';
 
 import { FileStorage } from '../storage/FileStorage.js';
 import { ensureWorkspace, resolveWorkspaceRoot } from '../storage/WorkspaceLocator.js';
-import { AutoAnalyzer } from './AutoAnalyzer.js';
 import { DEFAULT_SCENE_ID, SceneManager } from './SceneManager.js';
 import { renderTemplate, today } from './Templates.js';
-import type { CodebaseInfo } from '../types/auto-analyzer.js';
 import type { AiFollowupResponse } from '../types/response.js';
 import type { InitWorkspaceInput, InitWorkspaceResult } from '../types/workspace.js';
 
@@ -30,7 +30,6 @@ const STANDARD_DIRS = [
   '.lrnev/memory/errors',
   '.lrnev/memory/facts',
   '.lrnev/steering',
-  '.lrnev/auto',
   '.lrnev/config',
   '.lrnev/agents',
   '.lrnev/runtime',
@@ -46,6 +45,7 @@ const STEERING_FILES = [
   'SCOPE_RULES.md',
   'ADR_TRIGGERS.md',
   'MEMORY_TRIGGERS.md',
+  'CONTEXT_DOCS_TRIGGERS.md',
 ];
 
 export class WorkspaceManager {
@@ -74,18 +74,12 @@ export class WorkspaceManager {
       filesExisting,
     );
 
-    const analysis = await this.runAutoAnalyzer(fs, filesCreated, filesExisting);
-    const codebaseDetected = hasExistingCodeProject(analysis);
-
     await this.writeIfMissing(
       fs,
       '.lrnev/ARCHITECTURE.md',
       await renderTemplate('project', 'ARCHITECTURE.md', {
         project_name: projectName,
         date: today(),
-        tech_stack: formatTechStack(analysis),
-        source_dirs: formatSourceDirs(analysis),
-        directory_structure: formatDirectoryStructure(analysis),
       }),
       filesCreated,
       filesExisting,
@@ -128,6 +122,12 @@ export class WorkspaceManager {
       }
     }
 
+    // PROJECT/ARCHITECTURE 的 FILL 哨兵由模板静态写入（lrnev 不做自动探测）；
+    // 只有本次真正新建了骨架文档时才在 ai_followup 引导补全，重复 init 不打扰已补全的工作区。
+    const docsScaffolded = filesCreated.some(
+      (file) => file === '.lrnev/PROJECT.md' || file === '.lrnev/ARCHITECTURE.md',
+    );
+
     return {
       ok: true,
       data: {
@@ -136,7 +136,6 @@ export class WorkspaceManager {
         files_created: filesCreated,
         files_existing: filesExisting,
         directories_ensured: STANDARD_DIRS,
-        codebase_detected: codebaseDetected,
         ...(agentsMd && { agents_md: agentsMd }),
       },
       ai_followup: {
@@ -144,9 +143,9 @@ export class WorkspaceManager {
           ...(ancestorHit
             ? [`注意：工作区根定位到 ${root}（向上查找命中了已有的 .lrnev，而非当前目录）。若这不是你要的项目根，请设环境变量 LRNEV_WORKSPACE=<目标目录>，或在目标目录显式 lrnev_init。`]
             : []),
-          ...(codebaseDetected
+          ...(docsScaffolded
             ? [
-              '检测到当前目录已有代码。请读项目的构建/清单文件（如 pom.xml、build.gradle、package.json、go.mod、pyproject.toml 等，按实际为准且不限于这些）与 3-5 个核心源码文件，自行判断技术栈与架构；auto/codebase.json 只是未经核实的探测信号，仅供参考。请补全 ARCHITECTURE.md 的技术栈/主要模块/架构理念，以及 PROJECT.md 的项目目标/当前阶段。',
+              'PROJECT.md / ARCHITECTURE.md 是本次新建的 FILL 骨架：请读项目的构建/清单文件（如 package.json、go.mod、pom.xml 等，按实际为准且不限于这些）与核心源码，自行判断技术栈与架构并补全——ARCHITECTURE.md 的技术栈/主要模块/目录结构，以及 PROJECT.md 的项目目标/当前阶段。',
             ]
             : []),
           '请先阅读 context://project 和 context://project/architecture，协助用户补全项目目标、范围和架构约束。',
@@ -178,60 +177,4 @@ export class WorkspaceManager {
     await fs.write(path, content);
     created.push(path);
   }
-
-  private async runAutoAnalyzer(
-    fs: FileStorage,
-    created: string[],
-    existing: string[],
-  ): Promise<CodebaseInfo> {
-    const path = '.lrnev/auto/codebase.json';
-    if (fs.exists(path)) {
-      existing.push(path);
-      return fs.readJson<CodebaseInfo>(path);
-    }
-    const result = await new AutoAnalyzer(fs).analyze();
-    created.push(path);
-    return result.data;
-  }
-}
-
-/**
- * 生态无关地判定"这是个已有代码项目"。
- *
- * 不靠识别特定 manifest（那会漏 Java/Gradle/PHP/Ruby/.NET…）：根下除 .lrnev 外
- * 只要有实质内容（任何非忽略目录或根级文件）即视为已有项目，再让 AI 去识别它是什么。
- */
-function hasExistingCodeProject(analysis: CodebaseInfo): boolean {
-  return analysis.tech_stack.length > 0
-    || analysis.sample_files.length > 0
-    || analysis.directories.length > 0
-    || analysis.root_files.length > 0;
-}
-
-function formatTechStack(analysis: CodebaseInfo): string {
-  if (analysis.tech_stack.length === 0) {
-    return '- <!-- FILL: 技术栈；未探测到明确候选，请读构建/清单文件与源码核实 -->';
-  }
-  const candidates = analysis.tech_stack.map((item) => {
-    const name = item.name ? ` ${item.name}` : '';
-    const version = item.version ? ` ${item.version}` : '';
-    return `${item.language} (${item.ecosystem})${name}${version} - ${item.manifest}`;
-  });
-  return `- <!-- FILL: 技术栈；自动探测疑似候选（待核实，可能不准）：${candidates.join('；')} -->`;
-}
-
-function formatSourceDirs(analysis: CodebaseInfo): string {
-  const dirs = analysis.directories.filter((dir) => dir.kind === 'source' || dir.kind === 'test');
-  if (dirs.length === 0) {
-    return '- <!-- FILL: 主要模块/源码目录；未探测到明确候选，请读源码核实 -->';
-  }
-  const candidates = dirs.map((dir) => `${dir.path}/ (${dir.kind})`);
-  return `- <!-- FILL: 主要模块/源码目录；自动探测疑似候选（待核实）：${candidates.join('；')} -->`;
-}
-
-function formatDirectoryStructure(analysis: CodebaseInfo): string {
-  if (analysis.directories.length === 0) {
-    return '<!-- FILL: 目录结构(未探测到，请补充) -->';
-  }
-  return analysis.directories.map((dir) => `- ${dir.path}/ (${dir.kind})`).join('\n');
 }

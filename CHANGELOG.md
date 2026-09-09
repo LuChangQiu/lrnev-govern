@@ -6,7 +6,15 @@
 
 ### Added
 
-- **init 可选生成项目根 AGENTS.md（ADR 0003，2026-09 翻案 2026-06"不做代码生成"决策）**：CLI `lrnev init` 在交互终端询问一次"是否生成根 AGENTS.md（指针式，引用 .lrnev/steering）"，默认不生成；`--with-agents-md` flag 供脚本显式控制（MCP `lrnev_init` 同参）。生成内容 = 指针式：项目声明 + 修改边界（AI 不得自行修改）+ `.lrnev/steering/` 四份具体文件清单（各一句话用途与何时读）+ 只读/要改判断 + 验证纪律——**不复制 steering 全文**（steering 唯一真源，防手抄漂移）。已存在 AGENTS.md 则跳过不覆盖（`agents_md: created|skipped-existing`）；`lrnev doctor` 对缺失 AGENTS.md 的项目给 info 级软提示。
+- **init 可选生成项目根 AGENTS.md（ADR 0003，2026-09 翻案 2026-06"不做代码生成"决策）**：CLI `lrnev init` 在交互终端询问一次"是否生成根 AGENTS.md（指针式，引用 .lrnev/steering）"，默认不生成；`--with-agents-md` flag 供脚本显式控制（MCP `lrnev_init` 同参）。生成内容 = 指针式：项目声明 + 修改边界（AI 不得自行修改）+ `.lrnev/steering/` 具体文件清单（各一句话用途与何时读；现为五份，见下条）+ 只读/要改判断 + 验证纪律——**不复制 steering 全文**（steering 唯一真源，防手抄漂移）。已存在 AGENTS.md 则跳过不覆盖（`agents_md: created|skipped-existing`）；`lrnev doctor` 对缺失 AGENTS.md 的项目给 info 级软提示。
+- **steering 新增第 5 份文档 `CONTEXT_DOCS_TRIGGERS.md`（上下文文档维护时机触发清单）**：CORE_PRINCIPLES §10 的"文档维护时机"从压缩清单展开为独立触发文件——PROJECT.md / 全局 ARCHITECTURE.md / scene 三件套（scene.md / architecture.md / roadmap.md）各自列出"触发点 + AI 行为（大改后 `summarize_save` 同步 L0/L1）+ 联动"；roadmap 与 spec 状态跃迁联动并标注最易失真；含"过时信号：主动指出不默默放任"与"不要做的事"边界。init 安装 5 份 steering；注册 `context://steering/context-docs` 资源与 URI 双向别名；AGENTS.md 指针清单同步为 5 份（存量 AGENTS.md 不自动更新，可重新生成或手补第 5 行）。
+
+### Removed
+
+- **`.lrnev/state/version.json` 产品写入移除（假版本标记，无用即删）**：`ensureWorkspace` 不再写版本标记文件——该文件自 1.0.0 起全库零读取、`schema_version` 永不演进、文档零提及，两次目录结构演进也从未 bump。存量文件无读方保留无害；`created_at` 可从 PROJECT.md frontmatter `created` 读取。
+- **SceneManager 零接线共享文档更新通道删除（设计遗物）**：`getSharedDocument` / `updateSharedDocument` / `SharedSceneDocument` 类型族——1.0.0"文档更新走工具"哲学的配套实现（目录锁 + sha256 revision 乐观锁），3.0.0 语义转"正文直接编辑是正常路径"后无 MCP / CLI / 渲染器 / 测试任何消费。
+- **AutoAnalyzer → `.lrnev/auto/codebase.json` 机制删除（init 一次性探测，误导 > 价值）**：仅 init 调用一次、永不刷新，而 CORE_PRINCIPLES 引导 AI 会话中读这份"可能过时且可能空"的快照。移除：资源 `context://auto/codebase`、URIRouter `auto` kind、`.lrnev/auto` 目录创建与路径、doctor REQUIRED_DIRS、`codebase_detected` 输出字段、`lrnev_init` 渲染行与 CLI 横幅相应措辞。ARCHITECTURE.md 模板的技术栈/主要模块/目录结构改为**静态 FILL 占位**，init 引导 AI 读构建/清单文件核实补全（不再自动探测）。
+- **破坏性配置变更（迁移提示）**：`auto_analyzer.*` 配置域移除；其中 `ignore_dirs`（context_search 忽略目录，实为 Searcher 复用）**迁移至 `search.ignore_dirs`**（默认值不变，docs/CONFIG.md 与 docs/examples/lrnev.json 已同步）。存量 `lrnev.json` 中的 `auto_analyzer.ignore_dirs` 覆盖升级后会静默失效——请改配到 `search.ignore_dirs`；`max_manifest_depth` / `max_sample_files` 随机制删除。
 
 ### Fixed
 

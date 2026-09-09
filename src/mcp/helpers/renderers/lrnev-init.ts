@@ -9,7 +9,6 @@ import type { InitWorkspaceResult } from '../../../types/workspace.js';
  * - root（路径字段）
  * - was_new（状态字段）
  * - files_created/files_existing
- * - codebase_detected
  * - ai_followup.instructions（如有）
  */
 export const lrnevInitRenderer: ModelVisibleRenderer<InitWorkspaceResult> = {
@@ -18,12 +17,11 @@ export const lrnevInitRenderer: ModelVisibleRenderer<InitWorkspaceResult> = {
       return '初始化失败';
     }
 
-    const { root, was_new, files_created, files_existing, codebase_detected } = payload.data;
+    const { root, was_new, files_created, files_existing } = payload.data;
     const lines: string[] = [];
 
     lines.push(`✅ 工作区已${was_new ? '创建' : '确认'}`);
     lines.push(`   根目录: ${root}`);
-    lines.push(`   检测到代码: ${codebase_detected ? '是' : '否'}`);
     lines.push('');
 
     if (files_created.length > 0) {

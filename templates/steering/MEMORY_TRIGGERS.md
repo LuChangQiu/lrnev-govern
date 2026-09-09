@@ -61,7 +61,7 @@
 
 ❌ 不抽：
 - 普通对话寒暄
-- 可从代码 / package.json 直接读出的事实（auto/codebase.json 已经有）
+- 可从代码 / 构建清单文件（如 package.json）直接读出的事实（依赖清单、目录结构等）
 
 ---
 

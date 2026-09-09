@@ -405,32 +405,4 @@ describe('SceneManager', () => {
       expect(c.data.number).toBe(3);
     });
   });
-
-  describe('shared documents', () => {
-    it('并发写同一 architecture.md 时应让后写冲突可见', async () => {
-      const created = await manager.create({ name: 'shared-doc' });
-      const snapshot = await manager.getSharedDocument(created.data.id, 'architecture');
-
-      const writes = await Promise.allSettled([
-        manager.updateSharedDocument({
-          scene: created.data.id,
-          document: 'architecture',
-          content: snapshot.content + '\nA change\n',
-          expected_revision: snapshot.revision,
-        }),
-        manager.updateSharedDocument({
-          scene: created.data.id,
-          document: 'architecture',
-          content: snapshot.content + '\nB change\n',
-          expected_revision: snapshot.revision,
-        }),
-      ]);
-
-      expect(writes.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
-      expect(writes.filter((result) => result.status === 'rejected')).toHaveLength(1);
-      const finalDoc = await manager.getSharedDocument(created.data.id, 'architecture');
-      expect(finalDoc.content.includes('A change') || finalDoc.content.includes('B change')).toBe(true);
-      expect(finalDoc.content.includes('A change') && finalDoc.content.includes('B change')).toBe(false);
-    });
-  });
 });

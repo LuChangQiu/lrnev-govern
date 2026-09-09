@@ -9,7 +9,6 @@
  */
 
 export * from './Templates.js';
-export * from './AutoAnalyzer.js';
 export * from './WorkspaceManager.js';
 export * from './SceneManager.js';
 export * from './SpecManager.js';

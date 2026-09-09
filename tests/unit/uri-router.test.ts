@@ -2,7 +2,7 @@
  * URIRouter 单元测试
  *
  * 覆盖 design.md 第 4 节所有 URI 模式：
- *   - 4.1 全局资源（project / auto / steering）
+ *   - 4.1 全局资源（project / steering）
  *   - 4.2 Scene 资源
  *   - 4.3 Spec 资源
  *   - 4.4 ADR 资源（全局 + Scene）
@@ -114,20 +114,16 @@ describe('uriToFilePath - 全局资源（4.1）', () => {
     expect(uriToFilePath(parseURI('context://project/architecture'))).toBe('.lrnev/ARCHITECTURE.md');
   });
 
-  it('context://auto/codebase', () => {
-    expect(uriToFilePath(parseURI('context://auto/codebase'))).toBe('.lrnev/auto/codebase.json');
-  });
-
-  it('context://auto/tech-stack（指向 codebase.json）', () => {
-    expect(uriToFilePath(parseURI('context://auto/tech-stack'))).toBe('.lrnev/auto/codebase.json');
-  });
-
   it('context://steering/core 别名映射', () => {
     expect(uriToFilePath(parseURI('context://steering/core'))).toBe('.lrnev/steering/CORE_PRINCIPLES.md');
   });
 
   it('context://steering/scope 别名映射', () => {
     expect(uriToFilePath(parseURI('context://steering/scope'))).toBe('.lrnev/steering/SCOPE_RULES.md');
+  });
+
+  it('context://steering/context-docs 别名映射', () => {
+    expect(uriToFilePath(parseURI('context://steering/context-docs'))).toBe('.lrnev/steering/CONTEXT_DOCS_TRIGGERS.md');
   });
 
   it('context://steering/{自定义名} 应大写化', () => {
@@ -301,13 +297,10 @@ describe('filePathToURI - 反向映射', () => {
     expect(filePathToURI('.lrnev/ARCHITECTURE.md')).toBe('context://project/architecture');
   });
 
-  it('codebase.json', () => {
-    expect(filePathToURI('.lrnev/auto/codebase.json')).toBe('context://auto/codebase');
-  });
-
   it('steering 别名反向', () => {
     expect(filePathToURI('.lrnev/steering/CORE_PRINCIPLES.md')).toBe('context://steering/core');
     expect(filePathToURI('.lrnev/steering/SCOPE_RULES.md')).toBe('context://steering/scope');
+    expect(filePathToURI('.lrnev/steering/CONTEXT_DOCS_TRIGGERS.md')).toBe('context://steering/context-docs');
   });
 
   it('scene 子文档', () => {
@@ -363,8 +356,8 @@ describe('双向往返核心案例', () => {
   const cases = [
     'context://project',
     'context://project/architecture',
-    'context://auto/codebase',
     'context://steering/core',
+    'context://steering/context-docs',
     'context://scene/01-user',
     'context://scene/01-user/architecture',
     'context://scene/01-user/roadmap',

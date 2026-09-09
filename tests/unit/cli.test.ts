@@ -58,7 +58,7 @@ describe('CLI', () => {
     expect(init?.helpInformation()).toContain('占位');
   });
 
-  it('F-09: init 在非 JSON 模式下应为已有代码项目打印人类友好提示', async () => {
+  it('F-09: init 在非 JSON 模式下应为新建骨架打印补全提示', async () => {
     await writeFile(join(workspace.path, 'package.json'), JSON.stringify({ name: 'demo' }), 'utf-8');
 
     let out = '';
@@ -70,9 +70,9 @@ describe('CLI', () => {
     await program.parseAsync(['node', 'lrnev', '--workspace', workspace.path, 'init', '--project-name', 'demo']);
 
     expect(JSON.parse(out).ok).toBe(true);
-    expect(err).toContain('检测到已有代码');
-    expect(err).toContain('探测信号仅供参考');
-    expect(err).toContain('补全 PROJECT 与 ARCHITECTURE');
+    expect(err).toContain('已初始化');
+    expect(err).toContain('构建/清单文件');
+    expect(err).toContain('FILL 骨架');
 
     let jsonErr = '';
     const jsonProgram = buildCli({

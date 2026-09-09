@@ -84,7 +84,7 @@ export class Searcher {
       ? `.lrnev/scenes/${scope.slice('scene:'.length)}`
       : '.lrnev';
     const files = await this.fs.list(`${base}/**/*.{md,json}`, { dot: true });
-    const ignoredDirs = loadConfig(this.fs.root).auto_analyzer.ignore_dirs;
+    const ignoredDirs = loadConfig(this.fs.root).search.ignore_dirs;
     return files
       .filter((file) => !isIgnored(file, ignoredDirs))
       .filter((file) => depthFromBase(file, base) <= maxDepth + 2)

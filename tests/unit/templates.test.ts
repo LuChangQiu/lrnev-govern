@@ -115,6 +115,13 @@ describe('renderTemplate', () => {
     expect(out).toContain('spec_create --version');
   });
 
+  it('应原样读 steering/CONTEXT_DOCS_TRIGGERS.md', async () => {
+    const out = await renderTemplate('steering', 'CONTEXT_DOCS_TRIGGERS.md');
+    expect(out).toContain('上下文文档维护时机触发清单');
+    // 静态文件不含占位符
+    expect(out.includes('{{')).toBe(false);
+  });
+
   it('缺占位符应抛错', async () => {
     try {
       await renderTemplate('scene', 'scene.md', { id: '01-x' }); // 缺其它字段

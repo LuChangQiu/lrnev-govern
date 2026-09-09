@@ -11,11 +11,7 @@
     "max_depth": 3,
     "top_k": 10,
     "snippet_length": 240,
-    "use_l0_ranking": true
-  },
-  "auto_analyzer": {
-    "max_manifest_depth": 3,
-    "max_sample_files": 20,
+    "use_l0_ranking": true,
     "ignore_dirs": [
       "node_modules", "dist", "build", ".git", "coverage", ".next", "target",
       ".idea", ".vscode", "logs", ".gradle", "vendor", "__pycache__", ".venv", "venv", "out", "tmp"

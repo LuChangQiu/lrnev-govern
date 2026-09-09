@@ -46,14 +46,7 @@ lrnev 的可调阈值集中在一个文件：项目根的 **`.lrnev/config/lrnev
 | `top_k` | `10` | 单次最多返回条数 |
 | `snippet_length` | `240` | 摘要片段最大字符数 |
 | `use_l0_ranking` | `true` | 是否用 L0/L1 摘要加权排序 |
-
-### `auto_analyzer` — init 时的代码库探测
-
-| 键 | 默认 | 说明 |
-|---|---|---|
-| `max_manifest_depth` | `3` | 搜索构建清单的最大目录深度 |
-| `max_sample_files` | `20` | 最多抽样源码文件数 |
-| `ignore_dirs` | `node_modules`、`dist`、`.git` 等 | 探测与检索跳过的目录名列表 |
+| `ignore_dirs` | `node_modules`、`dist`、`.git` 等 | context_search 跳过检索的目录名列表 |
 
 ### `errorbook`
 

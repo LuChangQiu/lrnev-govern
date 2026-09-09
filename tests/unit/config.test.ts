@@ -23,9 +23,7 @@ describe('DEFAULT_CONFIG', () => {
     expect(DEFAULT_CONFIG.doctor.stale_task_days).toBeGreaterThan(0);
     expect(DEFAULT_CONFIG.search.max_depth).toBeGreaterThan(0);
     expect(DEFAULT_CONFIG.search.snippet_length).toBeGreaterThan(0);
-    expect(DEFAULT_CONFIG.auto_analyzer.max_manifest_depth).toBeGreaterThan(0);
-    expect(DEFAULT_CONFIG.auto_analyzer.max_sample_files).toBeGreaterThan(0);
-    expect(Array.isArray(DEFAULT_CONFIG.auto_analyzer.ignore_dirs)).toBe(true);
+    expect(Array.isArray(DEFAULT_CONFIG.search.ignore_dirs)).toBe(true);
     expect(DEFAULT_CONFIG.errorbook.fingerprint_length).toBeGreaterThan(0);
     expect(DEFAULT_CONFIG.memory.dedup_similarity_threshold).toBeGreaterThan(0);
     expect(DEFAULT_CONFIG.spec.create_max_attempts).toBe(10);
@@ -72,12 +70,12 @@ describe('loadConfig', () => {
 
   it('数组应整体替换而不是合并', async () => {
     await writeUserConfig(workspace.path, {
-      auto_analyzer: { ignore_dirs: ['vendor'] },
+      search: { ignore_dirs: ['vendor'] },
     });
     const cfg = loadConfig(workspace.path);
 
-    expect(cfg.auto_analyzer.ignore_dirs).toEqual(['vendor']);
-    expect(cfg.auto_analyzer.max_sample_files).toBe(DEFAULT_CONFIG.auto_analyzer.max_sample_files);
+    expect(cfg.search.ignore_dirs).toEqual(['vendor']);
+    expect(cfg.search.max_depth).toBe(DEFAULT_CONFIG.search.max_depth);
   });
 
   it('user override 含 null 应回退默认值', async () => {

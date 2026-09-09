@@ -14,9 +14,8 @@
 
 1. `context://project` —— 项目全局概述
 2. `context://project/architecture` —— 全局架构
-3. `context://auto/codebase` —— 自动分析的技术栈
-4. 任务相关 Scene 的 `context://scene/{id}`
-5. 任务相关 Spec 的 `context://spec/{scene}/{spec}`
+3. 任务相关 Scene 的 `context://scene/{id}`
+4. 任务相关 Spec 的 `context://spec/{scene}/{spec}`
 
 **优先用 L0/L1**（`?level=L0` 或 `?level=L1`），需要时再读 L2 全文，节省 token。
 
@@ -87,4 +86,4 @@
 
 - **用户决定优先**：以上皆为建议非强制——用户已明确要求（如"直接帮我建 Spec"）照做即可，即使与建议相左也不劝返。ai_followup 的【执行约束】是系统硬约束；【决策边界】指"未经用户确认不得改变其明确目标"。
 - **如实声明**：`scene_create` / `spec_create` / `task_create` / `assess_goal` 可附 `decision_context`（source: `client_asserted`）说明本次调用照用户的什么组织决定来——用户没说过就不编造，不传 = 未声明。
-- **文档维护时机**：PROJECT.md = init 补全一次 + 项目定位/阶段变化（用户确认后更新）；ARCHITECTURE.md = 跨 Scene 架构约束/技术栈变化（与 global ADR 联动）；scene.md = Scene 边界/intent 变化；scene architecture.md = 新跨 Spec 共享约束出现；**roadmap.md = Spec 新建/收口/计划变化时同步**；所有文档大改后重新 `summarize_save`（不手写 sidecar）。
+- **文档维护时机**：PROJECT / ARCHITECTURE / scene 三件套（scene.md / architecture.md / roadmap.md）何时更新、更新后做什么，见 `context://steering/context-docs`（逐文档触发清单）。
