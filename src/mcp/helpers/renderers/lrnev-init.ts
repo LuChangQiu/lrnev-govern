@@ -42,6 +42,15 @@ export const lrnevInitRenderer: ModelVisibleRenderer<InitWorkspaceResult> = {
       lines.push('');
     }
 
+    // ADR 0003：AGENTS.md 生成结果
+    if (payload.data.agents_md === 'created') {
+      lines.push('✅ 已在项目根生成 AGENTS.md（指针式，规则真源 .lrnev/steering；AI 不得自行修改本文件）');
+      lines.push('');
+    } else if (payload.data.agents_md === 'skipped-existing') {
+      lines.push('⚠️ 项目根已存在 AGENTS.md（未覆盖——如需 lrnev 指引请手动合并 steering 引用）');
+      lines.push('');
+    }
+
     // 投影 ai_followup
     if (payload.ai_followup?.instructions) {
       for (const instruction of payload.ai_followup.instructions) {

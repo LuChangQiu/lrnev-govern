@@ -246,6 +246,7 @@ function registerWorkspaceTools(server: McpServer): void {
         root: z.string().optional().describe('可选：显式指定项目根目录；默认按 LRNEV_WORKSPACE 或当前目录定位'),
         project_name: z.string().optional().describe('可选：项目名；默认使用目录名'),
         scan: z.boolean().optional().describe('占位 flag，M2 不做主动扫描；行为同默认 init'),
+        with_agents_md: z.boolean().optional().describe('可选（ADR 0003）：在项目根生成指针式 AGENTS.md（引用 .lrnev/steering）；已存在则跳过不覆盖。CLI 端会交互询问，此参数供脚本显式控制'),
       },
       outputSchema: createToolOutputSchema(InitWorkspaceResultSchema),
       annotations: { destructiveHint: false, idempotentHint: true, openWorldHint: false },

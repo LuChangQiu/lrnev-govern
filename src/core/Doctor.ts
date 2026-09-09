@@ -203,6 +203,15 @@ export class Doctor {
         suggestion: '读构建/清单文件与核心源码后补全 PROJECT/ARCHITECTURE；auto/codebase.json 的探测仅供参考。',
       });
     }
+    // ADR 0003（2026-09）：项目根无 AGENTS.md 时软提示（info 级，仅引导不强制）。
+    if (!this.fs.exists('AGENTS.md')) {
+      issues.push({
+        code: 'AGENTS_MD_OPTIONAL',
+        severity: 'info',
+        message: '项目根没有 AGENTS.md',
+        suggestion: '可选：重跑 lrnev init --with-agents-md 生成指针式 AGENTS.md（引用 .lrnev/steering，供支持原生加载的客户端自动读取；ADR 0003）。',
+      });
+    }
   }
 
   private async checkStaleTasks(issues: DiagnosticIssue[]): Promise<void> {

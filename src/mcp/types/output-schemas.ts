@@ -471,6 +471,7 @@ export const InitWorkspaceResultSchema = z.object({
   files_existing: z.array(z.string()),
   directories_ensured: z.array(z.string()),
   codebase_detected: z.boolean(),
+  agents_md: z.enum(['created', 'skipped-existing']).optional(),
 });
 
 /**

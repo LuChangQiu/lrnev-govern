@@ -207,4 +207,33 @@ describe('WorkspaceManager', () => {
     expect(fs.exists('.lrnev/steering/ADR_TRIGGERS.md')).toBe(true);
     expect(res.data.files_created).toContain('.lrnev/steering/ADR_TRIGGERS.md');
   });
+
+  it('ADR 0003: with_agents_md 在项目根生成指针式 AGENTS.md', async () => {
+    const res = await manager.init({ root: workspace.path, project_name: 'demo-project', with_agents_md: true });
+
+    expect(res.data.agents_md).toBe('created');
+    expect(fs.exists('AGENTS.md')).toBe(true);
+    const content = await fs.read('AGENTS.md');
+    // 指针式：声明 + steering 具体文件清单，不复制 steering 全文
+    expect(content).toContain('AGENTS.md');
+    expect(content).toContain('.lrnev/steering/');
+    expect(content).toContain('CORE_PRINCIPLES.md');
+    expect(content).toContain('MEMORY_TRIGGERS.md');
+    expect(content).toContain('AI 不得修改');
+  });
+
+  it('ADR 0003: 已存在 AGENTS.md 时不覆盖并返回 skipped-existing', async () => {
+    await fs.write('AGENTS.md', '# 用户自有的 AGENTS.md\n自定义规则。\n');
+    const res = await manager.init({ root: workspace.path, project_name: 'demo-project', with_agents_md: true });
+
+    expect(res.data.agents_md).toBe('skipped-existing');
+    expect(await fs.read('AGENTS.md')).toContain('用户自有的 AGENTS.md'); // 未被覆盖
+  });
+
+  it('ADR 0003: 未请求 with_agents_md 时不生成 AGENTS.md', async () => {
+    await manager.init({ root: workspace.path, project_name: 'demo-project' });
+
+    expect(fs.exists('AGENTS.md')).toBe(false);
+    expect((await manager.init({ root: workspace.path, project_name: 'demo-project' })).data.agents_md).toBeUndefined();
+  });
 });

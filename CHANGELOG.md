@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **init 可选生成项目根 AGENTS.md（ADR 0003，2026-09 翻案 2026-06"不做代码生成"决策）**：CLI `lrnev init` 在交互终端询问一次"是否生成根 AGENTS.md（指针式，引用 .lrnev/steering）"，默认不生成；`--with-agents-md` flag 供脚本显式控制（MCP `lrnev_init` 同参）。生成内容 = 指针式：项目声明 + 修改边界（AI 不得自行修改）+ `.lrnev/steering/` 四份具体文件清单（各一句话用途与何时读）+ 只读/要改判断 + 验证纪律——**不复制 steering 全文**（steering 唯一真源，防手抄漂移）。已存在 AGENTS.md 则跳过不覆盖（`agents_md: created|skipped-existing`）；`lrnev doctor` 对缺失 AGENTS.md 的项目给 info 级软提示。
+
 ### Fixed
 
 - **steering / init 模板按 3.0.0 语义全面修订**（此前自 1.0.0 起未回流，1.1~3.0 演进缺失/过时）：

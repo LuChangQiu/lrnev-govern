@@ -110,6 +110,24 @@ export class WorkspaceManager {
     if (defaultSceneExisted) filesExisting.push(defaultScenePath);
     else filesCreated.push(defaultScenePath);
 
+    // ADR 0003（2026-09）：可选生成项目根指针式 AGENTS.md（引用 .lrnev/steering）。
+    // 只在用户明确同意（CLI 询问 y / --with-agents-md）时写入此唯一项目根文件；已存在则跳过不覆盖。
+    let agentsMd: InitWorkspaceResult['agents_md'];
+    if (input.with_agents_md) {
+      const agentsPath = 'AGENTS.md';
+      if (fs.exists(agentsPath)) {
+        agentsMd = 'skipped-existing';
+      } else {
+        await fs.write(
+          agentsPath,
+          await renderTemplate('agents', 'AGENTS.md', {
+            project_name: projectName,
+          }),
+        );
+        agentsMd = 'created';
+      }
+    }
+
     return {
       ok: true,
       data: {
@@ -119,6 +137,7 @@ export class WorkspaceManager {
         files_existing: filesExisting,
         directories_ensured: STANDARD_DIRS,
         codebase_detected: codebaseDetected,
+        ...(agentsMd && { agents_md: agentsMd }),
       },
       ai_followup: {
         instructions: [

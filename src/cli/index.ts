@@ -88,6 +88,7 @@ interface CliActionOptions extends CliGlobals {
   readable?: boolean;
   rootCause: string;
   scan?: boolean;
+  withAgentsMd?: boolean;
   scene: string;
   scope: string;
   source: string;
@@ -165,17 +166,39 @@ function buildInitCommand(program: Command, options: BuildCliOptions): Command {
     .description('初始化 .lrnev 工作区')
     .option('--project-name <name>', '项目名')
     .option('--scan', '占位 flag，M2 不做主动扫描；行为同默认 init')
+    .option('--with-agents-md', '（ADR 0003）在项目根生成指针式 AGENTS.md（引用 .lrnev/steering）；交互终端会询问，此 flag 供脚本显式控制')
     .action(run(program, options, async (opts) => {
+      // ADR 0003：交互终端询问一次（默认不生成）；非 TTY（管道/脚本）且无 flag 时直接跳过，不卡流程
+      let withAgentsMd = opts.withAgentsMd;
+      if (withAgentsMd === undefined && !opts.json && process.stdin.isTTY) {
+        withAgentsMd = await askYesNo('要为项目生成根 AGENTS.md 吗（指针式，引用 .lrnev/steering，供支持原生加载的客户端自动读取）？[y/N] ');
+      }
       const result = await new WorkspaceManager().init({
         root: opts.workspace,
         project_name: opts.projectName,
         scan: opts.scan,
+        ...(withAgentsMd !== undefined && { with_agents_md: withAgentsMd }),
       });
+      if (!opts.json && result.data.agents_md === 'created') {
+        writeErr(options, '✓ 已在项目根生成 AGENTS.md（指针式，规则真源 .lrnev/steering；AI 不得自行修改本文件）。\n');
+      }
       if (!opts.json && result.data.codebase_detected) {
         writeErr(options, '✓ 已初始化并检测到已有代码。auto/codebase.json 里的探测信号仅供参考；请读构建/清单文件和核心源码补全 PROJECT 与 ARCHITECTURE。\n');
       }
       return result;
     }));
+}
+
+/** ADR 0003：init 交互询问（提示写 stderr，避免污染 stdout/JSON 输出）。 */
+async function askYesNo(question: string): Promise<boolean> {
+  const { createInterface } = await import('node:readline/promises');
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  try {
+    const answer = (await rl.question(question)).trim().toLowerCase();
+    return ['y', 'yes', '是', '要', 'ok', '1'].includes(answer);
+  } finally {
+    rl.close();
+  }
 }
 
 function buildSceneCommand(program: Command, options: BuildCliOptions): Command {
