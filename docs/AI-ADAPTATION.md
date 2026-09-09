@@ -199,6 +199,8 @@ MCP 的工具说明与 server instructions 只在连接初始化时注入一次�
 
 ## 核心规则
 
+> 会话开始/接手先读项目 `.lrnev/steering/`（若存在）——项目给 AI 的行为契约（ai_followup 必须执行、不确定先查档案、scope 默认 global 等，比本模板更具体；ADR/记忆触发约定也在其中）。本模板是通用版，steering 是项目版。
+
 1. 只读 vs 要改：纯查代码/解释 → 直接做；流程只在要改代码或推进治理时走。
 2. 要改且不知进度 → project_status；全景 governance_map；文档 context_search。
 3. 开不开 spec 便宜先：
@@ -241,6 +243,8 @@ MCP 的工具说明与 server instructions 只在连接初始化时注入一次�
 | CodeGraph 查询工具（主力，名称以你环境为准） | 一次命中符号+来源文件+调用路径（X 在哪/谁调 X/波及谁） |
 
 ## lrnev 核心规则
+
+> 会话开始/接手先读项目 `.lrnev/steering/`（若存在）——项目给 AI 的行为契约（ai_followup 必须执行、不确定先查档案、scope 默认 global 等，比本模板更具体；ADR/记忆触发约定也在其中）。本模板是通用版，steering 是项目版。
 
 1. **只读 vs 要改**：纯查代码/定位/解释/回答 → 直接做，不 project_status、不开 spec；以下流程只在要改代码或推进治理时走。
 2. **要改且不确定进度** → 先 `project_status`；全景 `governance_map`；找相关文档 `context_search`。

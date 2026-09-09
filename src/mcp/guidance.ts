@@ -15,6 +15,7 @@ export const WORKFLOW_OVERVIEW = [
   '概念：Scene > Spec > Task；Gate 只查结构契约；ADR/Errorbook/Memory 是轻产物。',
   '新建特性：首次先 lrnev_init，再 spec_create；填 requirements 后跑 spec_gate_check(ready)，再拆任务（多条清单用 task_create_many、单条用 task_create），最后 spec_gate_check(completion)。',
   '接手项目：先调 project_status 拿全貌，从 in_progress task 继续；可用 governance_map 看治理全景、lrnev_report 看治理欠债。',
+  '治理契约（项目已 lrnev_init 时）：工作/接手前先读 .lrnev/steering/（CORE_PRINCIPLES 核心原则、SCOPE_RULES 范围判定）——项目给 AI 的行为契约：写入工具的 ai_followup 必须执行、不确定先查档案（adr_list/error_search/memory_search）再问、ADR/Memory 不擅自生成；触发与判定细节见 steering/adr|memory|scope。',
   '分流(便宜先)：写不出独立验收→直接做；已有特性增量→落位 spec，落位后新增开发工作用 task_create 登记；独立新特性→spec_create。新 spec 优先已有 scene；新域经用户确认会有多 spec→scene_create；无域小特性落 00-default；scene/00 不确定问用户。踩坑→error_record，决策→adr_create，约定→memory_save。',
   '归档边界：archived 是状态机终态。AI 不替用户自动归档/删除 Spec——用户改主意（如放弃新 Spec 改用旧 Spec）不构成自动归档依据，是否归档由用户明确决定（spec_update）。刚创建的 Spec 同理，不得自我回退。',
   USER_DECISION_PRIORITY_CLAUSE,
