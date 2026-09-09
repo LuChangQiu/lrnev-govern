@@ -1,6 +1,6 @@
 {
   "name": "lrnev",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "lrnev-govern project governance service for AI-collaborative development. MCP server + CLI dual-form.",
   "type": "module",
   "engines": {
@@ -31,7 +31,7 @@
     "dev:mcp": "tsx watch src/mcp/dev-entry.ts",
     "dev:inspect": "npx @modelcontextprotocol/inspector tsx src/mcp/dev-entry.ts",
     "clean": "rimraf dist",
-    "prepublishOnly": "npm run clean && npm run typecheck && npm run typecheck:test && npm test && npm run build"
+    "prepublishOnly": "npm run clean && npm run typecheck && npm run typecheck:test && npm run build && npm test"
   },
   "keywords": [
     "mcp",

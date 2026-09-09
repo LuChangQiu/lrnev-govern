@@ -50,7 +50,7 @@ npm publish
 ```json
 {
   "name": "lrnev",           // npm install -g lrnev
-  "version": "3.0.0",
+  "version": "3.1.0",
   "bin": {
     "lrnev": "./bin/lrnev.mjs",       // → 全局命令 lrnev
     "lrnev-mcp": "./bin/lrnev-mcp.mjs" // → 全局命令 lrnev-mcp
@@ -69,6 +69,6 @@ npm pack --dry-run
 
 # 本地安装测试
 npm pack                  # 生成 lrnev-x.x.x.tgz
-npm install -g ./lrnev-3.0.0.tgz
+npm install -g ./lrnev-3.1.0.tgz
 lrnev --version
 ```

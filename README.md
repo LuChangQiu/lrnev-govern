@@ -244,7 +244,7 @@ lrnev doctor --migrate-todos              # 工作区结构自检（含旧 TODO 
 ```bash
 npm install && npm run build     # tsc 编译到 dist/
 npm run typecheck                # 类型检查（发布门禁：0 错误）
-npm test                         # 全量测试（2026-09-10 基准 1070 条 = unit 949 + integration/e2e 121，以 npm test 实跑为准）
+npm test                         # 全量测试（2026-09-09 基准 1071 条 = unit 950 + integration/e2e 121，以 npm test 实跑为准）
 npm run dev:mcp                  # tsx watch 热重载跑 MCP（入口 src/mcp/dev-entry.ts）
 npm run dev:inspect              # MCP Inspector 图形调试（同 dev-entry）
 node bin/lrnev.mjs init          # 本地跑已构建 CLI（需先 npm run build；等价全局 lrnev）

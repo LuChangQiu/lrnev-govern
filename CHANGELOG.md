@@ -2,7 +2,9 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [SemVer 2.0](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [3.1.0] - 2026-09-09
+
+3.0.0 后的首个功能小版本（2026-09 收口批）：init 可选生成项目根 **AGENTS.md**（ADR 0003，指针式，不复制 steering 全文）与 **steering 第 5 份文档 `CONTEXT_DOCS_TRIGGERS.md`**（上下文文档维护时机触发清单）；按"无用即删"收口三处零消费/假承诺机制（`.lrnev/state/version.json` 写入、SceneManager 零接线共享文档更新通道、AutoAnalyzer → `.lrnev/auto/codebase.json` 探测）与 **scene 假状态**（模板/渲染层不再写与展示恒 draft 的 status）；四维只读审查驱动的全仓质量收口（门禁做实：noUnused×2/noEmitOnError 开启、prepublishOnly 补 typecheck×2；死代码清零 23 处 + 19 个零消费 ResponseSchema）。**破坏性变更：配置域迁移**——`auto_analyzer.*` 移除，其中 `ignore_dirs` 迁移至 `search.ignore_dirs`（默认值不变，见 Removed）；**其余向后兼容**：MCP 响应契约不变、42 工具默认全量、数据文件格式不变（3.0.0 用户升级无需改动；升级后建议 `lrnev doctor` 体检、存量工作区可按 Fixed 条目刷新 steering）。
 
 ### Added
 
@@ -27,6 +29,8 @@
   - scene architecture/roadmap 与 project 两模板：补"维护时机"说明尾注；PROJECT/ARCHITECTURE 裸 TODO 统一为 `<!-- FILL: -->`。
   - 模板为 write-if-missing：**存量工作区刷新** = 删除 `.lrnev/steering/*.md`（及待更新的 project/scene 文档）后重跑 `lrnev init` 自动补新模板，或按 `templates/` 手工覆盖。
 - **steering 送达**（连接注入 + 常驻模板补指针）见上一条目；本条目为内容修订。
+- **全仓质量收口（四维只读审查驱动，验证 Agent 对抗验证后集成）**：发布门禁做实——tsconfig（+test）开 `noUnusedLocals`/`noUnusedParameters`、tsconfig 开 `noEmitOnError`、`prepublishOnly` 补 `typecheck`/`typecheck:test`（原链只跑 clean+build+test，类型错误拦不住）；死代码清零（src 9 + tests 13 处 noUnused、output-schemas 19 个零消费 ResponseSchema 及工厂函数、SPEC_DOCS/META_REGEX/registerRenderer×2/getConfigPathHint 等死导出，三处 `void` 占位清除）；导出面收窄（SceneManager/SpecManager/TaskManager 等零消费 export 去除，grep 实证）；safeId×3 逐字节副本收敛为 `shared/text.ts` 的 `sanitizePathSegment`；server.ts 裸 `throw new Error` 归 LrnevError（CONTRIBUTING"禁裸 throw"最后两处）；Doctor `REQUIRED_DIRS` 补 `.lrnev/errorbook`（三处目录清单唯一漂移）；SCOPE_RULES.md 删不存在的 `adr_demote`/`memory_demote` 引用（fe27a23 漏改，模板与实例副本同步）；README/INTEGRATION-TEST 测试数刷 1071（2026-09-09 实测：unit 950 + integration/e2e 121，80 文件）。（测试规模：3.1.0 = 1071，较 3.0.0 的 1079 少 8——净删除测试对应已删机制，非覆盖下降）
+- **fix(cli)：`init` 默认以 cwd 为工作区，不向上找祖先 workspace（同 git init 语义）**：此前 `lrnev init` 不带 `-w/--workspace` 时经 `resolveWorkspaceRoot()` 向上定位——项目嵌套在另一 lrnev 工作区（如聚合工作区内的子项目）时重建 `.lrnev` 会静默写进祖先工作区（dogfood 重建实测踩中）。init 属"新建"语义：默认 `process.cwd()`，显式 `-w` 优先；doctor/status 等日常命令仍保留向上找。补嵌套场景回归测试。
 
 ## [3.0.0] - 2026-09-07
 
@@ -299,6 +303,7 @@ lrnev 治理契约的端到端标准化（governance scene `04-ai-guidance-stand
 
 ---
 
+[3.1.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v3.1.0
 [3.0.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v3.0.0
 [2.3.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v2.3.0
 [2.2.0]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v2.2.0
