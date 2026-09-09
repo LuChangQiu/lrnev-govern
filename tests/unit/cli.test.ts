@@ -6,7 +6,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { dir as tmpDir, type DirectoryResult } from 'tmp-promise';
-import { writeFile, readFile } from 'node:fs/promises';
+import { writeFile, readFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { buildCli } from '../../src/cli/index.js';
@@ -56,6 +57,31 @@ describe('CLI', () => {
     const init = program.commands.find((command) => command.name() === 'init');
 
     expect(init?.helpInformation()).toContain('占位');
+  });
+
+  it('init 不带 --workspace 时以 cwd 为工作区（不向上找祖先 workspace，同 git init 语义）', async () => {
+    // 造嵌套场景：先在外层 init，再进其子目录跑无 -w 的 init——必须建在子目录而不是命中外层
+    await writeFile(join(workspace.path, 'package.json'), JSON.stringify({ name: 'outer' }), 'utf-8');
+    const outer = buildCli({ writeOut: () => undefined });
+    await outer.parseAsync(['node', 'lrnev', '--workspace', workspace.path, 'init', '--project-name', 'outer']);
+    expect(existsSync(join(workspace.path, '.lrnev/PROJECT.md'))).toBe(true);
+
+    const nested = join(workspace.path, 'nested');
+    await mkdir(nested, { recursive: true });
+    const prevCwd = process.cwd();
+    try {
+      process.chdir(nested);
+      let out = '';
+      const inner = buildCli({ writeOut: (text) => { out += text; } });
+      await inner.parseAsync(['node', 'lrnev', 'init', '--project-name', 'nested']);
+      const res = JSON.parse(out);
+      expect(res.ok).toBe(true);
+      expect(res.data.root).toBe(nested);
+      expect(res.data.was_new).toBe(true);
+      expect(existsSync(join(nested, '.lrnev/PROJECT.md'))).toBe(true);
+    } finally {
+      process.chdir(prevCwd);
+    }
   });
 
   it('F-09: init 在非 JSON 模式下应为新建骨架打印补全提示', async () => {

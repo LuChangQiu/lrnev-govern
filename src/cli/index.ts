@@ -174,7 +174,9 @@ function buildInitCommand(program: Command, options: BuildCliOptions): Command {
         withAgentsMd = await askYesNo('要为项目生成根 AGENTS.md 吗（指针式，引用 .lrnev/steering，供支持原生加载的客户端自动读取）？[y/N] ');
       }
       const result = await new WorkspaceManager().init({
-        root: opts.workspace,
+        // init 是"新建"语义（同 git init）：默认以当前目录为工作区，绝不向上找祖先
+        // workspace（嵌套场景会写错位置）；显式 -w/--workspace 优先。
+        root: opts.workspace ?? process.cwd(),
         project_name: opts.projectName,
         scan: opts.scan,
         ...(withAgentsMd !== undefined && { with_agents_md: withAgentsMd }),
