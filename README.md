@@ -2,7 +2,7 @@
 
 > 🎯 确定性项目治理引擎：给 AI 协作开发加上 Scene → Spec → Task + Gate 的流程与档案。Markdown 文件即真相，零模型依赖；MCP 服务 + CLI 双形态。
 
-名词家族：npm 包 **`lrnev`** · 命令 `lrnev`（CLI）与 `lrnev-mcp`（MCP 服务）· 源码仓库 `lrnev-govern` · 当前版本 **3.0.0**（要求 Node.js ≥ 20）
+名词家族：npm 包 **`lrnev`** · 命令 `lrnev`（CLI）与 `lrnev-mcp`（MCP 服务）· 源码仓库 `lrnev-govern` · 要求 Node.js ≥ 20（当前版本见 [npm](https://www.npmjs.com/package/lrnev)）
 
 ```bash
 npm install -g lrnev

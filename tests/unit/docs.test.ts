@@ -60,6 +60,7 @@ describe('docs', () => {
   it('发布文档和 CHANGELOG 应反映 lrnev 当前版本', () => {
     const publish = readFileSync(resolve(__dirname, '../../dev-docs/PUBLISH.md'), 'utf-8');
     const changelog = readFileSync(resolve(__dirname, '../../CHANGELOG.md'), 'utf-8');
+    const readme = readFileSync(resolve(__dirname, '../../README.md'), 'utf-8');
     const pkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf-8')) as { version: string };
 
     expect(publish).toContain('package.json name 是 "lrnev"');
@@ -70,5 +71,9 @@ describe('docs', () => {
     expect(changelog).toContain(`[${pkg.version}]: https://github.com/LuChangQiu/lrnev-govern/releases/tag/v${pkg.version}`);
     expect(changelog).toContain('spec_update');
     expect(changelog).toContain('archived');
+    // README 不写死"当前版本"：版本真源 = package.json / npm，手写必然漂移
+    // （2026-09-09 发 3.1.0 时实测漏更 3.0.0）。README 里 "3.0.0 起 / 3.0.0 升级注意"
+    // 属历史语义，不在此断言范围。
+    expect(readme).not.toMatch(/当前版本\s*\*\*\d+\.\d+\.\d+/);
   });
 });
