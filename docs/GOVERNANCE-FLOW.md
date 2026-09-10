@@ -223,4 +223,4 @@ lrnev 返回内容可能因**体积预算**或**源残缺**而"给一部分"—�
 - **`project_status` 每个 Spec 的 `claimable_meta`**：`total_count` = 该 Spec 的 `free_tasks_count`（可领任务全量），`returned_count` = `claimable_next` 预览条数。`truncated: true` 表示预览只取了前 `project_status.claimable_preview` 条。
 - **`task_create_many` 的 `data.query_meta`**：核对信息（`created` 条数 = 请求批、`truncated` 恒为 `false`）——批量是原子 all-or-nothing，超 `task.max_batch_create` 在上限处直接报错，不是截断。
 
-> 严格契约边界：这些字段的 canonical 定义与信封（structuredContent）语义以根 README「MCP 响应契约」节为权威，本文件只解释治理语义与消费方式。
+> 严格契约边界：这些字段的 canonical 定义与信封（structuredContent）语义以 [MCP-CONTRACT.md](./MCP-CONTRACT.md)（「MCP 响应契约（3.0.0 起）」）为权威，本文件只解释治理语义与消费方式。

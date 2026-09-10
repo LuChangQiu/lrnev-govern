@@ -193,7 +193,7 @@ lrnev task update T-001 --scene 00-default --spec 01-00-user-login --status in_p
 lrnev task update T-001 --scene 00-default --spec 01-00-user-login --status completed
 ```
 
-> **看懂这次 `task update` 的返回**：切到 `in_progress` 时响应会回填干活需要的上下文——声明了 validates 的返回 `anchor_context`（数组，每条带锚点原文，如 F-01 验收口径段落）；没声明 validates 的返回 spec 级 `summary_context`。3.0.0 起每个上下文带 `meta: { text_status, returned_length }`：`text_status` 为 `complete` / `truncated_by_budget`（大段落按预算截断）/ `incomplete_source`（源段落还是模板占位），残缺或截断会明确标注，不会把占位噪声当正文回填——详情见根 README 的 MCP 响应契约节。
+> **看懂这次 `task update` 的返回**：切到 `in_progress` 时响应会回填干活需要的上下文——声明了 validates 的返回 `anchor_context`（数组，每条带锚点原文，如 F-01 验收口径段落）；没声明 validates 的返回 spec 级 `summary_context`。3.0.0 起每个上下文带 `meta: { text_status, returned_length }`：`text_status` 为 `complete` / `truncated_by_budget`（大段落按预算截断）/ `incomplete_source`（源段落还是模板占位），残缺或截断会明确标注，不会把占位噪声当正文回填——详情见 `docs/MCP-CONTRACT.md`。
 
 ---
 
@@ -289,10 +289,10 @@ lrnev error record \
 - `env.LRNEV_WORKSPACE`：MCP 子进程的 cwd 常常不是项目根，**建议始终钉死**——不钉死时 lrnev 向上查找 `.lrnev`，可能命中祖先目录里别的项目（与 §0 是同一个坑）。
 - `args: ["--profile", "core"]`（3.0.0 起，可选）：缺省 `full` 注册全部 42 个工具；`core` 裁掉 9 个"AI 不该主动选"的自动/配置面工具（`agent_*` 4 个 + `lrnev_hook_*` 5 个），保留 33 个。工具名与 CLI 子命令一一对应（如 `spec_create` / `task_update` / `project_status` / `assess_goal`）。
 
-**3.0.0 双通道响应（接入方须知）**：每次工具调用同时返回 `structuredContent`（canonical 数据契约：`response_version: '1'` / `ok` / `data` / `errors` / `ai_followup`，按场景带 `anchor_context` / `summary_context`）与 `content[0].text`（按工具渲染、给 AI / 人直接读的文本）。**2.3.0 及以前 `content[0].text` 是 JSON 字符串；3.0.0 起不再是 JSON**，机器解析一律读 `structuredContent`。详细契约见仓库根 README「MCP 响应契约」一节。
+**3.0.0 双通道响应（接入方须知）**：每次工具调用同时返回 `structuredContent`（canonical 数据契约：`response_version: '1'` / `ok` / `data` / `errors` / `ai_followup`，按场景带 `anchor_context` / `summary_context`）与 `content[0].text`（按工具渲染、给 AI / 人直接读的文本）。**2.3.0 及以前 `content[0].text` 是 JSON 字符串；3.0.0 起不再是 JSON**，机器解析一律读 `structuredContent`。详细契约见 `docs/MCP-CONTRACT.md`。
 
 **（可选）hooks 自动化**：init 后 `.lrnev/config/hooks.json` 是空数组。想让事件（如 `task.update.completed`、`spec.gate_passed.completion`）触发本地脚本时，往里加 `{ "name", "event", "command", "mode" }` 条目，用 `lrnev hook list` 查看、`lrnev hook trigger <event>` 手动试跑。3.0.0 起 async hook 触发即先记 `invoked`，进程退出会 drain（超时补记 `timed_out`），排查一律用 `lrnev hook tail-log`。事件表与配置键见 `docs/HOOKS.md`，完整示例见 `docs/examples/hooks.json`。
 
 ---
 
-更多请看仓库根 README（命令流、MCP 双通道契约与 `--profile` 分层）、`docs/GOVERNANCE-FLOW.md`（gate / 哨兵 / 状态机语义）和 `docs/AI-ADAPTATION.md`（跨客户端接入配置、常驻提示词模板）。
+更多请看仓库根 README（命令流与 `--profile` 分层）、`docs/MCP-CONTRACT.md`（MCP 双通道响应契约）、`docs/GOVERNANCE-FLOW.md`（gate / 哨兵 / 状态机语义）和 `docs/AI-ADAPTATION.md`（跨客户端接入配置、常驻提示词模板）。

@@ -105,7 +105,7 @@ CLI 与 MCP 共用 core 逻辑；差异只在入口层。
 
 MCP 工具名与 CLI 子命令一一对应（如 `task_create_many` ↔ `lrnev task create-many`）。每个工具的完整自描述以 listTools 返回为准，这里给分组速览：
 
-> **响应形状（双通道）**：每次工具调用同时返回 `content`（按工具渲染的模型可见文本，AI / 人直接读；如 `task_update` / `task_claim` 会把回填的锚点/摘要上下文连同截断状态行投影进文本）和 `structuredContent`（canonical 数据信封：`response_version/ok/data/errors/ai_followup`，必要时带 `anchor_context/summary_context`）。信封字段与 `decision_context` 入参语义的权威描述在根 README「MCP 响应契约（3.0.0，接入方必读）」节，docs 不重复定义；`text_status` / `query_meta` 等截断与省略元数据的治理语义见 [GOVERNANCE-FLOW.md](./GOVERNANCE-FLOW.md)「截断与省略的显式元数据」节。
+> **响应形状（双通道）**：每次工具调用同时返回 `content`（按工具渲染的模型可见文本，AI / 人直接读；如 `task_update` / `task_claim` 会把回填的锚点/摘要上下文连同截断状态行投影进文本）和 `structuredContent`（canonical 数据信封：`response_version/ok/data/errors/ai_followup`，必要时带 `anchor_context/summary_context`）。信封字段与 `decision_context` 入参语义的权威描述在 [MCP-CONTRACT.md](./MCP-CONTRACT.md)（「MCP 响应契约（3.0.0 起）」），docs 不重复定义；`text_status` / `query_meta` 等截断与省略元数据的治理语义见 [GOVERNANCE-FLOW.md](./GOVERNANCE-FLOW.md)「截断与省略的显式元数据」节。
 
 | 分组 | 工具 |
 |------|------|
